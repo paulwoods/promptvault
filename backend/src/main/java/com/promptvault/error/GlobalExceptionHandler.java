@@ -38,4 +38,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError("not_found", ex.getMessage(), null));
     }
+
+    @ExceptionHandler(DomainValidationException.class)
+    public ResponseEntity<ApiError> handleDomainValidation(DomainValidationException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ApiError("validation_error", "Validation failed", Map.of(ex.getField(), ex.getMessage())));
+    }
 }

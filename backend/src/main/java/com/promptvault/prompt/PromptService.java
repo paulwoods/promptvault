@@ -12,10 +12,13 @@ public class PromptService {
 
     private final PromptRepository prompts;
     private final VersionRepository versions;
+    private final RunSettingsValidator runSettingsValidator;
 
-    public PromptService(PromptRepository prompts, VersionRepository versions) {
+    public PromptService(
+            PromptRepository prompts, VersionRepository versions, RunSettingsValidator runSettingsValidator) {
         this.prompts = prompts;
         this.versions = versions;
+        this.runSettingsValidator = runSettingsValidator;
     }
 
     /** Creates a Prompt and its Version 1 from the full snapshot. */
@@ -43,6 +46,7 @@ public class PromptService {
      * (FOR UPDATE) so concurrent appends serialize and numbers never collide.
      */
     Version appendVersion(UUID promptId, VersionRequest request) {
+        runSettingsValidator.validate(request);
         prompts.findByIdForUpdate(promptId).orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
         int number = versions.maxNumber(promptId) + 1;
         String systemPrompt = StringUtils.hasText(request.systemPrompt()) ? request.systemPrompt() : null;

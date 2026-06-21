@@ -1,5 +1,6 @@
 package com.promptvault.prompt;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +17,6 @@ public record VersionRequest(
         @NotBlank @Size(max = 100_000) String promptText,
         @NotBlank String model,
         String systemPrompt,
-        @NotNull @Min(1) Integer maxTokens,
+        @NotNull @Min(1) @Max(64_000) Integer maxTokens,
         @NotBlank String effort,
         @NotBlank String thinking) {}
