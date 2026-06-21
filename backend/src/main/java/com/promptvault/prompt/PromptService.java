@@ -15,16 +15,19 @@ public class PromptService {
     private final VersionRepository versions;
     private final RunSettingsValidator runSettingsValidator;
     private final VariableValidator variableValidator;
+    private final PlaceholderValidator placeholderValidator;
 
     public PromptService(
             PromptRepository prompts,
             VersionRepository versions,
             RunSettingsValidator runSettingsValidator,
-            VariableValidator variableValidator) {
+            VariableValidator variableValidator,
+            PlaceholderValidator placeholderValidator) {
         this.prompts = prompts;
         this.versions = versions;
         this.runSettingsValidator = runSettingsValidator;
         this.variableValidator = variableValidator;
+        this.placeholderValidator = placeholderValidator;
     }
 
     /** Creates a Prompt and its Version 1 from the full snapshot. */
@@ -54,6 +57,7 @@ public class PromptService {
     Version appendVersion(UUID promptId, VersionRequest request) {
         runSettingsValidator.validate(request);
         List<VariableDeclaration> variables = variableValidator.normalize(request.variables());
+        placeholderValidator.validateSetEquality(request.promptText(), variables);
         prompts.findByIdForUpdate(promptId).orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
         int number = versions.maxNumber(promptId) + 1;
         String systemPrompt = StringUtils.hasText(request.systemPrompt()) ? request.systemPrompt() : null;
