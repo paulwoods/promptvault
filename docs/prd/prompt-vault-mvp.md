@@ -87,7 +87,7 @@ Prompt Vault is a web app where a signed-in User creates and maintains Prompts, 
 - The boundary to Anthropic is a **single injected interface** (the "Claude client"): it takes the rendered prompt, the Version's Run Settings, and the User's decrypted API key, and produces a stream of response tokens. This is the only seam to the external model and is what the SSE endpoint and the tests depend on.
 - A **Run** is one-shot (single request → single response). The rendered prompt (Variables substituted) is sent as the user message; the Version's system prompt is sent separately.
 - Claude's response is delivered to the browser incrementally over **Server-Sent Events**. The backend persists the complete Run when the stream finishes.
-- A **Run carries a lifecycle**: in-progress → completed / failed. The read/history API for Runs is separate from the streaming endpoint. A dropped connection or API error transitions the Run to failed (exact server-side completion-vs-fail behavior on disconnect to be decided during build — flagged in ADR-0003).
+- A **Run carries a lifecycle**: in-progress → completed / failed. The read/history API for Runs is separate from the streaming endpoint. A dropped connection or API error transitions the Run to failed. *Resolved in ADR-0003 / Phase 6:* a dropped connection aborts generation, closes the per-Run client, and marks the Run failed with a `CLIENT_DISCONNECT` cause (no background completion, no reaper).
 - A persisted Run records: the Version, the supplied Variable values, the rendered prompt sent, the response, the model used, token usage, a timestamp, and a status.
 
 ### API key handling (per ADR-0002)
