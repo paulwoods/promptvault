@@ -60,7 +60,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - [x] **2.1 Register endpoint** — public; email + password (rules above), BCrypt cost 12 at rest, UUIDv7 PK. → *verify (HTTP): registering creates a User; case-variant duplicate email → `409`; too-short / >72-byte password rejected with structured error.*
 - [x] **2.2 Login endpoint** — verifies password, issues an HS256 JWT (`sub`/`iat`/`exp`/`email`, 24h). → *verify (HTTP): valid creds return a token; bad creds → generic `401`.*
 - [x] **2.3 JWT auth filter + deny-by-default security config** — resolve `sub` → principal; `Bearer` required outside the public allowlist; stateless, CSRF off. → *verify (HTTP): no/invalid token → `401`; valid token authorizes; a non-allowlisted endpoint rejects anonymous access.*
-- [ ] **2.4 Logout** — client-side token discard; documented no-server-revocation behavior. → *verify (RTL, Phase 7): discarding the token returns the user to login.*
+- [x] **2.4 Logout** — client-side token discard; documented no-server-revocation behavior. → *verify (RTL, Phase 7): discarding the token returns the user to login.*
 - [ ] **2.5 Owner-only scoping primitive** — query-level owner filtering keyed on the request principal; cross-User access → `404`. → *verify (HTTP): User B cannot reach User A's resources (re-asserted per resource in later phases).*
 
 ## Phase 3 — Per-user encrypted API keys *(stories 7–11, ADR-0002)*

@@ -56,6 +56,18 @@ cd backend && ./mvnw verify
 cd frontend && npm test && npx tsc -b && npm run lint
 ```
 
+## Authentication & sessions
+
+Authentication is a stateless JWT (HS256). On login the server issues a single
+~24h access token; the client sends it as `Authorization: Bearer <token>` on
+every request, and the principal is resolved from the token's claims per
+request. There is **no refresh token**.
+
+**Logout is client-side only:** the SPA discards the stored token. There is
+**no server-side revocation / denylist** — a discarded token remains
+cryptographically valid until it expires, and the ~24h expiry bounds that
+residual risk. This is an intentional trade-off of the stateless design.
+
 ## Configuration
 
 All configuration is read from the environment; see [`.env.example`](.env.example)
