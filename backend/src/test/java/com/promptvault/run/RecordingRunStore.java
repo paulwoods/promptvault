@@ -10,6 +10,11 @@ public class RecordingRunStore extends RunStore {
     String completedResponse;
     Usage completedUsage;
 
+    UUID failedRunId;
+    String failedCategory;
+    String failedMessage;
+    String failedPartialResponse;
+
     public RecordingRunStore() {
         super(null);
     }
@@ -19,5 +24,13 @@ public class RecordingRunStore extends RunStore {
         this.completedRunId = runId;
         this.completedResponse = response;
         this.completedUsage = usage;
+    }
+
+    @Override
+    public void finalizeFailed(UUID runId, String errorCategory, String errorMessage, String partialResponse) {
+        this.failedRunId = runId;
+        this.failedCategory = errorCategory;
+        this.failedMessage = errorMessage;
+        this.failedPartialResponse = partialResponse;
     }
 }

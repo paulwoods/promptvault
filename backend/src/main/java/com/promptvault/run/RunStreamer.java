@@ -25,6 +25,7 @@ public class RunStreamer {
 
     public void stream(RunStream out, Run run, int versionNumber, ClaudeRequest request, String apiKey) {
         StringBuilder response = new StringBuilder();
+        boolean[] finalized = {false};
         try {
             out.meta(run.getId(), versionNumber);
             claudeClient.stream(request, apiKey, new TokenSink() {
@@ -38,16 +39,25 @@ public class RunStreamer {
                 public void onComplete(Usage usage) {
                     // Refusal rides this path too: empty answer text still finalizes completed.
                     runStore.finalizeCompleted(run.getId(), response.toString(), usage);
+                    finalized[0] = true;
                     out.done(usage);
                 }
 
                 @Override
                 public void onError(ClaudeException error) {
-                    // 6.4: finalize the Run failed and emit the terminal error frame.
+                    runStore.finalizeFailed(
+                            run.getId(), error.getCategory().name(), error.getMessage(), response.toString());
+                    finalized[0] = true;
+                    out.error(error.getCategory().name(), error.getMessage());
                 }
             });
             out.complete();
         } catch (RuntimeException e) {
+            // A frame send failed (client disconnected) or an unexpected error mid-stream.
+            // The per-Run client is already closed as the seam call unwinds.
+            if (!finalized[0]) {
+                runStore.finalizeFailed(run.getId(), "CLIENT_DISCONNECT", "Client disconnected", response.toString());
+            }
             out.completeWithError(e);
         }
     }

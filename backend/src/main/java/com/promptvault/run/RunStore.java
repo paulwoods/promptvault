@@ -34,6 +34,11 @@ public class RunStore {
         load(runId).markCompleted(response, usage.inputTokens(), usage.outputTokens());
     }
 
+    @Transactional
+    public void finalizeFailed(UUID runId, String errorCategory, String errorMessage, String partialResponse) {
+        load(runId).markFailed(errorCategory, errorMessage, partialResponse);
+    }
+
     private Run load(UUID runId) {
         return runs.findById(runId).orElseThrow(() -> new NoSuchElementException("Run not found: " + runId));
     }

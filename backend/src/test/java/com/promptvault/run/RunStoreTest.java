@@ -60,4 +60,22 @@ class RunStoreTest extends IntegrationTest {
                         "select output_tokens from run where id = ?", Integer.class, run.getId()))
                 .isEqualTo(20);
     }
+
+    @Test
+    void finalizeFailedRecordsCategoryAndMessage() {
+        UUID userId = UUID.randomUUID();
+        UUID versionId = seedVersionFor(userId);
+        Run run = runStore.createInProgress(userId, versionId, Map.of(), "rendered", "claude-opus-4-8");
+
+        runStore.finalizeFailed(run.getId(), "AUTH", "Authentication with Claude failed", "partial");
+        entityManager.flush();
+
+        assertThat(jdbcTemplate.queryForObject("select status from run where id = ?", String.class, run.getId()))
+                .isEqualTo("failed");
+        assertThat(jdbcTemplate.queryForObject(
+                        "select error_category from run where id = ?", String.class, run.getId()))
+                .isEqualTo("AUTH");
+        assertThat(jdbcTemplate.queryForObject("select response from run where id = ?", String.class, run.getId()))
+                .isEqualTo("partial");
+    }
 }
