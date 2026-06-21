@@ -35,7 +35,7 @@ Prompt Vault is a web app where a signed-in User creates and maintains Prompts, 
 16. As a User, I want to declare Variables on a Version with a name, description, a required flag, and an optional default, so that I can reuse the Prompt with different inputs.
 17. As a User, I want to reference declared Variables in the prompt text as `{{name}}`, so that their values are substituted at run time.
 18. As a User, I want the save to be rejected with a clear message if my `{{placeholders}}` and my declared Variables don't match exactly, so that my Versions are always internally consistent.
-19. As a User, I want to set the Run Settings on a Version — model (from the supported list), an optional system prompt, max tokens, and effort (low/medium/high) — so that runs of that Version behave predictably.
+19. As a User, I want to set the Run Settings on a Version — model (from the supported list), an optional system prompt, max tokens, effort (low/medium/high), and a thinking mode (off/adaptive) — so that runs of that Version behave predictably. (Which of effort/adaptive-thinking apply depends on the chosen model — see Further Notes.)
 20. As a User, I want to be prevented from choosing a temperature, so that I'm not surprised by the model rejecting it.
 
 ### Browsing Prompts and history
@@ -78,7 +78,7 @@ Prompt Vault is a web app where a signed-in User creates and maintains Prompts, 
 - A **Prompt** is pure identity plus an append-only ordered history of **Versions**. The Prompt row carries no editable content fields. Prompt-list responses derive the display name from the Prompt's current (latest) Version.
 - A **Version** is immutable. It freezes: name, description, prompt text, the declared **Variables**, and the **Run Settings**. Its number is an integer starting at 1 and incrementing by one per save. Any edit — including a rename — creates a new Version; there is no in-place update of Version content.
 - A **Variable** is explicitly declared on a Version with: name, description, `required` flag, optional default. Variables are referenced in the prompt text as `{{name}}`.
-- **Run Settings** on a Version are: model (one of the supported Claude model IDs), optional system prompt, max tokens, effort (`low`/`medium`/`high`). No temperature — the current default models reject it.
+- **Run Settings** on a Version are: model (one of the supported Claude model IDs), optional system prompt, max tokens, effort (`low`/`medium`/`high`), and thinking (`off`/`adaptive`). No temperature — the current default models reject it. `effort` and `adaptive` thinking are not supported by every model, so a Version may not select a capability its model lacks; the supported combinations are described by a backend-maintained model→capabilities map, validated at save and exposed to the SPA. (Thinking was added during the build grilling as a deliberate extension to the original four settings.)
 
 ### Save-time validation
 - Saving a Version is **strictly validated**: the set of `{{placeholders}}` in the prompt text must exactly equal the set of declared Variable names — every placeholder declared, every declared Variable used. Any mismatch rejects the save with a clear error.
@@ -136,15 +136,15 @@ A good test asserts **external, user-observable behavior** — request in / resp
 - Editing or deleting Versions or Runs (history is append-only / immutable).
 - Temperature / top_p / top_k controls.
 - Key rotation tooling for `PROMPTVAULT_ENC_KEY` re-encryption (noted as a future need in ADR-0002).
-- Self-serve vs. admin-provisioned **registration policy** is undecided and not specified here.
+- **Registration policy** — resolved during the build grilling to **open self-serve signup** (public registration; tightenable later via a single env flag). No longer an open question.
 - Deployment, CI/CD, containerization, and infrastructure provisioning.
 
 ## Further Notes
 
-- Open questions to resolve during the build (not blockers for this PRD):
-  - **Run failure semantics on dropped SSE connection** — does the Run still complete server-side or get marked failed? (ADR-0003.)
-  - **Registration policy** — open signup vs. invite/admin-provisioned.
-  - **Exact REST endpoint paths** and how the SSE run endpoint relates to the Run-history read endpoints (deliberately left at the contract-shape level here).
-- Supported Claude model IDs at time of writing: `claude-opus-4-8` (default), `claude-sonnet-4-6`, `claude-haiku-4-5`, `claude-fable-5`. Run Settings use `effort` rather than temperature because the current default models reject sampling parameters.
+- Open questions, resolved during the build grilling (recorded here for history):
+  - **Run failure semantics on dropped SSE connection** — *resolved:* a dropped connection **aborts** generation and marks the Run **failed** (`CLIENT_DISCONNECT`); no background completion (the stream is a blocking push on the request thread with no reattach endpoint). A hard crash may leave an orphaned in-progress Run (accepted; no reaper for the MVP). (ADR-0003, now marked resolved.)
+  - **Registration policy** — *resolved:* open self-serve signup (see Out of Scope note above).
+  - **Exact REST endpoint paths** — concrete paths are now pinned in the build plan (`docs/TASKS.md`); the streaming run endpoint is a single `POST .../versions/{number}/runs` returning `text/event-stream`, separate from the Run-history reads. (This PRD stays at the contract-shape level by design.)
+- Supported Claude model IDs at time of writing: `claude-opus-4-8` (default), `claude-sonnet-4-6`, `claude-haiku-4-5`, `claude-fable-5`. Run Settings use `effort` rather than temperature because the current default models reject sampling parameters. Note: `effort` and `adaptive` thinking are **per-model** capabilities (e.g. Haiku does not support `effort`), reconciled via the model→capabilities map rather than assumed universal.
 - This project currently lives inside the `3dlabel` git repo under `promptvault/`. If Prompt Vault should be its own repository, that should be decided before code is committed.
 - The triage label `ready-for-agent` does not exist on `paulwoods/3dlabel`, and the Matt Pocock triage vocabulary was not set up in this environment; this PRD was saved locally rather than published to the issue tracker.

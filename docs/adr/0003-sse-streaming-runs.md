@@ -10,5 +10,5 @@ A [Run](../../CONTEXT.md#run) delivers Claude's response to the browser incremen
 ## Consequences
 
 - The Run model needs a status (at least: in-progress, completed, failed); a Run can be observed before it is complete.
-- A dropped connection mid-stream must be handled — decide whether the persisted Run still completes server-side or is marked failed.
+- A dropped connection mid-stream must be handled — decide whether the persisted Run still completes server-side or is marked failed. **Resolved:** a dropped connection **aborts** generation and marks the Run **failed** (with a `CLIENT_DISCONNECT` cause); there is no background completion / no "completes server-side after disconnect", because the stream is a blocking push on the request thread with no reattach endpoint. A hard process crash may leave an orphaned in-progress Run (accepted; no reaper for the MVP).
 - The export/read API for run history is separate from the streaming endpoint.
