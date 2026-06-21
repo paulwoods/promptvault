@@ -2,18 +2,26 @@ package com.promptvault.error;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
- * Renders the {@link ApiError} envelope for failures. Grows over the phases and
- * is consolidated into the full taxonomy in Phase 8.
+ * Renders the {@link ApiError} envelope for every failure mode. Framework
+ * exceptions are mapped explicitly so Spring's default error JSON never escapes
+ * the envelope, and the catch-all returns a generic, non-leaking 500.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
@@ -48,5 +56,28 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoApiKeyException.class)
     public ResponseEntity<ApiError> handleNoApiKey(NoApiKeyException ex) {
         return ResponseEntity.badRequest().body(new ApiError("no_api_key", ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(new ApiError("malformed_request", "Malformed request body", null));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleConflict(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError("conflict", "Conflicting request", null));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError("not_found", "Resource not found", null));
+    }
+
+    /** Catch-all: log the real cause server-side; return a generic body with no internals. */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        log.error("Unexpected error", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiError("internal_error", "An unexpected error occurred", null));
     }
 }
