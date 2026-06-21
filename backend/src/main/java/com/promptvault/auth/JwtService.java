@@ -1,12 +1,15 @@
 package com.promptvault.auth;
 
+import com.promptvault.security.AuthPrincipal;
 import com.promptvault.user.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -35,5 +38,12 @@ public class JwtService {
                 .expiration(Date.from(now.plus(TOKEN_TTL)))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
+    }
+
+    /** Verifies the token's signature and expiry and resolves the principal from its claims. */
+    public AuthPrincipal parse(String token) {
+        Claims claims =
+                Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        return new AuthPrincipal(UUID.fromString(claims.getSubject()), claims.get("email", String.class));
     }
 }
