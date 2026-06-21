@@ -57,7 +57,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - **Endpoint policy:** deny-by-default. Public allowlist = `POST /api/auth/register`, `POST /api/auth/login`, health. Everything else (incl. the Phase-6 SSE endpoint) requires a `Bearer` token. Spring Security `STATELESS`, CSRF disabled.
 - **UUIDv7 generation:** `com.github.f4b6a3:uuid-creator` at entity-creation time (Java's built-in `UUID` is v4 only).
 
-- [ ] **2.1 Register endpoint** — public; email + password (rules above), BCrypt cost 12 at rest, UUIDv7 PK. → *verify (HTTP): registering creates a User; case-variant duplicate email → `409`; too-short / >72-byte password rejected with structured error.*
+- [x] **2.1 Register endpoint** — public; email + password (rules above), BCrypt cost 12 at rest, UUIDv7 PK. → *verify (HTTP): registering creates a User; case-variant duplicate email → `409`; too-short / >72-byte password rejected with structured error.*
 - [ ] **2.2 Login endpoint** — verifies password, issues an HS256 JWT (`sub`/`iat`/`exp`/`email`, 24h). → *verify (HTTP): valid creds return a token; bad creds → generic `401`.*
 - [ ] **2.3 JWT auth filter + deny-by-default security config** — resolve `sub` → principal; `Bearer` required outside the public allowlist; stateless, CSRF off. → *verify (HTTP): no/invalid token → `401`; valid token authorizes; a non-allowlisted endpoint rejects anonymous access.*
 - [ ] **2.4 Logout** — client-side token discard; documented no-server-revocation behavior. → *verify (RTL, Phase 7): discarding the token returns the user to login.*
