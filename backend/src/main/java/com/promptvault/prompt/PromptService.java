@@ -2,6 +2,7 @@ package com.promptvault.prompt;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.promptvault.error.ResourceNotFoundException;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +14,17 @@ public class PromptService {
     private final PromptRepository prompts;
     private final VersionRepository versions;
     private final RunSettingsValidator runSettingsValidator;
+    private final VariableValidator variableValidator;
 
     public PromptService(
-            PromptRepository prompts, VersionRepository versions, RunSettingsValidator runSettingsValidator) {
+            PromptRepository prompts,
+            VersionRepository versions,
+            RunSettingsValidator runSettingsValidator,
+            VariableValidator variableValidator) {
         this.prompts = prompts;
         this.versions = versions;
         this.runSettingsValidator = runSettingsValidator;
+        this.variableValidator = variableValidator;
     }
 
     /** Creates a Prompt and its Version 1 from the full snapshot. */
@@ -47,6 +53,7 @@ public class PromptService {
      */
     Version appendVersion(UUID promptId, VersionRequest request) {
         runSettingsValidator.validate(request);
+        List<VariableDeclaration> variables = variableValidator.normalize(request.variables());
         prompts.findByIdForUpdate(promptId).orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
         int number = versions.maxNumber(promptId) + 1;
         String systemPrompt = StringUtils.hasText(request.systemPrompt()) ? request.systemPrompt() : null;
@@ -62,7 +69,8 @@ public class PromptService {
                 systemPrompt,
                 request.maxTokens(),
                 request.effort(),
-                request.thinking());
+                request.thinking(),
+                variables);
         return versions.save(version);
     }
 }

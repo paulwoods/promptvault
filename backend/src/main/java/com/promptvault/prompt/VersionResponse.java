@@ -1,6 +1,7 @@
 package com.promptvault.prompt;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /** Full frozen content of a Version. */
@@ -16,6 +17,7 @@ public record VersionResponse(
         int maxTokens,
         String effort,
         String thinking,
+        List<VariableDeclaration> variables,
         Instant createdAt) {
 
     public static VersionResponse from(Version version) {
@@ -31,6 +33,7 @@ public record VersionResponse(
                 version.getMaxTokens(),
                 version.getEffort(),
                 version.getThinking(),
+                version.getVariables(),
                 version.getCreatedAt());
     }
 }

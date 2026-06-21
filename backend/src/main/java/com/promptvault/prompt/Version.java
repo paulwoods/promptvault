@@ -5,8 +5,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** An immutable, append-only snapshot of a Prompt's content and Run Settings. */
 @Entity
@@ -46,6 +49,10 @@ public class Version {
     @Column(nullable = false)
     private String thinking;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private List<VariableDeclaration> variables;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -65,7 +72,8 @@ public class Version {
             String systemPrompt,
             int maxTokens,
             String effort,
-            String thinking) {
+            String thinking,
+            List<VariableDeclaration> variables) {
         this.id = id;
         this.promptId = promptId;
         this.number = number;
@@ -77,6 +85,7 @@ public class Version {
         this.maxTokens = maxTokens;
         this.effort = effort;
         this.thinking = thinking;
+        this.variables = variables;
     }
 
     public UUID getId() {
@@ -121,6 +130,10 @@ public class Version {
 
     public String getThinking() {
         return thinking;
+    }
+
+    public List<VariableDeclaration> getVariables() {
+        return variables;
     }
 
     public Instant getCreatedAt() {

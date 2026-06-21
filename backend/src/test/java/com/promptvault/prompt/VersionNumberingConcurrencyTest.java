@@ -36,7 +36,7 @@ class VersionNumberingConcurrencyTest extends AbstractDatabaseTest {
     }
 
     private static VersionRequest request(String name) {
-        return new VersionRequest(name, null, "Hello", "claude-opus-4-8", null, 1000, "medium", "off");
+        return new VersionRequest(name, null, "Hello", "claude-opus-4-8", null, 1000, "medium", "off", List.of());
     }
 
     @Test
