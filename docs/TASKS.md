@@ -99,7 +99,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - [x] **4.4 Run Settings validation + model-list/capabilities endpoint.** Enforce model set, `effort` enum, `thinking` enum, `max_tokens` range; reject `thinking=adaptive` on a model lacking adaptive support. → *verify (HTTP): valid settings persist; unknown model / out-of-range max_tokens / bad effort or thinking rejected; `thinking=adaptive` + Haiku rejected; no temperature field accepted; `GET` returns the supported models with their effort/thinking capabilities.*
 - [x] **4.5 Variable declarations (jsonb).** → *verify (HTTP): declared Variables persist on the Version; duplicate declared names rejected.*
 - [x] **4.6 Strict placeholder/Variable set-equality validation.** → *verify (HTTP): placeholder-without-declaration rejected; declared-but-unused Variable rejected; malformed `{{…}}` rejected; `{{ name }}` whitespace tolerated; matching (incl. both-empty) accepted.*
-- [ ] **4.7 Read/list endpoints** (three GETs above), owner-scoped. → *verify (HTTP): list shows current-Version names; history is descending with current flagged; old Versions readable; cross-User → 404.*
+- [x] **4.7 Read/list endpoints** (three GETs above), owner-scoped. → *verify (HTTP): list shows current-Version names; history is descending with current flagged; old Versions readable; cross-User → 404.*
 
 ## Phase 5 — Claude client seam *(ADR-0003, stories 26–34)*
 

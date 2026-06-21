@@ -50,6 +50,37 @@ public class PromptService {
         return appendVersion(promptId, request);
     }
 
+    /** Lists the caller's prompts, each summarized by its current Version. */
+    @Transactional(readOnly = true)
+    public List<PromptSummary> listPrompts(UUID userId) {
+        return versions.findCurrentVersionsByUser(userId).stream()
+                .map(v -> new PromptSummary(v.getPromptId(), v.getName(), v.getNumber(), v.getCreatedAt()))
+                .toList();
+    }
+
+    /** The caller's prompt with its Version history (descending, current flagged); cross-user -> 404. */
+    @Transactional(readOnly = true)
+    public PromptDetail getPrompt(UUID userId, UUID promptId) {
+        prompts.findByIdAndUserId(promptId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
+        List<Version> history = versions.findByPromptIdOrderByNumberDesc(promptId);
+        int currentNumber = history.isEmpty() ? 0 : history.getFirst().getNumber();
+        List<VersionSummary> summaries = history.stream()
+                .map(v -> new VersionSummary(
+                        v.getId(), v.getNumber(), v.getName(), v.getCreatedAt(), v.getNumber() == currentNumber))
+                .toList();
+        return new PromptDetail(promptId, summaries);
+    }
+
+    /** Full frozen content of a specific Version of the caller's prompt; cross-user -> 404. */
+    @Transactional(readOnly = true)
+    public Version getVersion(UUID userId, UUID promptId, int number) {
+        prompts.findByIdAndUserId(promptId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
+        return versions.findByPromptIdAndNumber(promptId, number)
+                .orElseThrow(() -> new ResourceNotFoundException("Version not found"));
+    }
+
     /**
      * Appends the next Version to an existing prompt. The prompt row is locked
      * (FOR UPDATE) so concurrent appends serialize and numbers never collide.
