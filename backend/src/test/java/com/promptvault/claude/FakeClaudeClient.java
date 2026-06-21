@@ -13,6 +13,7 @@ public class FakeClaudeClient implements ClaudeClient {
     private List<String> tokens = List.of();
     private Usage usage = new Usage(0, 0);
     private ClaudeException error;
+    private Runnable onBeforeComplete = () -> {};
 
     private String capturedApiKey;
     private ClaudeRequest capturedRequest;
@@ -27,10 +28,16 @@ public class FakeClaudeClient implements ClaudeClient {
         this.error = error;
     }
 
+    /** Runs on the streaming thread just before onComplete (e.g. to observe mid-stream state). */
+    public void setOnBeforeComplete(Runnable onBeforeComplete) {
+        this.onBeforeComplete = onBeforeComplete;
+    }
+
     public void reset() {
         this.tokens = List.of();
         this.usage = new Usage(0, 0);
         this.error = null;
+        this.onBeforeComplete = () -> {};
         this.capturedApiKey = null;
         this.capturedRequest = null;
     }
@@ -54,6 +61,7 @@ public class FakeClaudeClient implements ClaudeClient {
         for (String token : tokens) {
             sink.onToken(token);
         }
+        onBeforeComplete.run();
         sink.onComplete(usage);
     }
 }
