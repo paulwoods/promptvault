@@ -12,13 +12,13 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(HelloController.class)
 class HelloControllerTest {
 
-	@Autowired
-	private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-	@Test
-	void helloReturnsOk() throws Exception {
-		mockMvc.perform(get("/api/hello"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.status").value("ok"));
-	}
+    @Test
+    void helloReturnsOk() throws Exception {
+        mockMvc.perform(get("/api/hello"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+    }
 }
