@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router'
+import { ApiKeyPage } from '../pages/ApiKeyPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
@@ -17,6 +18,14 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <HomePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/settings/api-key"
+          element={
+            <RequireAuth>
+              <ApiKeyPage />
             </RequireAuth>
           }
         />

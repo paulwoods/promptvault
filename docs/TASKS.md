@@ -151,7 +151,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 
 - [x] **7.1 App shell, routing, query client, and the `fetch` API client.** React Router + `<RequireAuth>` guard; `QueryClientProvider`; token in `localStorage`, attached as `Bearer`; error-envelope→`ApiError` parsing; centralized 401→clear+`/login`. → *verify (RTL): authed requests carry the token; a 401 clears it and routes to login.*
 - [x] **7.2 Auth screens** — register, login, logout (client-side token discard). → *verify (RTL + MSW): login lands the user in the app; logout returns to login.*
-- [ ] **7.3 API-key screen** — set/replace key; show whether a key is set (never the key). → *verify (RTL + MSW): status reflects a set key; plaintext never displayed.*
+- [x] **7.3 API-key screen** — set/replace key; show whether a key is set (never the key). → *verify (RTL + MSW): status reflects a set key; plaintext never displayed.*
 - [ ] **7.4 Prompt list & detail** — list by current-Version name; open a Prompt → ordered Version history; view a historical Version; current Version clearly marked. → *verify (RTL + MSW): list and history render as specified.*
 - [ ] **7.5 Create / edit Prompt** — controlled form, dynamic Variable rows + capabilities-driven Run Settings; saving appends a new Version; surface the server's validation errors (placeholder/Variable mismatch) inline; start editing from any Version. → *verify (RTL + MSW): a save produces a new Version; a mismatch error from the server is shown; Haiku hides effort / forces thinking off.*
 - [ ] **7.6 Run form** — Variable inputs pre-filled from defaults, required enforced client-side before run. → *verify (RTL + MSW): required-empty blocks the run; defaults pre-fill.*

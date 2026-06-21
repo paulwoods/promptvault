@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import { apiClient } from '../lib/apiClient'
 import { LogoutButton } from '../components/LogoutButton'
 import type { PromptSummary } from '../lib/types'
@@ -13,6 +14,9 @@ export function HomePage() {
     <main>
       <header>
         <h1>Your prompts</h1>
+        <nav>
+          <Link to="/settings/api-key">API key</Link>
+        </nav>
         <LogoutButton />
       </header>
       {isPending && <p>Loading…</p>}
