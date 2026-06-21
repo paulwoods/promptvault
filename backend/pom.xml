@@ -30,6 +30,7 @@
 		<java.version>25</java.version>
 		<uuid-creator.version>6.1.1</uuid-creator.version>
 		<jjwt.version>0.13.0</jjwt.version>
+		<anthropic.version>2.42.0</anthropic.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -52,6 +53,11 @@
 			<groupId>com.github.f4b6a3</groupId>
 			<artifactId>uuid-creator</artifactId>
 			<version>${uuid-creator.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.anthropic</groupId>
+			<artifactId>anthropic-java</artifactId>
+			<version>${anthropic.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
