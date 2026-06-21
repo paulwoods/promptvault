@@ -1,0 +1,38 @@
+# Secrets / local config — never commit (PROMPTVAULT_ENC_KEY, API keys, DB creds)
+.env
+.env.*
+!.env.example
+*.local
+
+# Java / Spring Boot
+target/
+build/
+!**/src/**/build/
+*.class
+*.jar
+*.war
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+
+# Node / Vite / React frontend
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+.vite/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / editor
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
