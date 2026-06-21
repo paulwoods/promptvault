@@ -6,6 +6,7 @@ import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { PromptDetailPage } from '../pages/PromptDetailPage'
 import { RegisterPage } from '../pages/RegisterPage'
+import { RunPage } from '../pages/RunPage'
 import { VersionViewPage } from '../pages/VersionViewPage'
 import { AuthListener } from './AuthListener'
 import { RequireAuth } from './RequireAuth'
@@ -54,6 +55,14 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <EditFromVersionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/prompts/:id/versions/:number/run"
+          element={
+            <RequireAuth>
+              <RunPage />
             </RequireAuth>
           }
         />
