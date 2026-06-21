@@ -28,4 +28,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleEmailExists(EmailAlreadyExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError("conflict", ex.getMessage(), null));
     }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiError("unauthorized", ex.getMessage(), null));
+    }
 }

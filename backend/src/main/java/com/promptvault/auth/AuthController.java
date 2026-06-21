@@ -25,4 +25,10 @@ public class AuthController {
         User user = authService.register(request.email(), request.password());
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", user.getId(), "email", user.getEmail()));
     }
+
+    @PostMapping("/login")
+    public Map<String, String> login(@Valid @RequestBody LoginRequest request) {
+        String token = authService.login(request.email(), request.password());
+        return Map.of("token", token);
+    }
 }
