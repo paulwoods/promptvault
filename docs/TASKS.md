@@ -41,7 +41,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - **Config profiles:** `dev` (compose Postgres at `localhost:5432`, creds from `.env`) and `test` (Testcontainers supplies the datasource, `flyway.clean` permitted, fixed throwaway secrets). Same migrations and `ddl-auto=validate` in both.
 
 - [x] **1.1 Add PostgreSQL + Spring Data JPA + Flyway.** Wire the `dev` profile to the compose Postgres; `ddl-auto=validate`. → *verify: app starts against the compose DB and Flyway runs.*
-- [ ] **1.2 Stand up the Testcontainers harness** — shared Postgres 18 (`@SpringBootTest` + MockMvc/WebTestClient against the real container), Flyway-migrated, rollback-per-test isolation, `test` profile. → *verify: a trivial repository test passes against the container.*
+- [x] **1.2 Stand up the Testcontainers harness** — shared Postgres 18 (`@SpringBootTest` + MockMvc/WebTestClient against the real container), Flyway-migrated, rollback-per-test isolation, `test` profile. → *verify: a trivial repository test passes against the container.*
 - [ ] **1.3 First Flyway migration: `users` table** — UUIDv7 PK, email stored as entered with a unique index on `lower(email)`, `password_hash` (text), `created_at`/`updated_at` (`timestamptz DEFAULT now()`). → *verify: migration applies on a fresh DB; `lower(email)` uniqueness rejects case-variant duplicates.*
 
 ## Phase 2 — Accounts & authentication *(User stories 1–6)*
