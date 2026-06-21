@@ -48,4 +48,8 @@ public class RecordingRunStream implements RunStream {
     public void completeWithError(Throwable throwable) {
         this.failedWith = throwable;
     }
+
+    public String failedMessageOrEmpty() {
+        return errorMessage == null ? "" : errorMessage;
+    }
 }

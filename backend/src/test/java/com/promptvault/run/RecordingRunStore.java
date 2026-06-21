@@ -33,4 +33,8 @@ public class RecordingRunStore extends RunStore {
         this.failedMessage = errorMessage;
         this.failedPartialResponse = partialResponse;
     }
+
+    public String failedMessageOrEmpty() {
+        return failedMessage == null ? "" : failedMessage;
+    }
 }
