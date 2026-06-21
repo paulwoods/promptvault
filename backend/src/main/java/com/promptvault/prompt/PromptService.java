@@ -27,6 +27,18 @@ public class PromptService {
     }
 
     /**
+     * Appends the next Version to the caller's prompt (covers edit and rename).
+     * Cross-user access is not found (404).
+     */
+    @Transactional
+    public Version addVersion(UUID userId, UUID promptId, VersionRequest request) {
+        if (prompts.findByIdAndUserId(promptId, userId).isEmpty()) {
+            throw new ResourceNotFoundException("Prompt not found");
+        }
+        return appendVersion(promptId, request);
+    }
+
+    /**
      * Appends the next Version to an existing prompt. The prompt row is locked
      * (FOR UPDATE) so concurrent appends serialize and numbers never collide.
      */

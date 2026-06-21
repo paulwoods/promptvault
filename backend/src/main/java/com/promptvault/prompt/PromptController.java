@@ -2,8 +2,10 @@ package com.promptvault.prompt;
 
 import com.promptvault.security.CurrentUser;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,6 +26,13 @@ public class PromptController {
     @PostMapping
     public ResponseEntity<VersionResponse> createPrompt(@Valid @RequestBody VersionRequest request) {
         Version version = promptService.createPrompt(currentUser.userId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(VersionResponse.from(version));
+    }
+
+    @PostMapping("/{promptId}/versions")
+    public ResponseEntity<VersionResponse> addVersion(
+            @PathVariable UUID promptId, @Valid @RequestBody VersionRequest request) {
+        Version version = promptService.addVersion(currentUser.userId(), promptId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(VersionResponse.from(version));
     }
 }
