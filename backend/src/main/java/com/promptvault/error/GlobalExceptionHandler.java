@@ -44,4 +44,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(new ApiError("validation_error", "Validation failed", Map.of(ex.getField(), ex.getMessage())));
     }
+
+    @ExceptionHandler(NoApiKeyException.class)
+    public ResponseEntity<ApiError> handleNoApiKey(NoApiKeyException ex) {
+        return ResponseEntity.badRequest().body(new ApiError("no_api_key", ex.getMessage(), null));
+    }
 }

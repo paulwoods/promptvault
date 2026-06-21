@@ -3,6 +3,7 @@ package com.promptvault.apikey;
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.promptvault.crypto.EncryptedPayload;
 import com.promptvault.crypto.EncryptionService;
+import com.promptvault.error.NoApiKeyException;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,16 @@ public class ApiKeyService {
                 .orElseGet(
                         () -> new ApiKey(UuidCreator.getTimeOrderedEpoch(), userId, payload, CURRENT_ENC_KEY_VERSION));
         apiKeys.save(row);
+    }
+
+    /**
+     * Returns the decrypted API key for a Run. The no-key guard: if no key is
+     * saved this throws {@link NoApiKeyException} before any decryption.
+     */
+    @Transactional(readOnly = true)
+    public String getDecryptedKey(UUID userId) {
+        ApiKey key = apiKeys.findByUserId(userId).orElseThrow(() -> new NoApiKeyException("No API key saved"));
+        return new String(encryptionService.decrypt(key.toPayload(), userId), StandardCharsets.UTF_8);
     }
 
     @Transactional(readOnly = true)

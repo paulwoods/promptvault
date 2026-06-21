@@ -117,7 +117,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - [x] **5.2 Fake Claude client for tests** — emits canned text deltas then `onComplete` with a chosen `Usage`; can `onError` with a chosen category; **captures the key and rendered prompt it received**. → *verify: fake drives the run tests without network/key.*
 - [x] **5.3 Real Claude client** — official Java SDK, per-Run client from the decrypted key; maps Run Settings (conditional effort/thinking via the capability map), streams text deltas, reports usage; translates SDK exceptions → categorized `ClaudeException`; refusal → completed. → *verify: against the live API (smoke) or a contract test; effort omitted for Haiku; thinking reconciled per model.*
 - [x] **5.4 Run preparation** — validate supplied values vs declared Variables (required-empty/blank rejected, optional→default/empty, unknown rejected); substitute `{{name}}`; rendered prompt as user message, `system_prompt` separate. → *verify (seam): missing required value rejected pre-call; fake receives substituted prompt + separate system prompt.*
-- [ ] **5.5 "No saved key" guard** — presence-only, checked first, distinct `no_api_key` error, no decryption/Run row on this path. → *verify (HTTP): running without a saved key returns the clear `no_api_key` error before any validation.*
+- [x] **5.5 "No saved key" guard** — presence-only, checked first, distinct `no_api_key` error, no decryption/Run row on this path. → *verify (HTTP): running without a saved key returns the clear `no_api_key` error before any validation.*
 
 ## Phase 6 — Runs over SSE & run history *(stories 31–39, ADR-0003)*
 
