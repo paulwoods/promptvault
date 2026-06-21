@@ -16,23 +16,29 @@ import org.springframework.stereotype.Component;
 public class RunStreamer {
 
     private final ClaudeClient claudeClient;
+    private final RunStore runStore;
 
-    public RunStreamer(ClaudeClient claudeClient) {
+    public RunStreamer(ClaudeClient claudeClient, RunStore runStore) {
         this.claudeClient = claudeClient;
+        this.runStore = runStore;
     }
 
     public void stream(RunStream out, Run run, int versionNumber, ClaudeRequest request, String apiKey) {
+        StringBuilder response = new StringBuilder();
         try {
             out.meta(run.getId(), versionNumber);
             claudeClient.stream(request, apiKey, new TokenSink() {
                 @Override
                 public void onToken(String text) {
+                    response.append(text);
                     out.token(text);
                 }
 
                 @Override
                 public void onComplete(Usage usage) {
-                    // 6.3: finalize the Run completed and emit the terminal done frame.
+                    // Refusal rides this path too: empty answer text still finalizes completed.
+                    runStore.finalizeCompleted(run.getId(), response.toString(), usage);
+                    out.done(usage);
                 }
 
                 @Override

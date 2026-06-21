@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
 class RunStreamerTest {
 
     private final FakeClaudeClient fake = new FakeClaudeClient();
-    private final RunStreamer streamer = new RunStreamer(fake);
+    private final RecordingRunStore store = new RecordingRunStore();
+    private final RunStreamer streamer = new RunStreamer(fake, store);
 
     private static Run inProgressRun() {
         return new Run(
@@ -30,7 +31,7 @@ class RunStreamerTest {
     }
 
     @Test
-    void emitsMetaThenTokenFramesFromTheSeam() {
+    void emitsMetaThenTokensThenFinalizesCompletedWithDone() {
         fake.respondWith(List.of("Hello", " world"), new Usage(3, 5));
         Run run = inProgressRun();
         RecordingRunStream out = new RecordingRunStream();
@@ -40,9 +41,25 @@ class RunStreamerTest {
         assertThat(out.metaRunId).isEqualTo(run.getId());
         assertThat(out.metaVersionNumber).isEqualTo(1);
         assertThat(out.tokens).containsExactly("Hello", " world");
+        assertThat(store.completedRunId).isEqualTo(run.getId());
+        assertThat(store.completedResponse).isEqualTo("Hello world");
+        assertThat(store.completedUsage).isEqualTo(new Usage(3, 5));
+        assertThat(out.doneUsage).isEqualTo(new Usage(3, 5));
         assertThat(out.completed).isTrue();
-        // The Run was in_progress while it streamed (finalization arrives in 6.3).
-        assertThat(run.getStatus()).isEqualTo(Run.IN_PROGRESS);
         assertThat(fake.capturedApiKey()).isEqualTo("sk-ant-decrypted");
+    }
+
+    @Test
+    void refusalFinalizesCompletedWithEmptyResponse() {
+        fake.respondWith(List.of(), new Usage(2, 0));
+        Run run = inProgressRun();
+        RecordingRunStream out = new RecordingRunStream();
+
+        streamer.stream(out, run, 1, request(), "sk-ant");
+
+        assertThat(out.tokens).isEmpty();
+        assertThat(store.completedResponse).isEmpty();
+        assertThat(out.doneUsage).isEqualTo(new Usage(2, 0));
+        assertThat(out.completed).isTrue();
     }
 }
