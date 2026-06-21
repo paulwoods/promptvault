@@ -19,7 +19,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - **Config/secrets:** committed `.env.example` documenting every required var; real `.env` git-ignored. Backend reads config from the environment. `PROMPTVAULT_ENC_KEY` (ADR-0002) never committed; a dev-only key is documented for local runs.
 
 - [x] **0.1 Repo home.** Prompt Vault is its own repository — `github.com/paulwoods/promptvault`, current branch `develop`. → *done.*
-- [ ] **0.2 Scaffold the monorepo layout.** Create `backend/` and `frontend/` as independently buildable siblings. → *verify: `cd backend && ./mvnw verify` and `cd frontend && npm run build` each succeed in isolation.*
+- [x] **0.2 Scaffold the monorepo layout.** Create `backend/` and `frontend/` as independently buildable siblings. → *verify: `cd backend && ./mvnw verify` and `cd frontend && npm run build` each succeed in isolation.*
 - [ ] **0.3 Scaffold the backend deployable.** Maven Spring Boot 4.x app on Java 25, boots to a health/hello endpoint. → *verify: `./mvnw spring-boot:run` starts and the endpoint responds.*
 - [ ] **0.4 Scaffold the frontend deployable.** Vite + React + TS SPA with Vitest configured. → *verify: `npm run dev` serves the SPA; a trivial Vitest test passes.*
 - [ ] **0.5 Add local Postgres.** Root `docker-compose.yml` with a pinned Postgres 18 service. → *verify: `docker compose up -d` starts Postgres and the backend can connect.*
