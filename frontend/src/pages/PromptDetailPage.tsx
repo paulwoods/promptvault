@@ -25,7 +25,10 @@ export function PromptDetailPage() {
               <Link to={`/prompts/${id}/versions/${version.number}`}>
                 {version.name} (v{version.number})
               </Link>
-              {version.current && <span> — current</span>}
+              {version.current && <span> — current</span>}{' '}
+              <Link to={`/prompts/${id}/versions/${version.number}/edit`}>
+                Edit
+              </Link>
             </li>
           ))}
         </ul>
