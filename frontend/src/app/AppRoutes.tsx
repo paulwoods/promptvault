@@ -6,6 +6,7 @@ import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { PromptDetailPage } from '../pages/PromptDetailPage'
 import { RegisterPage } from '../pages/RegisterPage'
+import { RunDetailPage } from '../pages/RunDetailPage'
 import { RunPage } from '../pages/RunPage'
 import { VersionViewPage } from '../pages/VersionViewPage'
 import { AuthListener } from './AuthListener'
@@ -63,6 +64,14 @@ export function AppRoutes() {
           element={
             <RequireAuth>
               <RunPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/runs/:id"
+          element={
+            <RequireAuth>
+              <RunDetailPage />
             </RequireAuth>
           }
         />

@@ -156,7 +156,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - [x] **7.5 Create / edit Prompt** — controlled form, dynamic Variable rows + capabilities-driven Run Settings; saving appends a new Version; surface the server's validation errors (placeholder/Variable mismatch) inline; start editing from any Version. → *verify (RTL + MSW): a save produces a new Version; a mismatch error from the server is shown; Haiku hides effort / forces thinking off.*
 - [x] **7.6 Run form** — Variable inputs pre-filled from defaults, required enforced client-side before run. → *verify (RTL + MSW): required-empty blocks the run; defaults pre-fill.*
 - [x] **7.7 Streamed run view** — `streamRun` (`fetch`+`ReadableStream` parser) renders SSE output incrementally; in-progress / completed / failed states; `no_api_key` routes to the key screen. → *verify (RTL + MSW): streaming `ReadableStream` mock drives incremental tokens and completed; an `error` frame drives failed; in-progress shows before the terminal frame.*
-- [ ] **7.8 Run history view** — browse Runs (all statuses), re-open a completed Run (`/runs/:id`) with full response + inputs, compare across Versions inside prompt-detail. → *verify (RTL + MSW): a past Run re-opens with full detail; runs from multiple Versions render together for compare.*
+- [x] **7.8 Run history view** — browse Runs (all statuses), re-open a completed Run (`/runs/:id`) with full response + inputs, compare across Versions inside prompt-detail. → *verify (RTL + MSW): a past Run re-opens with full detail; runs from multiple Versions render together for compare.*
 
 ## Phase 8 — Cross-cutting hardening *(stories 40–41)*
 

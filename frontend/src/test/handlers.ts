@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw'
 /** Default happy-path handlers; individual tests override with server.use(...). */
 export const handlers = [
   http.get('/api/prompts', () => HttpResponse.json([])),
+  http.get('/api/prompts/:id/runs', () => HttpResponse.json([])),
   http.get('/api/models', () =>
     HttpResponse.json({
       models: [
