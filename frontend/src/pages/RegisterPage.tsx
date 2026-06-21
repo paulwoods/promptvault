@@ -2,30 +2,21 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { apiClient } from '../lib/apiClient'
-import { setToken } from '../lib/auth'
 import { errorMessage } from '../lib/errorMessage'
 
-interface LoginResponse {
-  token: string
-}
-
-export function LoginPage() {
+export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
 
   const mutation = useMutation({
-    mutationFn: () =>
-      apiClient.post<LoginResponse>('/api/auth/login', { email, password }),
-    onSuccess: (data) => {
-      setToken(data.token)
-      navigate('/', { replace: true })
-    },
+    mutationFn: () => apiClient.post('/api/auth/register', { email, password }),
+    onSuccess: () => navigate('/login', { replace: true }),
   })
 
   return (
     <main>
-      <h1>Log in</h1>
+      <h1>Create account</h1>
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -53,12 +44,12 @@ export function LoginPage() {
           />
         </label>
         <button type="submit" disabled={mutation.isPending}>
-          Log in
+          Create account
         </button>
       </form>
       {mutation.isError && <p role="alert">{errorMessage(mutation.error)}</p>}
       <p>
-        Need an account? <Link to="/register">Register</Link>
+        Already have an account? <Link to="/login">Log in</Link>
       </p>
     </main>
   )
