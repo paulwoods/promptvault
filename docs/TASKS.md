@@ -25,7 +25,7 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - [x] **0.5 Add local Postgres.** Root `docker-compose.yml` with a pinned Postgres 18 service. → *verify: `docker compose up -d` starts Postgres and the backend can connect.*
 - [x] **0.6 Wire the Vite proxy.** SPA `/api/*` → `localhost:8080`. → *verify: the SPA reaches the backend hello endpoint same-origin, no CORS error.*
 - [x] **0.7 Wire lint/format.** ESLint + Prettier + `.editorconfig` (frontend); Spotless in `verify` (backend). → *verify: `npm run lint` and `./mvnw verify` fail on unformatted/lint-broken code, pass when clean.*
-- [ ] **0.8 Config & secrets scaffolding.** Committed `.env.example` (incl. `PROMPTVAULT_ENC_KEY`, DB url/user/password, JWT secret); `.env` git-ignored; backend reads from env. → *verify: a fresh clone runs after copying `.env.example` → `.env`; no secret is tracked by git.*
+- [x] **0.8 Config & secrets scaffolding.** Committed `.env.example` (incl. `PROMPTVAULT_ENC_KEY`, DB url/user/password, JWT secret); `.env` git-ignored; backend reads from env. → *verify: a fresh clone runs after copying `.env.example` → `.env`; no secret is tracked by git.*
 - [ ] **0.9 Root README quickstart.** Prerequisites (JDK 25, Node 22, Docker) and the clone → `.env` → `docker compose up` → backend → frontend sequence with dev URLs. → *verify: following the README from a clean clone yields a running app.*
 
 ## Phase 1 — Persistence foundation
