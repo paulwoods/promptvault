@@ -19,9 +19,22 @@ export function HomePage() {
         </nav>
         <LogoutButton />
       </header>
+      <p>
+        <Link to="/prompts/new">New prompt</Link>
+      </p>
       {isPending && <p>Loading…</p>}
       {isError && <p>Could not load prompts.</p>}
-      {data && <p>{data.length} prompt(s)</p>}
+      {data && data.length === 0 && <p>No prompts yet.</p>}
+      {data && data.length > 0 && (
+        <ul>
+          {data.map((prompt) => (
+            <li key={prompt.promptId}>
+              <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link> (v
+              {prompt.currentVersionNumber})
+            </li>
+          ))}
+        </ul>
+      )}
     </main>
   )
 }
