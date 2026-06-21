@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:18.4
+    container_name: promptvault-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-promptvault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-promptvault}
+      POSTGRES_DB: ${POSTGRES_DB:-promptvault}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18+ images expect the mount at /var/lib/postgresql
+      # (data is stored in a major-version subdirectory).
+      - promptvault-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-promptvault} -d ${POSTGRES_DB:-promptvault}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  promptvault-pgdata:
