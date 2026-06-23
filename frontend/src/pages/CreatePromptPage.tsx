@@ -1,5 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
+import { LoadError } from '../components/LoadError'
+import { Loading } from '../components/Loading'
+import { PageHeader } from '../components/PageHeader'
 import { VersionForm } from '../components/VersionForm'
 import {
   emptyVersionValues,
@@ -22,15 +25,15 @@ export function CreatePromptPage() {
   })
 
   if (models.isPending) {
-    return <p>Loading…</p>
+    return <Loading />
   }
   if (models.isError || !models.data) {
-    return <p>Could not load models.</p>
+    return <LoadError>Could not load models.</LoadError>
   }
 
   return (
-    <main>
-      <h1>New prompt</h1>
+    <>
+      <PageHeader title="New prompt" />
       <VersionForm
         initial={emptyVersionValues(models.data.defaultModel)}
         submitLabel="Create prompt"
@@ -38,6 +41,6 @@ export function CreatePromptPage() {
         error={mutation.error}
         onSubmit={(body) => mutation.mutate(body)}
       />
-    </main>
+    </>
   )
 }

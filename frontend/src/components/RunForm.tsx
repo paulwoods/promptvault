@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ErrorAlert } from './ErrorAlert'
 import type { VariableDeclaration } from '../lib/types'
 
 interface RunFormProps {
@@ -65,7 +66,7 @@ export function RunForm({ variables, pending, onRun }: RunFormProps) {
       <button type="submit" disabled={pending}>
         Run
       </button>
-      {error && <p role="alert">{error}</p>}
+      {error && <ErrorAlert>{error}</ErrorAlert>}
     </form>
   )
 }

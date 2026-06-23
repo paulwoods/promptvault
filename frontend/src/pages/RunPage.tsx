@@ -1,6 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+import { ErrorAlert } from '../components/ErrorAlert'
+import { LoadError } from '../components/LoadError'
+import { Loading } from '../components/Loading'
+import { PageHeader } from '../components/PageHeader'
 import { RunForm } from '../components/RunForm'
 import { ApiError } from '../lib/ApiError'
 import { apiClient } from '../lib/apiClient'
@@ -54,24 +58,24 @@ export function RunPage() {
   }
 
   if (version.isPending) {
-    return <p>Loading…</p>
+    return <Loading />
   }
   if (version.isError || !version.data) {
-    return <p>Could not load this version.</p>
+    return <LoadError>Could not load this version.</LoadError>
   }
 
   return (
-    <main>
-      <h1>
-        Run {version.data.name} (v{version.data.number})
-      </h1>
+    <>
+      <PageHeader
+        title={`Run ${version.data.name} (v${version.data.number})`}
+      />
       {status === 'idle' ? (
         <RunForm variables={version.data.variables} onRun={run} />
       ) : (
         <section>
           <p>Status: {status}</p>
           <pre aria-label="response">{output}</pre>
-          {status === 'failed' && failure && <p role="alert">{failure}</p>}
+          {status === 'failed' && failure && <ErrorAlert>{failure}</ErrorAlert>}
           {runId && (
             <p>
               <Link to={`/runs/${runId}`}>Open this run</Link>
@@ -79,6 +83,6 @@ export function RunPage() {
           )}
         </section>
       )}
-    </main>
+    </>
   )
 }

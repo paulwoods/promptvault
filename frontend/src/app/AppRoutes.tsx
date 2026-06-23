@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router'
+import { Layout } from '../components/Layout'
 import { ApiKeyPage } from '../pages/ApiKeyPage'
 import { CreatePromptPage } from '../pages/CreatePromptPage'
 import { EditFromVersionPage } from '../pages/EditFromVersionPage'
@@ -17,72 +18,74 @@ export function AppRoutes() {
     <>
       <AuthListener />
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <HomePage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/prompts/new"
-          element={
-            <RequireAuth>
-              <CreatePromptPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/prompts/:id"
-          element={
-            <RequireAuth>
-              <PromptDetailPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/prompts/:id/versions/:number"
-          element={
-            <RequireAuth>
-              <VersionViewPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/prompts/:id/versions/:number/edit"
-          element={
-            <RequireAuth>
-              <EditFromVersionPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/prompts/:id/versions/:number/run"
-          element={
-            <RequireAuth>
-              <RunPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/runs/:id"
-          element={
-            <RequireAuth>
-              <RunDetailPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/settings/api-key"
-          element={
-            <RequireAuth>
-              <ApiKeyPage />
-            </RequireAuth>
-          }
-        />
+        <Route element={<Layout />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <HomePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/new"
+            element={
+              <RequireAuth>
+                <CreatePromptPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id"
+            element={
+              <RequireAuth>
+                <PromptDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id/versions/:number"
+            element={
+              <RequireAuth>
+                <VersionViewPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id/versions/:number/edit"
+            element={
+              <RequireAuth>
+                <EditFromVersionPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id/versions/:number/run"
+            element={
+              <RequireAuth>
+                <RunPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/runs/:id"
+            element={
+              <RequireAuth>
+                <RunDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/api-key"
+            element={
+              <RequireAuth>
+                <ApiKeyPage />
+              </RequireAuth>
+            }
+          />
+        </Route>
       </Routes>
     </>
   )

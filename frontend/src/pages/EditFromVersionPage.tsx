@@ -1,5 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
+import { LoadError } from '../components/LoadError'
+import { Loading } from '../components/Loading'
+import { PageHeader } from '../components/PageHeader'
 import { VersionForm } from '../components/VersionForm'
 import type {
   VersionFormValues,
@@ -44,15 +47,15 @@ export function EditFromVersionPage() {
   })
 
   if (version.isPending) {
-    return <p>Loading…</p>
+    return <Loading />
   }
   if (version.isError || !version.data) {
-    return <p>Could not load this version.</p>
+    return <LoadError>Could not load this version.</LoadError>
   }
 
   return (
-    <main>
-      <h1>Edit (new version)</h1>
+    <>
+      <PageHeader title="Edit (new version)" />
       <VersionForm
         initial={toFormValues(version.data)}
         submitLabel="Save new version"
@@ -60,6 +63,6 @@ export function EditFromVersionPage() {
         error={mutation.error}
         onSubmit={(body) => mutation.mutate(body)}
       />
-    </main>
+    </>
   )
 }

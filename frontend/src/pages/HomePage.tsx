@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { EmptyState } from '../components/EmptyState'
+import { LoadError } from '../components/LoadError'
+import { Loading } from '../components/Loading'
+import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
-import { LogoutButton } from '../components/LogoutButton'
 import type { PromptSummary } from '../lib/types'
 
 export function HomePage() {
@@ -11,30 +14,30 @@ export function HomePage() {
   })
 
   return (
-    <main>
-      <header>
-        <h1>Your prompts</h1>
-        <nav>
-          <Link to="/settings/api-key">API key</Link>
-        </nav>
-        <LogoutButton />
-      </header>
-      <p>
-        <Link to="/prompts/new">New prompt</Link>
-      </p>
-      {isPending && <p>Loading…</p>}
-      {isError && <p>Could not load prompts.</p>}
-      {data && data.length === 0 && <p>No prompts yet.</p>}
+    <>
+      <PageHeader
+        title="Your prompts"
+        actions={
+          <Link to="/prompts/new" className="button-link">
+            New prompt
+          </Link>
+        }
+      />
+      {isPending && <Loading />}
+      {isError && <LoadError>Could not load prompts.</LoadError>}
+      {data && data.length === 0 && <EmptyState>No prompts yet.</EmptyState>}
       {data && data.length > 0 && (
         <ul>
           {data.map((prompt) => (
             <li key={prompt.promptId}>
-              <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link> (v
-              {prompt.currentVersionNumber})
+              <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link>
+              <span className="status status-current">
+                (v{prompt.currentVersionNumber})
+              </span>
             </li>
           ))}
         </ul>
       )}
-    </main>
+    </>
   )
 }

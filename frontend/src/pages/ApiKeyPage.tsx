@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { ErrorAlert } from '../components/ErrorAlert'
+import { Loading } from '../components/Loading'
+import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import type { ApiKeyStatus } from '../lib/types'
@@ -22,9 +25,9 @@ export function ApiKeyPage() {
   })
 
   return (
-    <main>
-      <h1>API key</h1>
-      {status.isPending && <p>Loading…</p>}
+    <>
+      <PageHeader title="API key" />
+      {status.isPending && <Loading />}
       {status.data && (
         <p>{status.data.hasKey ? 'A key is set' : 'No key set'}</p>
       )}
@@ -49,7 +52,7 @@ export function ApiKeyPage() {
           Save key
         </button>
       </form>
-      {save.isError && <p role="alert">{errorMessage(save.error)}</p>}
-    </main>
+      {save.isError && <ErrorAlert>{errorMessage(save.error)}</ErrorAlert>}
+    </>
   )
 }

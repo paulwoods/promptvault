@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { EmptyState } from '../components/EmptyState'
+import { LoadError } from '../components/LoadError'
+import { Loading } from '../components/Loading'
+import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
 import type { PromptDetail, RunSummary } from '../lib/types'
 
@@ -15,13 +19,13 @@ export function PromptDetailPage() {
   })
 
   return (
-    <main>
-      <p>
-        <Link to="/">Back to prompts</Link>
-      </p>
-      <h1>Version history</h1>
-      {prompt.isPending && <p>Loading…</p>}
-      {prompt.isError && <p>Could not load this prompt.</p>}
+    <>
+      <PageHeader
+        title="Version history"
+        back={{ to: '/', label: 'Back to prompts' }}
+      />
+      {prompt.isPending && <Loading />}
+      {prompt.isError && <LoadError>Could not load this prompt.</LoadError>}
       {prompt.data && (
         <ul>
           {prompt.data.versions.map((version) => (
@@ -42,7 +46,9 @@ export function PromptDetailPage() {
       )}
 
       <h2>Runs</h2>
-      {runs.data && runs.data.length === 0 && <p>No runs yet.</p>}
+      {runs.data && runs.data.length === 0 && (
+        <EmptyState>No runs yet.</EmptyState>
+      )}
       {runs.data && runs.data.length > 0 && (
         <ul>
           {runs.data.map((run) => (
@@ -55,6 +61,6 @@ export function PromptDetailPage() {
           ))}
         </ul>
       )}
-    </main>
+    </>
   )
 }

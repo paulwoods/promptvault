@@ -1,6 +1,8 @@
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { ErrorAlert } from '../components/ErrorAlert'
+import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
 import { setToken } from '../lib/auth'
 import { errorMessage } from '../lib/errorMessage'
@@ -24,8 +26,8 @@ export function LoginPage() {
   })
 
   return (
-    <main>
-      <h1>Log in</h1>
+    <>
+      <PageHeader title="Log in" />
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -56,10 +58,12 @@ export function LoginPage() {
           Log in
         </button>
       </form>
-      {mutation.isError && <p role="alert">{errorMessage(mutation.error)}</p>}
-      <p>
+      {mutation.isError && (
+        <ErrorAlert>{errorMessage(mutation.error)}</ErrorAlert>
+      )}
+      <p className="muted">
         Need an account? <Link to="/register">Register</Link>
       </p>
-    </main>
+    </>
   )
 }

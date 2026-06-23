@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { ErrorAlert } from './ErrorAlert'
+import { Loading } from './Loading'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import type { ModelsResponse } from '../lib/types'
@@ -77,7 +79,7 @@ export function VersionForm({
   }
 
   if (models.isPending) {
-    return <p>Loading…</p>
+    return <Loading />
   }
 
   return (
@@ -244,7 +246,7 @@ export function VersionForm({
       <button type="submit" disabled={pending}>
         {submitLabel}
       </button>
-      {error != null && <p role="alert">{errorMessage(error)}</p>}
+      {error != null && <ErrorAlert>{errorMessage(error)}</ErrorAlert>}
     </form>
   )
 }
