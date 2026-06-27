@@ -50,6 +50,12 @@ export function HomePage() {
                 >
                   Edit
                 </Link>
+                <Link
+                  to={`/prompts/${prompt.promptId}`}
+                  className="button-link button-link-sm"
+                >
+                  History
+                </Link>
               </span>
             </li>
           ))}
