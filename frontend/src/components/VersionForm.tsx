@@ -89,107 +89,123 @@ export function VersionForm({
         submit()
       }}
     >
-      <label>
-        Name
-        <input
-          name="name"
-          placeholder="Name"
-          value={values.name}
-          onChange={(event) =>
-            setValues((c) => ({ ...c, name: event.target.value }))
-          }
-          required
-        />
-      </label>
-      <label>
-        Description
-        <input
-          name="description"
-          placeholder="Description"
-          value={values.description}
-          onChange={(event) =>
-            setValues((c) => ({ ...c, description: event.target.value }))
-          }
-        />
-      </label>
-      <label>
-        Prompt text
-        <textarea
-          name="promptText"
-          placeholder="Prompt text"
-          value={values.promptText}
-          onChange={(event) =>
-            setValues((c) => ({ ...c, promptText: event.target.value }))
-          }
-          required
-        />
-      </label>
-      <label>
-        System prompt
-        <textarea
-          name="systemPrompt"
-          placeholder="System prompt"
-          value={values.systemPrompt}
-          onChange={(event) =>
-            setValues((c) => ({ ...c, systemPrompt: event.target.value }))
-          }
-        />
-      </label>
-      <label>
-        Model
-        <select
-          value={values.model}
-          onChange={(event) => selectModel(event.target.value)}
-        >
-          {models.data?.models.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.id}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Max tokens
-        <input
-          type="number"
-          name="maxTokens"
-          placeholder="Max tokens"
-          value={values.maxTokens}
-          onChange={(event) =>
-            setValues((c) => ({ ...c, maxTokens: Number(event.target.value) }))
-          }
-        />
-      </label>
-      {supportsEffort && (
+      <fieldset className="form-section">
+        <legend>Profile</legend>
         <label>
-          Effort
-          <select
-            value={values.effort}
+          Name
+          <input
+            name="name"
+            placeholder="Name"
+            value={values.name}
             onChange={(event) =>
-              setValues((c) => ({ ...c, effort: event.target.value }))
+              setValues((c) => ({ ...c, name: event.target.value }))
             }
-          >
-            {EFFORTS.map((effort) => (
-              <option key={effort} value={effort}>
-                {effort}
-              </option>
-            ))}
-          </select>
+            required
+          />
         </label>
-      )}
-      <label>
-        Thinking
-        <select
-          value={values.thinking}
-          disabled={!supportsAdaptive}
-          onChange={(event) =>
-            setValues((c) => ({ ...c, thinking: event.target.value }))
-          }
-        >
-          <option value="off">off</option>
-          {supportsAdaptive && <option value="adaptive">adaptive</option>}
-        </select>
-      </label>
+        <label>
+          Description
+          <input
+            name="description"
+            placeholder="Description"
+            value={values.description}
+            onChange={(event) =>
+              setValues((c) => ({ ...c, description: event.target.value }))
+            }
+          />
+        </label>
+      </fieldset>
+      <fieldset className="form-section">
+        <legend>Prompt</legend>
+        <div className="prompt-columns">
+          <label>
+            User Prompt
+            <textarea
+              name="promptText"
+              placeholder="User Prompt"
+              value={values.promptText}
+              onChange={(event) =>
+                setValues((c) => ({ ...c, promptText: event.target.value }))
+              }
+              required
+            />
+          </label>
+          <label>
+            System Prompt
+            <textarea
+              name="systemPrompt"
+              placeholder="System Prompt"
+              value={values.systemPrompt}
+              onChange={(event) =>
+                setValues((c) => ({ ...c, systemPrompt: event.target.value }))
+              }
+            />
+          </label>
+        </div>
+      </fieldset>
+      <fieldset className="form-section">
+        <legend>Configuration</legend>
+        <div className="settings-columns">
+          <label>
+            Model
+            <select
+              value={values.model}
+              onChange={(event) => selectModel(event.target.value)}
+            >
+              {models.data?.models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Max tokens
+            <input
+              type="number"
+              name="maxTokens"
+              placeholder="Max tokens"
+              value={values.maxTokens}
+              onChange={(event) =>
+                setValues((c) => ({
+                  ...c,
+                  maxTokens: Number(event.target.value),
+                }))
+              }
+            />
+          </label>
+          {supportsEffort && (
+            <label>
+              Effort
+              <select
+                value={values.effort}
+                onChange={(event) =>
+                  setValues((c) => ({ ...c, effort: event.target.value }))
+                }
+              >
+                {EFFORTS.map((effort) => (
+                  <option key={effort} value={effort}>
+                    {effort}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            Thinking
+            <select
+              value={values.thinking}
+              disabled={!supportsAdaptive}
+              onChange={(event) =>
+                setValues((c) => ({ ...c, thinking: event.target.value }))
+              }
+            >
+              <option value="off">off</option>
+              {supportsAdaptive && <option value="adaptive">adaptive</option>}
+            </select>
+          </label>
+        </div>
+      </fieldset>
 
       <fieldset>
         <legend>Variables</legend>

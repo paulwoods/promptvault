@@ -272,6 +272,30 @@ label {
   color: var(--fog);
 }
 
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.prompt-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-20);
+}
+
+.settings-columns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-20);
+}
+
+.prompt-columns > label,
+.settings-columns > label {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 input,
 textarea,
 select {
@@ -728,5 +752,13 @@ ul.simple-list > li {
 
   fieldset > div > label {
     justify-content: flex-start;
+  }
+
+  .prompt-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-columns {
+    grid-template-columns: 1fr 1fr;
   }
 }
