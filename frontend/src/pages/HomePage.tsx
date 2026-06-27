@@ -33,7 +33,7 @@ export function HomePage() {
               <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link>
               <span className="row-actions">
                 <Link
-                  to={`/prompts/${prompt.promptId}`}
+                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}`}
                   className="button-link button-link-sm"
                 >
                   View
