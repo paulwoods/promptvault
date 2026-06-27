@@ -19,7 +19,7 @@ export function TopNav() {
             <NavLink to="/" end>
               Prompts
             </NavLink>
-            <NavLink to="/settings/api-key">API key</NavLink>
+            <NavLink to="/settings/api-key">API Key</NavLink>
             {userEmail ? <span className="nav-user">{userEmail}</span> : null}
             <LogoutButton />
           </div>
