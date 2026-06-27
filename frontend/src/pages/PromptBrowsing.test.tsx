@@ -29,7 +29,7 @@ describe('prompt browsing', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows version history descending with the current version marked', async () => {
+  it('shows version history descending', async () => {
     setToken('t')
     server.use(
       http.get('/api/prompts/p1', () =>
@@ -59,9 +59,7 @@ describe('prompt browsing', () => {
 
     const items = await screen.findAllByRole('listitem')
     expect(items[0]).toHaveTextContent('Renamed (v2)')
-    expect(items[0]).toHaveTextContent('current')
     expect(items[1]).toHaveTextContent('Original (v1)')
-    expect(items[1]).not.toHaveTextContent('current')
   })
 
   it('opens a historical version with full content', async () => {
@@ -131,7 +129,7 @@ describe('prompt browsing', () => {
     await user.click(await screen.findByRole('link', { name: /Greeting/ }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Version history' }),
+      await screen.findByRole('heading', { name: 'Version History' }),
     ).toBeInTheDocument()
   })
 })

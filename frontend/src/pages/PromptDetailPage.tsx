@@ -17,7 +17,7 @@ export function PromptDetailPage() {
   return (
     <>
       <PromptTabs promptId={id} />
-      <PageHeader title="Version history" />
+      <PageHeader title="Version History" />
       {prompt.isPending && <Loading />}
       {prompt.isError && <LoadError>Could not load this prompt.</LoadError>}
       {prompt.data && (
@@ -27,7 +27,6 @@ export function PromptDetailPage() {
               <Link to={`/prompts/${id}/versions/${version.number}`}>
                 {version.name} (v{version.number})
               </Link>
-              {version.current && <span> — current</span>}{' '}
               <Link to={`/prompts/${id}/versions/${version.number}/run`}>
                 Run
               </Link>{' '}

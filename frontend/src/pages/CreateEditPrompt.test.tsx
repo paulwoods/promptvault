@@ -39,7 +39,7 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Version history' }),
+      await screen.findByRole('heading', { name: 'Version History' }),
     ).toBeInTheDocument()
   })
 
@@ -148,7 +148,7 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Save new version' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Version history' }),
+      await screen.findByRole('heading', { name: 'Version History' }),
     ).toBeInTheDocument()
   })
 })
