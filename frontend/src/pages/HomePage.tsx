@@ -32,9 +32,6 @@ export function HomePage() {
             <li key={prompt.promptId}>
               <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link>
               <span className="row-actions">
-                <span className="status status-current">
-                  (v{prompt.currentVersionNumber})
-                </span>
                 <Link
                   to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/edit`}
                   className="button-link button-link-sm"
