@@ -51,8 +51,8 @@ describe('auth screens', () => {
     const user = userEvent.setup()
     setToken('a-token')
 
-    renderApp('/')
-    await user.click(await screen.findByRole('button', { name: 'Log out' }))
+    renderApp('/profile')
+    await user.click(await screen.findByRole('button', { name: 'Log Out' }))
 
     await screen.findByRole('heading', { name: 'Log in' })
     expect(getToken()).toBeNull()

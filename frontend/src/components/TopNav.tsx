@@ -1,7 +1,6 @@
 import { Link, NavLink } from 'react-router'
 import { getUserEmail } from '../lib/auth'
 import { useAuth } from '../lib/useAuth'
-import { LogoutButton } from './LogoutButton'
 
 export function TopNav() {
   const isAuthenticated = useAuth()
@@ -16,12 +15,11 @@ export function TopNav() {
 
         {isAuthenticated ? (
           <div className="nav-links">
-            <NavLink to="/" end>
-              Prompts
-            </NavLink>
-            <NavLink to="/settings/api-key">API Key</NavLink>
-            {userEmail ? <span className="nav-user">{userEmail}</span> : null}
-            <LogoutButton />
+            {userEmail ? (
+              <NavLink to="/profile" className="nav-user">
+                {userEmail}
+              </NavLink>
+            ) : null}
           </div>
         ) : null}
       </div>

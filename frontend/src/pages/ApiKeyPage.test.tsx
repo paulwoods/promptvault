@@ -7,7 +7,7 @@ import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
 describe('api key screen', () => {
-  it('shows that a key is set without revealing it', async () => {
+  it('renders the key form without revealing the key', async () => {
     setToken('t')
     server.use(
       http.get('/api/me/api-key', () =>
@@ -17,7 +17,9 @@ describe('api key screen', () => {
 
     renderApp('/settings/api-key')
 
-    expect(await screen.findByText('A key is set')).toBeInTheDocument()
+    expect(
+      await screen.findByLabelText('Anthropic API key'),
+    ).toBeInTheDocument()
   })
 
   it('shows the masked key with the last six characters when a key is set', async () => {
@@ -37,7 +39,7 @@ describe('api key screen', () => {
     expect(await screen.findByDisplayValue('******abcdef')).toBeInTheDocument()
   })
 
-  it('shows when no key is set', async () => {
+  it('shows an empty field when no key is set', async () => {
     setToken('t')
     server.use(
       http.get('/api/me/api-key', () =>
@@ -47,7 +49,7 @@ describe('api key screen', () => {
 
     renderApp('/settings/api-key')
 
-    expect(await screen.findByText('No key set')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Anthropic API key')).toHaveValue('')
   })
 
   it('saves a key and reflects the new status without displaying the plaintext', async () => {
@@ -59,6 +61,7 @@ describe('api key screen', () => {
         HttpResponse.json({
           hasKey,
           updatedAt: hasKey ? '2026-01-01T00:00:00Z' : null,
+          lastSix: hasKey ? 'ret-123' : null,
         }),
       ),
       http.put('/api/me/api-key', () => {
@@ -68,14 +71,12 @@ describe('api key screen', () => {
     )
 
     renderApp('/settings/api-key')
-    await screen.findByText('No key set')
-    await user.type(
-      screen.getByLabelText('Anthropic API key'),
-      'sk-ant-secret-123',
-    )
-    await user.click(screen.getByRole('button', { name: 'Save key' }))
+    const field = await screen.findByLabelText('Anthropic API key')
+    expect(field).toHaveValue('')
+    await user.type(field, 'sk-ant-secret-123')
+    await user.click(screen.getByRole('button', { name: 'Save Key' }))
 
-    expect(await screen.findByText('A key is set')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('******ret-123')).toBeInTheDocument()
     // The plaintext key is never shown anywhere on the page.
     expect(screen.queryByText('sk-ant-secret-123')).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('sk-ant-secret-123')

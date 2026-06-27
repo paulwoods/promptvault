@@ -17,7 +17,7 @@ export function LogoutButton({ className }: LogoutButtonProps) {
         navigate('/login', { replace: true })
       }}
     >
-      Log out
+      Log Out
     </button>
   )
 }

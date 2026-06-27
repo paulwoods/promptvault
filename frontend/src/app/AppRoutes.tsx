@@ -5,6 +5,7 @@ import { CreatePromptPage } from '../pages/CreatePromptPage'
 import { EditFromVersionPage } from '../pages/EditFromVersionPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
+import { ProfilePage } from '../pages/ProfilePage'
 import { PromptDetailPage } from '../pages/PromptDetailPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { RunDetailPage } from '../pages/RunDetailPage'
@@ -83,6 +84,14 @@ export function AppRoutes() {
             element={
               <RequireAuth>
                 <RunDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <RequireAuth>
+                <ProfilePage />
               </RequireAuth>
             }
           />
