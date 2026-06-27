@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
@@ -62,6 +62,11 @@ export function VersionViewPage() {
           </SimpleList>
         </section>
       )}
+      <div className="actions">
+        <Link to={`/prompts/${id}`} className="button-link button-link-sm">
+          Versions
+        </Link>
+      </div>
     </>
   )
 }
