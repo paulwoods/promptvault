@@ -5,6 +5,7 @@ import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
+import { PromptTabs } from '../components/PromptTabs'
 import { RunForm } from '../components/RunForm'
 import { ApiError } from '../lib/ApiError'
 import { apiClient } from '../lib/apiClient'
@@ -66,6 +67,7 @@ export function RunPage() {
 
   return (
     <>
+      <PromptTabs promptId={id} versionNumber={number} />
       <PageHeader
         title={`Run ${version.data.name} (v${version.data.number})`}
       />

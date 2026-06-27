@@ -5,6 +5,7 @@ import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
+import { PromptTabs } from '../components/PromptTabs'
 import { SimpleList } from '../components/SimpleList'
 import { apiClient } from '../lib/apiClient'
 import type { RunDetail } from '../lib/types'
@@ -25,9 +26,10 @@ export function RunDetailPage() {
 
   return (
     <>
+      <PromptTabs promptId={id} versionNumber={data.versionNumber} />
       <PageHeader
         title="Run detail"
-        back={{ to: '/', label: 'Back to prompts' }}
+        back={{ to: `/prompts/${id}/runs`, label: 'Back to runs' }}
       />
       <dl>
         <dt>Version</dt>

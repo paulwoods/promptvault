@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
+import { PromptTabs } from '../components/PromptTabs'
 import { VersionForm } from '../components/VersionForm'
 import type {
   VersionFormValues,
@@ -55,6 +56,7 @@ export function EditFromVersionPage() {
 
   return (
     <>
+      <PromptTabs promptId={id} versionNumber={number} />
       <PageHeader title="Edit (new version)" />
       <VersionForm
         initial={toFormValues(version.data)}

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
+import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
 import type { PromptDetail } from '../lib/types'
 
@@ -15,6 +16,7 @@ export function PromptDetailPage() {
 
   return (
     <>
+      <PromptTabs promptId={id} />
       <PageHeader
         title="Version history"
         back={{ to: '/', label: 'Back to prompts' }}

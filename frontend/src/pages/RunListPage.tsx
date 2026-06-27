@@ -4,6 +4,7 @@ import { EmptyState } from '../components/EmptyState'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
+import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
 import type { RunSummary } from '../lib/types'
 
@@ -16,6 +17,7 @@ export function RunListPage() {
 
   return (
     <>
+      <PromptTabs promptId={id} />
       <PageHeader
         title="Runs"
         back={{ to: `/prompts/${id}`, label: 'Back to history' }}

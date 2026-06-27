@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
+import { PromptTabs } from '../components/PromptTabs'
 import { SimpleList } from '../components/SimpleList'
 import { apiClient } from '../lib/apiClient'
 import type { VersionResponse } from '../lib/types'
@@ -24,6 +25,7 @@ export function VersionViewPage() {
 
   return (
     <>
+      <PromptTabs promptId={id} versionNumber={data.number} />
       <PageHeader
         title={`${data.name} (v${data.number})`}
         back={{ to: `/prompts/${id}`, label: 'Back to history' }}
@@ -62,17 +64,6 @@ export function VersionViewPage() {
           </SimpleList>
         </section>
       )}
-      <div className="actions">
-        <Link to={`/prompts/${id}`} className="button-link button-link-sm">
-          Versions
-        </Link>
-        <Link
-          to={`/prompts/${id}/runs`}
-          className="button-link button-link-sm"
-        >
-          Runs
-        </Link>
-      </div>
     </>
   )
 }
