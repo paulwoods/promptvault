@@ -50,7 +50,11 @@ public class ApiKeyService {
     @Transactional(readOnly = true)
     public ApiKeyStatus status(UUID userId) {
         return apiKeys.findByUserId(userId)
-                .map(key -> new ApiKeyStatus(true, key.getUpdatedAt()))
-                .orElseGet(() -> new ApiKeyStatus(false, null));
+                .map(key -> {
+                    String plaintext = new String(encryptionService.decrypt(key.toPayload(), userId), StandardCharsets.UTF_8);
+                    String lastSix = plaintext.substring(Math.max(0, plaintext.length() - 6));
+                    return new ApiKeyStatus(true, key.getUpdatedAt(), lastSix);
+                })
+                .orElseGet(() -> new ApiKeyStatus(false, null, null));
     }
 }

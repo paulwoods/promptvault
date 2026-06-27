@@ -10,23 +10,31 @@ import type { ApiKeyStatus } from '../lib/types'
 export function ApiKeyPage() {
   const queryClient = useQueryClient()
   const [apiKey, setApiKey] = useState('')
+  const [editing, setEditing] = useState(false)
 
   const status = useQuery({
     queryKey: ['apiKeyStatus'],
     queryFn: () => apiClient.get<ApiKeyStatus>('/api/me/api-key'),
   })
 
+  const masked =
+    status.data?.hasKey && status.data.lastSix
+      ? `******${status.data.lastSix}`
+      : ''
+  const showMasked = masked !== '' && !editing && apiKey === ''
+
   const save = useMutation({
     mutationFn: () => apiClient.put('/api/me/api-key', { apiKey }),
     onSuccess: () => {
       setApiKey('')
+      setEditing(false)
       return queryClient.invalidateQueries({ queryKey: ['apiKeyStatus'] })
     },
   })
 
   return (
     <>
-      <PageHeader title="API key" />
+      <PageHeader title="API Key" />
       {status.isPending && <Loading />}
       {status.data && (
         <p>{status.data.hasKey ? 'A key is set' : 'No key set'}</p>
@@ -41,9 +49,11 @@ export function ApiKeyPage() {
         <label>
           Anthropic API key
           <input
-            type="password"
+            type={showMasked ? 'text' : 'password'}
             name="apiKey"
-            value={apiKey}
+            value={showMasked ? masked : apiKey}
+            readOnly={showMasked}
+            onFocus={() => setEditing(true)}
             onChange={(event) => setApiKey(event.target.value)}
             required
           />

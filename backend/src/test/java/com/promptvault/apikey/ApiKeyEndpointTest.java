@@ -35,7 +35,8 @@ class ApiKeyEndpointTest extends IntegrationTest {
         mockMvc.perform(get("/api/me/api-key").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasKey").value(true))
-                .andExpect(jsonPath("$.updatedAt").exists());
+                .andExpect(jsonPath("$.updatedAt").exists())
+                .andExpect(jsonPath("$.lastSix").value("st-key"));
     }
 
     @Test

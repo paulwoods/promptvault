@@ -57,6 +57,7 @@ export interface ModelsResponse {
 export interface ApiKeyStatus {
   hasKey: boolean
   updatedAt?: string | null
+  lastSix?: string | null
 }
 
 export interface RunSummary {

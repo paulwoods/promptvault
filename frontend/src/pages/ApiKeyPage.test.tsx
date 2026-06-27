@@ -20,6 +20,23 @@ describe('api key screen', () => {
     expect(await screen.findByText('A key is set')).toBeInTheDocument()
   })
 
+  it('shows the masked key with the last six characters when a key is set', async () => {
+    setToken('t')
+    server.use(
+      http.get('/api/me/api-key', () =>
+        HttpResponse.json({
+          hasKey: true,
+          updatedAt: '2026-01-01T00:00:00Z',
+          lastSix: 'abcdef',
+        }),
+      ),
+    )
+
+    renderApp('/settings/api-key')
+
+    expect(await screen.findByDisplayValue('******abcdef')).toBeInTheDocument()
+  })
+
   it('shows when no key is set', async () => {
     setToken('t')
     server.use(

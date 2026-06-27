@@ -132,6 +132,6 @@ describe('streamed run view', () => {
     renderApp('/prompts/p1/versions/1/run')
     await user.click(await screen.findByRole('button', { name: 'Run' }))
 
-    await screen.findByRole('heading', { name: 'API key' })
+    await screen.findByRole('heading', { name: 'API Key' })
   })
 })
