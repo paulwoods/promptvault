@@ -18,10 +18,7 @@ export function RunListPage() {
   return (
     <>
       <PromptTabs promptId={id} />
-      <PageHeader
-        title="Runs"
-        back={{ to: `/prompts/${id}`, label: 'Back to history' }}
-      />
+      <PageHeader title="Runs" />
       {runs.isPending && <Loading />}
       {runs.isError && <LoadError>Could not load runs.</LoadError>}
       {runs.data && runs.data.length === 0 && (
@@ -35,6 +32,7 @@ export function RunListPage() {
                 v{run.versionNumber} — {run.status}
               </Link>
               {run.responsePreview && <span> — {run.responsePreview}</span>}
+              <span>{new Date(run.createdAt).toLocaleString()}</span>
             </li>
           ))}
         </ul>

@@ -26,10 +26,7 @@ export function VersionViewPage() {
   return (
     <>
       <PromptTabs promptId={id} versionNumber={data.number} />
-      <PageHeader
-        title={`${data.name} (v${data.number})`}
-        back={{ to: `/prompts/${id}`, label: 'Back to history' }}
-      />
+      <PageHeader title={`${data.name} (v${data.number})`} />
       {data.description && <p>{data.description}</p>}
       <dl>
         <dt>Model</dt>

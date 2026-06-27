@@ -17,10 +17,7 @@ export function PromptDetailPage() {
   return (
     <>
       <PromptTabs promptId={id} />
-      <PageHeader
-        title="Version history"
-        back={{ to: '/', label: 'Back to prompts' }}
-      />
+      <PageHeader title="Version history" />
       {prompt.isPending && <Loading />}
       {prompt.isError && <LoadError>Could not load this prompt.</LoadError>}
       {prompt.data && (
