@@ -27,10 +27,7 @@ export function RunDetailPage() {
   return (
     <>
       <PromptTabs promptId={id} versionNumber={data.versionNumber} />
-      <PageHeader
-        title="Run detail"
-        back={{ to: `/prompts/${id}/runs`, label: 'Back to runs' }}
-      />
+      <PageHeader title="Run Detail" />
       <dl>
         <dt>Version</dt>
         <dd>v{data.versionNumber}</dd>

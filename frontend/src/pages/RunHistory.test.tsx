@@ -126,7 +126,7 @@ describe('run history', () => {
     )
 
     expect(
-      await screen.findByRole('heading', { name: 'Run detail' }),
+      await screen.findByRole('heading', { name: 'Run Detail' }),
     ).toBeInTheDocument()
   })
 })

@@ -27,11 +27,11 @@ export function PromptDetailPage() {
               <Link to={`/prompts/${id}/versions/${version.number}`}>
                 {version.name} (v{version.number})
               </Link>
-              <Link to={`/prompts/${id}/versions/${version.number}/run`}>
-                Run
-              </Link>{' '}
-              <Link to={`/prompts/${id}/versions/${version.number}/edit`}>
-                Edit
+              <Link
+                to={`/prompts/${id}/versions/${version.number}/edit`}
+                className="button-link button-link-sm"
+              >
+                Create New Version
               </Link>
             </li>
           ))}
