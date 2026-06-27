@@ -171,6 +171,12 @@ nav > div {
   background: var(--gold-dim);
 }
 
+.nav-user {
+  padding: var(--space-8) var(--space-14);
+  font-size: 14px;
+  color: var(--fog);
+}
+
 /* Main content column */
 main {
   width: 100%;

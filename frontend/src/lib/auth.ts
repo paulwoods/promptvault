@@ -16,4 +16,18 @@ export function clearToken(): void {
   window.dispatchEvent(new Event(TOKEN_CHANGE_EVENT))
 }
 
+/** Read the `email` claim out of the stored JWT payload, or null if absent/unparseable. */
+export function getUserEmail(): string | null {
+  const token = getToken()
+  if (token == null) return null
+  const payload = token.split('.')[1]
+  if (payload == null) return null
+  try {
+    const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof claims.email === 'string' ? claims.email : null
+  } catch {
+    return null
+  }
+}
+
 export { TOKEN_CHANGE_EVENT }
