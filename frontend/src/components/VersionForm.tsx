@@ -93,6 +93,7 @@ export function VersionForm({
         Name
         <input
           name="name"
+          placeholder="Name"
           value={values.name}
           onChange={(event) =>
             setValues((c) => ({ ...c, name: event.target.value }))
@@ -104,6 +105,7 @@ export function VersionForm({
         Description
         <input
           name="description"
+          placeholder="Description"
           value={values.description}
           onChange={(event) =>
             setValues((c) => ({ ...c, description: event.target.value }))
@@ -114,6 +116,7 @@ export function VersionForm({
         Prompt text
         <textarea
           name="promptText"
+          placeholder="Prompt text"
           value={values.promptText}
           onChange={(event) =>
             setValues((c) => ({ ...c, promptText: event.target.value }))
@@ -125,6 +128,7 @@ export function VersionForm({
         System prompt
         <textarea
           name="systemPrompt"
+          placeholder="System prompt"
           value={values.systemPrompt}
           onChange={(event) =>
             setValues((c) => ({ ...c, systemPrompt: event.target.value }))
@@ -149,6 +153,7 @@ export function VersionForm({
         <input
           type="number"
           name="maxTokens"
+          placeholder="Max tokens"
           value={values.maxTokens}
           onChange={(event) =>
             setValues((c) => ({ ...c, maxTokens: Number(event.target.value) }))
@@ -192,6 +197,7 @@ export function VersionForm({
           <div key={index}>
             <input
               aria-label={`Variable ${index + 1} name`}
+              placeholder="Variable name"
               value={row.name}
               onChange={(event) =>
                 updateVariable(index, { name: event.target.value })
@@ -209,6 +215,7 @@ export function VersionForm({
             </label>
             <input
               aria-label={`Variable ${index + 1} default`}
+              placeholder="Default value"
               value={row.defaultValue}
               onChange={(event) =>
                 updateVariable(index, { defaultValue: event.target.value })
