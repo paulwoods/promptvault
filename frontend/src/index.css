@@ -693,6 +693,13 @@ pre code {
   margin-bottom: var(--space-24);
 }
 
+.page-header-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
 .page-header .actions {
   margin-bottom: 0;
 }

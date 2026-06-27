@@ -22,9 +22,13 @@ export function PageHeader({
   return (
     <header className="page-header">
       {back && <BackLink to={back.to}>{back.label}</BackLink>}
-      <h1>{title}</h1>
-      {subtitle && <p className="muted">{subtitle}</p>}
-      {actions && <div className="actions">{actions}</div>}
+      <div className="page-header-bar">
+        <div>
+          <h1>{title}</h1>
+          {subtitle && <p className="muted">{subtitle}</p>}
+        </div>
+        {actions && <div className="actions">{actions}</div>}
+      </div>
     </header>
   )
 }

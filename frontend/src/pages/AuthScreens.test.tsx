@@ -20,7 +20,7 @@ describe('auth screens', () => {
     await user.type(screen.getByLabelText('Password'), 'password123')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
 
-    await screen.findByRole('heading', { name: 'Your prompts' })
+    await screen.findByRole('heading', { name: 'Your Prompts' })
     expect(getToken()).toBe('fresh-token')
   })
 

@@ -17,10 +17,10 @@ export function HomePage() {
   return (
     <>
       <PageHeader
-        title="Your prompts"
+        title="Your Prompts"
         actions={
-          <Link to="/prompts/new" className="button-link">
-            New prompt
+          <Link to="/prompts/new" className="button-link button-link-sm">
+            New Prompt
           </Link>
         }
       />

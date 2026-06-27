@@ -18,7 +18,7 @@ describe('app shell', () => {
 
     renderApp('/')
 
-    await screen.findByRole('heading', { name: 'Your prompts' })
+    await screen.findByRole('heading', { name: 'Your Prompts' })
     expect(authHeader).toBe('Bearer test-token')
   })
 
