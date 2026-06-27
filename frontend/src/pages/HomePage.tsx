@@ -33,6 +33,18 @@ export function HomePage() {
               <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link>
               <span className="row-actions">
                 <Link
+                  to={`/prompts/${prompt.promptId}`}
+                  className="button-link button-link-sm"
+                >
+                  View
+                </Link>
+                <Link
+                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`}
+                  className="button-link button-link-sm"
+                >
+                  Run
+                </Link>
+                <Link
                   to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/edit`}
                   className="button-link button-link-sm"
                 >
