@@ -7,7 +7,7 @@ import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
 describe('run history', () => {
-  it('lists runs from multiple versions together in the prompt detail', async () => {
+  it('lists runs from multiple versions together on the runs page', async () => {
     setToken('t')
     server.use(
       http.get('/api/prompts/p1', () =>
@@ -44,7 +44,7 @@ describe('run history', () => {
       ),
     )
 
-    renderApp('/prompts/p1')
+    renderApp('/prompts/p1/runs')
 
     expect(
       await screen.findByRole('link', { name: /v2 — completed/ }),
@@ -84,7 +84,7 @@ describe('run history', () => {
     expect(screen.getByText('Tell me about rivers')).toBeInTheDocument()
   })
 
-  it('navigates from the prompt-detail run list into a run', async () => {
+  it('navigates from the runs page into a run', async () => {
     const user = userEvent.setup()
     setToken('t')
     server.use(
@@ -120,7 +120,7 @@ describe('run history', () => {
       ),
     )
 
-    renderApp('/prompts/p1')
+    renderApp('/prompts/p1/runs')
     await user.click(
       await screen.findByRole('link', { name: /v1 — completed/ }),
     )
