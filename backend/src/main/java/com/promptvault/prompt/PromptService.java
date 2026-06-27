@@ -54,7 +54,8 @@ public class PromptService {
     @Transactional(readOnly = true)
     public List<PromptSummary> listPrompts(UUID userId) {
         return versions.findCurrentVersionsByUser(userId).stream()
-                .map(v -> new PromptSummary(v.getPromptId(), v.getName(), v.getNumber(), v.getCreatedAt()))
+                .map(v -> new PromptSummary(
+                        v.getPromptId(), v.getName(), v.getDescription(), v.getNumber(), v.getCreatedAt()))
                 .toList();
     }
 

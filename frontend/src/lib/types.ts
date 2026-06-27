@@ -3,6 +3,7 @@
 export interface PromptSummary {
   promptId: string
   name: string
+  description?: string | null
   currentVersionNumber: number
   createdAt: string
 }

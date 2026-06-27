@@ -23,13 +23,14 @@ class PromptReadTest extends IntegrationTest {
         return """
                 {
                   "name": "%s",
+                  "description": "%s desc",
                   "promptText": "Hello",
                   "model": "claude-opus-4-8",
                   "maxTokens": 1000,
                   "effort": "medium",
                   "thinking": "off"
                 }
-                """.formatted(name);
+                """.formatted(name, name);
     }
 
     private String createPromptWithTwoVersions(String token) throws Exception {
@@ -59,6 +60,8 @@ class PromptReadTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath("$[?(@.promptId == '" + promptId + "')].name").value("Second"))
+                .andExpect(jsonPath("$[?(@.promptId == '" + promptId + "')].description")
+                        .value("Second desc"))
                 .andExpect(jsonPath("$[?(@.promptId == '" + promptId + "')].currentVersionNumber")
                         .value(2));
     }

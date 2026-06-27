@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { EmptyState } from '../components/EmptyState'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
@@ -8,6 +8,7 @@ import { apiClient } from '../lib/apiClient'
 import type { PromptSummary } from '../lib/types'
 
 export function HomePage() {
+  const navigate = useNavigate()
   const { data, isPending, isError } = useQuery({
     queryKey: ['prompts'],
     queryFn: () => apiClient.get<PromptSummary[]>('/api/prompts'),
@@ -27,16 +28,35 @@ export function HomePage() {
       {isError && <LoadError>Could not load prompts.</LoadError>}
       {data && data.length === 0 && <EmptyState>No prompts yet.</EmptyState>}
       {data && data.length > 0 && (
-        <ul>
+        <ul className="prompt-grid">
           {data.map((prompt) => (
-            <li key={prompt.promptId}>
-              <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link>
-              <span className="row-actions">
+            <li
+              key={prompt.promptId}
+              className="prompt-card"
+              role="button"
+              tabIndex={0}
+              aria-label={`Run ${prompt.name}`}
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest('a, button')) return
+                navigate(
+                  `/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`,
+                )
+              }}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  navigate(
+                    `/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`,
+                  )
+                }
+              }}
+            >
+              <div className="prompt-card-header">
                 <Link
                   to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}`}
-                  className="button-link button-link-sm"
                 >
-                  View
+                  {prompt.name}
                 </Link>
                 <Link
                   to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`}
@@ -44,17 +64,28 @@ export function HomePage() {
                 >
                   Run
                 </Link>
+              </div>
+              {prompt.description && (
+                <p className="prompt-card-description">{prompt.description}</p>
+              )}
+              <span className="row-actions">
                 <Link
                   to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/edit`}
-                  className="button-link button-link-sm"
+                  className="button-link button-link-sm button-link-outline"
                 >
                   Edit
                 </Link>
                 <Link
                   to={`/prompts/${prompt.promptId}`}
-                  className="button-link button-link-sm"
+                  className="button-link button-link-sm button-link-outline"
                 >
-                  History
+                  Versions
+                </Link>
+                <Link
+                  to={`/prompts/${prompt.promptId}/runs`}
+                  className="button-link button-link-sm button-link-outline"
+                >
+                  Runs
                 </Link>
               </span>
             </li>

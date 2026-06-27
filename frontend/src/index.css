@@ -446,6 +446,17 @@ button[type='submit']:active:not(:disabled) {
   font-size: 13px;
 }
 
+.button-link-outline {
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+}
+
+.button-link-outline:hover {
+  background: var(--gold);
+  color: var(--carbon);
+}
+
 /* Fieldsets / variable editor */
 fieldset {
   border: 1px solid var(--border);
@@ -527,6 +538,45 @@ li {
   justify-content: space-between;
   gap: var(--space-16);
   flex-wrap: wrap;
+}
+
+.prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-16);
+}
+
+.prompt-grid > li {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-10);
+}
+
+.prompt-card {
+  cursor: pointer;
+}
+
+.prompt-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.prompt-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  width: 100%;
+}
+
+.prompt-card-description {
+  margin: 0;
+  color: var(--fog);
+  font-size: 14px;
+}
+
+.prompt-grid > li > .row-actions {
+  margin-top: 2em;
 }
 
 li > span {
@@ -760,5 +810,9 @@ ul.simple-list > li {
 
   .settings-columns {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .prompt-grid {
+    grid-template-columns: 1fr;
   }
 }
