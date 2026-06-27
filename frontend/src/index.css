@@ -382,6 +382,11 @@ button[type='submit']:active:not(:disabled) {
   outline-offset: 2px;
 }
 
+.button-link-sm {
+  padding: var(--space-6) var(--space-12);
+  font-size: 13px;
+}
+
 /* Fieldsets / variable editor */
 fieldset {
   border: 1px solid var(--border);
@@ -444,6 +449,12 @@ li {
 li > span {
   color: var(--fog);
   font-size: 14px;
+}
+
+li > .row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-12);
 }
 
 li a {
