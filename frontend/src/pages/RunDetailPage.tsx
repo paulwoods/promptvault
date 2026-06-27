@@ -10,10 +10,10 @@ import { apiClient } from '../lib/apiClient'
 import type { RunDetail } from '../lib/types'
 
 export function RunDetailPage() {
-  const { id = '' } = useParams()
+  const { id = '', runId = '' } = useParams()
   const { data, isPending, isError } = useQuery({
-    queryKey: ['run', id],
-    queryFn: () => apiClient.get<RunDetail>(`/api/runs/${id}`),
+    queryKey: ['run', runId],
+    queryFn: () => apiClient.get<RunDetail>(`/api/runs/${runId}`),
   })
 
   if (isPending) {

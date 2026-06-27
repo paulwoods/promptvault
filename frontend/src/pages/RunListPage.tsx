@@ -29,7 +29,7 @@ export function RunListPage() {
         <ul>
           {runs.data.map((run) => (
             <li key={run.runId}>
-              <Link to={`/runs/${run.runId}`}>
+              <Link to={`/prompts/${id}/runs/${run.runId}`}>
                 v{run.versionNumber} — {run.status}
               </Link>
               {run.responsePreview && <span> — {run.responsePreview}</span>}

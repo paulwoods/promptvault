@@ -75,7 +75,7 @@ describe('run history', () => {
       ),
     )
 
-    renderApp('/runs/rA')
+    renderApp('/prompts/p1/runs/rA')
 
     expect(await screen.findByLabelText('response')).toHaveTextContent(
       'Rivers are watercourses.',

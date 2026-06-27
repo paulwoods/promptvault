@@ -78,7 +78,7 @@ export function RunPage() {
           {status === 'failed' && failure && <ErrorAlert>{failure}</ErrorAlert>}
           {runId && (
             <p>
-              <Link to={`/runs/${runId}`}>Open this run</Link>
+              <Link to={`/prompts/${id}/runs/${runId}`}>Open this run</Link>
             </p>
           )}
         </section>

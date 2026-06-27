@@ -66,6 +66,12 @@ export function VersionViewPage() {
         <Link to={`/prompts/${id}`} className="button-link button-link-sm">
           Versions
         </Link>
+        <Link
+          to={`/prompts/${id}/runs`}
+          className="button-link button-link-sm"
+        >
+          Runs
+        </Link>
       </div>
     </>
   )

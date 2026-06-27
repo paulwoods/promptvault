@@ -79,7 +79,7 @@ export function AppRoutes() {
             }
           />
           <Route
-            path="/runs/:id"
+            path="/prompts/:id/runs/:runId"
             element={
               <RequireAuth>
                 <RunDetailPage />
