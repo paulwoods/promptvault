@@ -451,6 +451,30 @@ fieldset > div:last-child {
   margin-bottom: 0;
 }
 
+.variable-remove {
+  padding: var(--space-6) var(--space-12);
+  font-size: 13px;
+  background: var(--gold);
+  color: var(--carbon);
+}
+
+.variable-remove:hover:not(:disabled) {
+  background: var(--gold-bright);
+  border-color: transparent;
+}
+
+.variable-add {
+  padding: var(--space-6) var(--space-12);
+  font-size: 13px;
+  background: var(--gold);
+  color: var(--carbon);
+}
+
+.variable-add:hover:not(:disabled) {
+  background: var(--gold-bright);
+  border-color: transparent;
+}
+
 fieldset > div > label {
   flex-direction: row;
   align-items: center;

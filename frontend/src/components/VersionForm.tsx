@@ -223,6 +223,7 @@ export function VersionForm({
             />
             <button
               type="button"
+              className="variable-remove"
               onClick={() =>
                 setValues((c) => ({
                   ...c,
@@ -230,12 +231,13 @@ export function VersionForm({
                 }))
               }
             >
-              Remove variable {index + 1}
+              Remove
             </button>
           </div>
         ))}
         <button
           type="button"
+          className="variable-add"
           onClick={() =>
             setValues((c) => ({
               ...c,
