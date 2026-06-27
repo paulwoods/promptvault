@@ -35,7 +35,7 @@ describe('create / edit prompt', () => {
 
     renderApp('/prompts/new')
     await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    await user.type(screen.getByLabelText('Prompt text'), 'Hello there')
+    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(
@@ -61,7 +61,7 @@ describe('create / edit prompt', () => {
 
     renderApp('/prompts/new')
     await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    await user.type(screen.getByLabelText('Prompt text'), 'Hello {{name}}')
+    await user.type(screen.getByLabelText('User Prompt'), 'Hello {{name}}')
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

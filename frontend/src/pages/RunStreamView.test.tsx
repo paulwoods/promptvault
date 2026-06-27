@@ -1,5 +1,4 @@
 import { screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { setToken } from '../lib/auth'
@@ -41,7 +40,6 @@ function sseStream() {
 
 describe('streamed run view', () => {
   it('renders tokens incrementally, shows in-progress, then completed', async () => {
-    const user = userEvent.setup()
     setToken('t')
     const { stream, push, close } = sseStream()
     server.use(
@@ -58,9 +56,9 @@ describe('streamed run view', () => {
     )
 
     renderApp('/prompts/p1/versions/1/run')
-    await user.click(await screen.findByRole('button', { name: 'Run' }))
 
-    expect(screen.getByText('Status: running')).toBeInTheDocument()
+    // No variables, so the run starts automatically.
+    await screen.findByText('Status: running')
     push('event:meta\ndata:{"runId":"r1","versionNumber":1}\n\n')
     push('event:token\ndata:{"text":"Hello"}\n\n')
     push('event:token\ndata:{"text":" world"}\n\n')
@@ -80,7 +78,6 @@ describe('streamed run view', () => {
   })
 
   it('drives the failed state from an error frame', async () => {
-    const user = userEvent.setup()
     setToken('t')
     const { stream, push, close } = sseStream()
     server.use(
@@ -97,8 +94,9 @@ describe('streamed run view', () => {
     )
 
     renderApp('/prompts/p1/versions/1/run')
-    await user.click(await screen.findByRole('button', { name: 'Run' }))
 
+    // No variables, so the run starts automatically.
+    await screen.findByText('Status: running')
     push('event:meta\ndata:{"runId":"r1","versionNumber":1}\n\n')
     push(
       'event:error\ndata:{"status":"failed","category":"AUTH","message":"Authentication with Claude failed"}\n\n',
@@ -112,7 +110,6 @@ describe('streamed run view', () => {
   })
 
   it('routes to the api-key screen on no_api_key', async () => {
-    const user = userEvent.setup()
     setToken('t')
     server.use(
       http.get('/api/prompts/p1/versions/1', () =>
@@ -130,8 +127,8 @@ describe('streamed run view', () => {
     )
 
     renderApp('/prompts/p1/versions/1/run')
-    await user.click(await screen.findByRole('button', { name: 'Run' }))
 
+    // No variables, so the run starts automatically and hits the missing key.
     await screen.findByRole('heading', { name: 'API Key' })
   })
 })

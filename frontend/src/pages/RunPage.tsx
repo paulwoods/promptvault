@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
@@ -30,6 +30,7 @@ export function RunPage() {
   const [output, setOutput] = useState('')
   const [runId, setRunId] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const autoRan = useRef(false)
 
   function run(values: Record<string, string>) {
     setStatus('running')
@@ -57,6 +58,15 @@ export function RunPage() {
       setFailure(errorMessage(error))
     })
   }
+
+  // A prompt with no variables has nothing to fill in, so run it immediately.
+  useEffect(() => {
+    if (autoRan.current || !version.data) return
+    if (version.data.variables.length === 0) {
+      autoRan.current = true
+      run({})
+    }
+  }, [version.data])
 
   if (version.isPending) {
     return <Loading />

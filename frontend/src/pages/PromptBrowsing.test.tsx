@@ -109,18 +109,21 @@ describe('prompt browsing', () => {
           },
         ]),
       ),
-      http.get('/api/prompts/p1', () =>
+      http.get('/api/prompts/p1/versions/1', () =>
         HttpResponse.json({
           promptId: 'p1',
-          versions: [
-            {
-              versionId: 'v1',
-              number: 1,
-              name: 'Greeting',
-              createdAt: 'x',
-              current: true,
-            },
-          ],
+          versionId: 'v1',
+          number: 1,
+          name: 'Greeting',
+          description: null,
+          promptText: 'Hello',
+          model: 'claude-opus-4-8',
+          systemPrompt: null,
+          maxTokens: 1000,
+          effort: 'medium',
+          thinking: 'off',
+          variables: [],
+          createdAt: 'x',
         }),
       ),
     )
@@ -129,7 +132,7 @@ describe('prompt browsing', () => {
     await user.click(await screen.findByRole('link', { name: /Greeting/ }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Version History' }),
+      await screen.findByRole('heading', { name: 'Greeting (v1)' }),
     ).toBeInTheDocument()
   })
 })
