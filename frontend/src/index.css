@@ -907,3 +907,93 @@ ul.simple-list > li {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Glassmorphism — the app-wide look. A fixed decorative backdrop sits behind
+ * everything; the nav and panel surfaces become frosted glass over it. Forms
+ * keep their solid fields for readability. Theme-aware via data-theme.
+ * ------------------------------------------------------------------------- */
+
+/* Full-viewport decorative layer the frosted surfaces blur against. */
+.glass-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      40% 50% at 12% 18%,
+      rgba(230, 183, 58, 0.3),
+      transparent 70%
+    ),
+    radial-gradient(
+      45% 55% at 88% 22%,
+      rgba(99, 140, 255, 0.26),
+      transparent 70%
+    ),
+    radial-gradient(
+      55% 60% at 50% 100%,
+      rgba(190, 90, 230, 0.24),
+      transparent 70%
+    );
+}
+
+/* Keep page content above the backdrop so the blur has something behind it.
+   The nav already sets its own z-index. */
+main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Frosted surfaces: the top nav, page headers, and card/list rows. */
+nav,
+.page-header,
+li {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* The nav spans the viewport, so it keeps square edges and only a bottom rule. */
+nav {
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+
+.page-header {
+  padding: var(--space-18) var(--space-20);
+  border-radius: var(--radius-xl);
+}
+
+li:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+/* Name:value rows opt out of the card look, so strip the frosting from them. */
+ul.simple-list > li {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Light theme: lighter, more opaque glass over the lighter backdrop. */
+:root[data-theme='light'] nav,
+:root[data-theme='light'] .page-header,
+:root[data-theme='light'] li {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 32px rgba(20, 22, 28, 0.12);
+}
+
+:root[data-theme='light'] li:hover {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+:root[data-theme='light'] ul.simple-list > li {
+  background: none;
+}

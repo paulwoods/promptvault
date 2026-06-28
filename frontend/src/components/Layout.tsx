@@ -9,6 +9,7 @@ import { TopNav } from './TopNav'
 export function Layout() {
   return (
     <>
+      <div className="glass-backdrop" aria-hidden="true" />
       <TopNav />
       <main>
         <Outlet />
