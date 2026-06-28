@@ -2,6 +2,7 @@ import { Link, NavLink } from 'react-router'
 import { useAuth } from '../lib/useAuth'
 import { useMe } from '../lib/useMe'
 import { AppIcon } from './AppIcon'
+import { ThemeToggle } from './ThemeToggle'
 
 export function TopNav() {
   const isAuthenticated = useAuth()
@@ -15,15 +16,16 @@ export function TopNav() {
           Prompt Vault
         </Link>
 
-        {isAuthenticated ? (
-          <div className="nav-links">
-            {me.data ? (
+        <div className="nav-right">
+          {isAuthenticated && me.data ? (
+            <div className="nav-links">
               <NavLink to="/profile" className="nav-user">
                 {me.data.name}
               </NavLink>
-            ) : null}
-          </div>
-        ) : null}
+            </div>
+          ) : null}
+          <ThemeToggle />
+        </div>
       </div>
     </nav>
   )
