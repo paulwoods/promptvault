@@ -28,7 +28,7 @@ public class AuthService {
         if (users.existsByEmailNormalized(email)) {
             throw new EmailAlreadyExistsException("Email already registered");
         }
-        User user = new User(UuidCreator.getTimeOrderedEpoch(), email, passwordEncoder.encode(rawPassword));
+        User user = new User(UuidCreator.getTimeOrderedEpoch(), email, email, passwordEncoder.encode(rawPassword));
         return users.save(user);
     }
 

@@ -55,6 +55,12 @@ export interface ModelsResponse {
   defaultModel: string
 }
 
+export interface Me {
+  id: string
+  email: string
+  name: string
+}
+
 export interface ApiKeyStatus {
   hasKey: boolean
   updatedAt?: string | null

@@ -1,10 +1,11 @@
 import { ApiKeyForm } from '../components/ApiKeyForm'
 import { LogoutButton } from '../components/LogoutButton'
+import { NameForm } from '../components/NameForm'
 import { PageHeader } from '../components/PageHeader'
-import { getUserEmail } from '../lib/auth'
+import { useMe } from '../lib/useMe'
 
 export function ProfilePage() {
-  const email = getUserEmail()
+  const me = useMe()
 
   return (
     <>
@@ -14,9 +15,10 @@ export function ProfilePage() {
       />
       <fieldset className="form-section">
         <legend>Profile</legend>
+        <NameForm />
         <dl className="profile-details">
           <dt>Email</dt>
-          <dd>{email ?? '—'}</dd>
+          <dd>{me.data?.email ?? '—'}</dd>
         </dl>
       </fieldset>
       <fieldset className="form-section">

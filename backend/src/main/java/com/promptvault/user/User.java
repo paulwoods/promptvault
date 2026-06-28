@@ -16,6 +16,9 @@ public class User {
     @Column(nullable = false)
     private String email;
 
+    @Column(nullable = false)
+    private String name;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -23,9 +26,10 @@ public class User {
         // for JPA
     }
 
-    public User(UUID id, String email, String passwordHash) {
+    public User(UUID id, String email, String name, String passwordHash) {
         this.id = id;
         this.email = email;
+        this.name = name;
         this.passwordHash = passwordHash;
     }
 
@@ -35,6 +39,14 @@ public class User {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getPasswordHash() {

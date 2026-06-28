@@ -1,10 +1,10 @@
 import { Link, NavLink } from 'react-router'
-import { getUserEmail } from '../lib/auth'
 import { useAuth } from '../lib/useAuth'
+import { useMe } from '../lib/useMe'
 
 export function TopNav() {
   const isAuthenticated = useAuth()
-  const userEmail = getUserEmail()
+  const me = useMe(isAuthenticated)
 
   return (
     <nav aria-label="Main">
@@ -15,9 +15,9 @@ export function TopNav() {
 
         {isAuthenticated ? (
           <div className="nav-links">
-            {userEmail ? (
+            {me.data ? (
               <NavLink to="/profile" className="nav-user">
-                {userEmail}
+                {me.data.name}
               </NavLink>
             ) : null}
           </div>

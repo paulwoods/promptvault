@@ -37,7 +37,7 @@ class DurabilityTest extends AbstractDatabaseTest {
     @Test
     void dataPersistsAcrossRestartWithCleanValidation() {
         UUID userId = UuidCreator.getTimeOrderedEpoch();
-        users.save(new User(userId, "durable@example.com", "hash"));
+        users.save(new User(userId, "durable@example.com", "durable@example.com", "hash"));
 
         // Command-line args take highest precedence: force the test profile (over the
         // default dev) and point the datasource at the shared container.
