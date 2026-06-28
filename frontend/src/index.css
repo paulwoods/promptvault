@@ -121,6 +121,9 @@ nav > div {
 }
 
 .nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
   font-family: var(--font-display);
   font-size: 20px;
   font-weight: 600;
@@ -131,6 +134,17 @@ nav > div {
 .nav-brand:hover {
   color: var(--gold);
   text-decoration: none;
+}
+
+.app-icon {
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.title-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-10);
 }
 
 .nav-links {

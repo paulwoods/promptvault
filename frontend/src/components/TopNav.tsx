@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router'
 import { useAuth } from '../lib/useAuth'
 import { useMe } from '../lib/useMe'
+import { AppIcon } from './AppIcon'
 
 export function TopNav() {
   const isAuthenticated = useAuth()
@@ -10,6 +11,7 @@ export function TopNav() {
     <nav aria-label="Main">
       <div>
         <Link to="/" className="nav-brand">
+          <AppIcon className="app-icon" />
           Prompt Vault
         </Link>
 

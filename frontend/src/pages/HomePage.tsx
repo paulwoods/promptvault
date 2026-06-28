@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
+import { AppIcon } from '../components/AppIcon'
 import { EmptyState } from '../components/EmptyState'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
@@ -17,7 +18,12 @@ export function HomePage() {
   return (
     <>
       <PageHeader
-        title="Your Prompts"
+        title={
+          <span className="title-with-icon">
+            <AppIcon className="app-icon" />
+            Your Prompts
+          </span>
+        }
         actions={
           <Link to="/prompts/new" className="button-link button-link-sm">
             New Prompt
