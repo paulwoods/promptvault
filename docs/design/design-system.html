@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompt Vault — Design System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ===================================================================
+       * Tokens — mirrors frontend/src/index.css :root
+       * ================================================================= */
+      :root {
+        --carbon: #0b0c10;
+        --slate: #15161c;
+        --graphite: #1e2027;
+        --fog: #8e929c;
+        --paper: #f0f1f4;
+        --gold: #e6b73a;
+        --gold-bright: #f0c95a;
+        --gold-dim: rgba(230, 183, 58, 0.12);
+        --border: #2a2c34;
+        --error: #f87171;
+        --error-bg: rgba(248, 113, 113, 0.1);
+        --error-border: rgba(248, 113, 113, 0.25);
+
+        --space-4: 4px;
+        --space-6: 6px;
+        --space-8: 8px;
+        --space-10: 10px;
+        --space-12: 12px;
+        --space-14: 14px;
+        --space-16: 16px;
+        --space-18: 18px;
+        --space-20: 20px;
+        --space-24: 24px;
+        --space-28: 28px;
+        --space-40: 40px;
+        --space-48: 48px;
+
+        --radius-sm: 4px;
+        --radius-md: 8px;
+        --radius-lg: 10px;
+        --radius-xl: 12px;
+        --radius-pill: 999px;
+
+        --font-display:
+          'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', sans-serif;
+        --font-body:
+          'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+          sans-serif;
+        --font-mono:
+          'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+        color-scheme: dark;
+      }
+
+      :root[data-theme='light'] {
+        --carbon: #f7f8fa;
+        --slate: #ffffff;
+        --graphite: #eef0f4;
+        --fog: #5a6072;
+        --paper: #15161c;
+        --gold: #9c6f1a;
+        --gold-bright: #b8861f;
+        --gold-dim: rgba(156, 111, 26, 0.14);
+        --border: #d8dbe2;
+        --error: #c0392b;
+        --error-bg: rgba(192, 57, 43, 0.08);
+        --error-border: rgba(192, 57, 43, 0.22);
+        color-scheme: light;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: var(--font-body);
+        font-size: 16px;
+        line-height: 1.6;
+        color: var(--paper);
+        background: var(--carbon);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      a {
+        color: var(--gold);
+        text-decoration: none;
+      }
+      a:hover {
+        color: var(--gold-bright);
+        text-decoration: underline;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: var(--font-display);
+        font-weight: 500;
+        color: var(--paper);
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        margin: 0 0 var(--space-16);
+      }
+      h1 {
+        font-size: 40px;
+      }
+      h2 {
+        font-size: 24px;
+        margin-top: var(--space-40);
+      }
+      h3 {
+        font-size: 18px;
+      }
+      p {
+        margin: 0 0 var(--space-16);
+        color: var(--paper);
+      }
+      .muted {
+        color: var(--fog);
+      }
+
+      /* ===================================================================
+       * Glassmorphism layer — the app-wide look
+       * ================================================================= */
+      .glass-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(
+            40% 50% at 12% 18%,
+            rgba(230, 183, 58, 0.3),
+            transparent 70%
+          ),
+          radial-gradient(
+            45% 55% at 88% 22%,
+            rgba(99, 140, 255, 0.26),
+            transparent 70%
+          ),
+          radial-gradient(
+            55% 60% at 50% 100%,
+            rgba(190, 90, 230, 0.24),
+            transparent 70%
+          );
+      }
+
+      /* ===================================================================
+       * Page scaffold for this document
+       * ================================================================= */
+      header.doc-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        padding: 0 var(--space-24);
+        background: rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+        -webkit-backdrop-filter: blur(16px) saturate(150%);
+        backdrop-filter: blur(16px) saturate(150%);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+      :root[data-theme='light'] header.doc-nav {
+        background: rgba(255, 255, 255, 0.55);
+        border-bottom-color: rgba(255, 255, 255, 0.7);
+        box-shadow: 0 8px 32px rgba(20, 22, 28, 0.12);
+      }
+      header.doc-nav > div {
+        max-width: 1200px;
+        height: 64px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-24);
+      }
+      .doc-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-10);
+        font-family: var(--font-display);
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--paper);
+      }
+      .doc-brand svg {
+        color: var(--gold);
+      }
+
+      main {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: var(--space-40) var(--space-24) var(--space-48);
+      }
+
+      section {
+        margin-bottom: var(--space-48);
+        padding-top: var(--space-16);
+        border-top: 1px solid var(--border);
+      }
+      section:first-of-type {
+        border-top: none;
+      }
+      .section-note {
+        color: var(--fog);
+        font-size: 14px;
+        max-width: 70ch;
+      }
+
+      .grid {
+        display: grid;
+        gap: var(--space-16);
+      }
+      .cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .cols-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-16);
+        align-items: center;
+      }
+
+      /* Swatches */
+      .swatch {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        background: var(--slate);
+      }
+      .swatch .chip {
+        height: 72px;
+      }
+      .swatch .meta {
+        padding: var(--space-10) var(--space-12);
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      .swatch .meta .name {
+        color: var(--paper);
+        font-weight: 500;
+      }
+      .swatch .meta .val {
+        color: var(--fog);
+      }
+
+      /* Spacing + radius specimens */
+      .spec {
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--fog);
+      }
+      .spec .bar {
+        height: 16px;
+        background: var(--gold);
+        border-radius: 2px;
+      }
+      .radius-box {
+        width: 88px;
+        height: 88px;
+        background: var(--gold-dim);
+        border: 1px solid var(--gold);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: var(--space-6);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--gold);
+      }
+
+      /* Frosted card, mirroring the real li/.prompt-card */
+      .card {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: var(--radius-xl);
+        -webkit-backdrop-filter: blur(16px) saturate(150%);
+        backdrop-filter: blur(16px) saturate(150%);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        padding: var(--space-18) var(--space-20);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-10);
+      }
+      :root[data-theme='light'] .card {
+        background: rgba(255, 255, 255, 0.55);
+        border-color: rgba(255, 255, 255, 0.7);
+        box-shadow: 0 8px 32px rgba(20, 22, 28, 0.12);
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-16);
+      }
+      .card-header strong {
+        font-weight: 500;
+        color: var(--gold);
+      }
+      .card-desc {
+        margin: 0;
+        color: var(--fog);
+        font-size: 14px;
+      }
+      .card-actions {
+        display: inline-flex;
+        gap: var(--space-12);
+        margin-top: var(--space-8);
+      }
+
+      /* Buttons — mirrors index.css */
+      button {
+        font-family: var(--font-body);
+        font-size: 15px;
+        font-weight: 600;
+        padding: var(--space-12) var(--space-20);
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+        background: var(--graphite);
+        color: var(--paper);
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          transform 0.1s ease;
+      }
+      button:hover:not(:disabled) {
+        background: var(--slate);
+        border-color: var(--fog);
+      }
+      button:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      button.submit {
+        background: var(--gold);
+        color: var(--carbon);
+        border-color: transparent;
+      }
+      button.submit:hover:not(:disabled) {
+        background: var(--gold-bright);
+      }
+      .button-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-8);
+        padding: var(--space-12) var(--space-20);
+        border-radius: var(--radius-md);
+        background: var(--gold);
+        color: var(--carbon);
+        font-family: var(--font-body);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .button-link:hover {
+        background: var(--gold-bright);
+        color: var(--carbon);
+        text-decoration: none;
+      }
+      .button-link-sm {
+        padding: var(--space-6) var(--space-12);
+        font-size: 13px;
+      }
+      .button-link-outline {
+        background: transparent;
+        color: var(--gold);
+        border: 1px solid var(--gold);
+      }
+      .button-link-outline:hover {
+        background: var(--gold);
+        color: var(--carbon);
+      }
+
+      /* Form controls — mirrors index.css */
+      label.field {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-6);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--fog);
+        max-width: 360px;
+      }
+      input,
+      textarea,
+      select {
+        font-family: var(--font-body);
+        font-size: 15px;
+        line-height: 1.5;
+        padding: var(--space-12) var(--space-14);
+        color: var(--paper);
+        background: var(--graphite);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        outline: none;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: var(--fog);
+        opacity: 0.7;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--gold);
+        box-shadow: 0 0 0 3px var(--gold-dim);
+      }
+      textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+      select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e929c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right var(--space-14) center;
+        padding-right: 42px;
+        cursor: pointer;
+      }
+
+      /* Status badges + alert */
+      .status {
+        display: inline-flex;
+        align-items: center;
+        padding: var(--space-4) var(--space-10);
+        border-radius: var(--radius-pill);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .status-current {
+        color: var(--gold);
+        background: var(--gold-dim);
+      }
+      .alert {
+        color: var(--error);
+        background: var(--error-bg);
+        border: 1px solid var(--error-border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-14) var(--space-18);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      /* Code / vault panel */
+      pre,
+      code {
+        font-family: var(--font-mono);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+      pre {
+        margin: 0;
+        padding: var(--space-20);
+        color: var(--paper);
+        background: var(--graphite);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--gold);
+        border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+        overflow-x: auto;
+        white-space: pre-wrap;
+      }
+      code.inline {
+        padding: 2px var(--space-6);
+        color: var(--gold);
+        background: var(--graphite);
+        border-radius: var(--radius-sm);
+      }
+
+      /* Type specimens */
+      .type-row {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-16);
+        padding: var(--space-8) 0;
+      }
+      .type-row .tag {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--fog);
+        width: 150px;
+        flex-shrink: 0;
+      }
+
+      .theme-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-6);
+        padding: var(--space-8) var(--space-14);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--fog);
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .theme-toggle:hover {
+        color: var(--paper);
+        border-color: var(--gold);
+      }
+
+      @media (max-width: 760px) {
+        .cols-3,
+        .cols-4 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glass-backdrop" aria-hidden="true"></div>
+
+    <header class="doc-nav">
+      <div>
+        <span class="doc-brand">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          Prompt Vault — Design System
+        </span>
+        <button
+          class="theme-toggle"
+          type="button"
+          onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'"
+        >
+          Toggle theme
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <p class="muted">
+        A living reference for the Prompt Vault frontend. Tokens and component
+        styles here mirror <code class="inline">frontend/src/index.css</code>.
+        The frosted surfaces and aurora backdrop are the app-wide
+        glassmorphism look. Use the toggle above to preview light and dark.
+      </p>
+
+      <section>
+        <h2>Color tokens</h2>
+        <p class="section-note">
+          A corporate dark base with a single amber-gold accent. Values shown
+          are the dark theme; the light theme remaps the same variable names.
+        </p>
+        <div class="grid cols-4" id="colors"></div>
+      </section>
+
+      <section>
+        <h2>Typography</h2>
+        <p class="section-note">
+          Display face is <strong>Space Grotesk</strong> (headings), body is
+          <strong>Inter</strong>, and monospace is
+          <strong>JetBrains Mono</strong> (code, values, run output).
+        </p>
+        <div class="type-row">
+          <span class="tag">h1 / display 40</span>
+          <h1 style="margin: 0">Your Prompts</h1>
+        </div>
+        <div class="type-row">
+          <span class="tag">h2 / display 24</span>
+          <h2 style="margin: 0">Version history</h2>
+        </div>
+        <div class="type-row">
+          <span class="tag">h3 / display 18</span>
+          <h3 style="margin: 0">Run settings</h3>
+        </div>
+        <div class="type-row">
+          <span class="tag">body / Inter 16</span>
+          <p style="margin: 0">
+            The quick brown fox jumps over the lazy dog.
+          </p>
+        </div>
+        <div class="type-row">
+          <span class="tag">muted / fog</span>
+          <p class="muted" style="margin: 0">Secondary, lower-emphasis text.</p>
+        </div>
+        <div class="type-row">
+          <span class="tag">mono 14</span>
+          <span style="font-family: var(--font-mono)"
+            >claude-opus-4-8 · 1,024 tokens</span
+          >
+        </div>
+      </section>
+
+      <section>
+        <h2>Spacing scale</h2>
+        <p class="section-note">
+          A fixed pixel scale — only the steps actually used in the app.
+        </p>
+        <div class="grid" id="spacing" style="gap: var(--space-8)"></div>
+      </section>
+
+      <section>
+        <h2>Radii</h2>
+        <div class="row" id="radii"></div>
+      </section>
+
+      <section>
+        <h2>Buttons</h2>
+        <p class="section-note">
+          Submit/primary actions are solid gold; neutral actions are graphite;
+          outline links are gold-on-transparent. Small variants pair with card
+          rows.
+        </p>
+        <div class="row">
+          <button class="submit">Save changes</button>
+          <button>Cancel</button>
+          <button disabled>Disabled</button>
+          <a class="button-link" href="#">New Prompt</a>
+          <a class="button-link button-link-sm" href="#">Run</a>
+          <a class="button-link button-link-sm button-link-outline" href="#"
+            >Edit</a
+          >
+        </div>
+      </section>
+
+      <section>
+        <h2>Form controls</h2>
+        <div class="grid cols-3">
+          <label class="field"
+            >Name
+            <input type="text" placeholder="Summarize transcript" />
+          </label>
+          <label class="field"
+            >Model
+            <select>
+              <option>claude-opus-4-8</option>
+              <option>claude-sonnet-4-6</option>
+              <option>claude-haiku-4-5</option>
+            </select>
+          </label>
+          <label class="field"
+            >Focused (gold ring)
+            <input type="text" value="has focus styling" />
+          </label>
+        </div>
+        <label class="field" style="max-width: 100%; margin-top: var(--space-16)"
+          >Template
+          <textarea placeholder="You are a helpful assistant. {{input}}"></textarea>
+        </label>
+      </section>
+
+      <section>
+        <h2>Cards &amp; lists</h2>
+        <p class="section-note">
+          The signature surface: frosted translucent panels over the aurora
+          backdrop. Rows hover to a brighter tint.
+        </p>
+        <div class="grid cols-3">
+          <div class="card">
+            <div class="card-header">
+              <strong>Summarize transcript</strong>
+              <a class="button-link button-link-sm" href="#">Run</a>
+            </div>
+            <p class="card-desc">Condense a meeting transcript into bullets.</p>
+            <span class="card-actions">
+              <a class="button-link button-link-sm button-link-outline" href="#"
+                >Edit</a
+              >
+              <a class="button-link button-link-sm button-link-outline" href="#"
+                >Versions</a
+              >
+              <a class="button-link button-link-sm button-link-outline" href="#"
+                >Runs</a
+              >
+            </span>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <strong>Extract action items</strong>
+              <a class="button-link button-link-sm" href="#">Run</a>
+            </div>
+            <p class="card-desc">Pull owners and due dates from notes.</p>
+            <span class="card-actions">
+              <a class="button-link button-link-sm button-link-outline" href="#"
+                >Edit</a
+              >
+              <a class="button-link button-link-sm button-link-outline" href="#"
+                >Versions</a
+              >
+            </span>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <strong>Draft reply</strong>
+              <span class="status status-current">Current</span>
+            </div>
+            <p class="card-desc">Write a concise email response.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Status &amp; feedback</h2>
+        <div class="row" style="margin-bottom: var(--space-16)">
+          <span class="status status-current">Current</span>
+          <span class="muted">empty-state &amp; loading text use fog/italic</span>
+        </div>
+        <p class="alert" role="alert">
+          Could not load prompts. Check your connection and try again.
+        </p>
+      </section>
+
+      <section>
+        <h2>Code &amp; vault panel</h2>
+        <p class="section-note">
+          Prompt bodies and run output render in the "vault panel": monospace
+          on graphite with a gold left rule. Inline
+          <code class="inline">code</code> uses the gold accent.
+        </p>
+        <pre>You are a meticulous assistant.
+
+Summarize the following transcript into 5 bullet points,
+each under 20 words:
+
+{{transcript}}</pre>
+      </section>
+    </main>
+
+    <script>
+      const colors = [
+        ['--carbon', '#0b0c10', 'page background'],
+        ['--slate', '#15161c', 'raised surface'],
+        ['--graphite', '#1e2027', 'inputs / code'],
+        ['--border', '#2a2c34', 'hairlines'],
+        ['--fog', '#8e929c', 'muted text'],
+        ['--paper', '#f0f1f4', 'primary text'],
+        ['--gold', '#e6b73a', 'accent'],
+        ['--gold-bright', '#f0c95a', 'accent hover'],
+        ['--gold-dim', 'rgba(230,183,58,.12)', 'accent wash'],
+        ['--error', '#f87171', 'error text'],
+        ['--error-bg', 'rgba(248,113,113,.10)', 'error wash'],
+        ['--error-border', 'rgba(248,113,113,.25)', 'error edge'],
+      ]
+      document.getElementById('colors').innerHTML = colors
+        .map(
+          ([name, val, use]) => `
+          <div class="swatch">
+            <div class="chip" style="background: var(${name})"></div>
+            <div class="meta">
+              <div class="name">${name}</div>
+              <div class="val">${val}</div>
+              <div class="val">${use}</div>
+            </div>
+          </div>`,
+        )
+        .join('')
+
+      const spaces = [4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 40, 48]
+      document.getElementById('spacing').innerHTML = spaces
+        .map(
+          (n) => `
+          <div class="spec">
+            <div class="bar" style="width: ${n}px"></div>
+            <span>--space-${n} · ${n}px</span>
+          </div>`,
+        )
+        .join('')
+
+      const radii = [
+        ['--radius-sm', '4px'],
+        ['--radius-md', '8px'],
+        ['--radius-lg', '10px'],
+        ['--radius-xl', '12px'],
+        ['--radius-pill', '999px'],
+      ]
+      document.getElementById('radii').innerHTML = radii
+        .map(
+          ([name, val]) => `
+          <div class="radius-box" style="border-radius: var(${name})">
+            ${name.replace('--radius-', '')} · ${val}
+          </div>`,
+        )
+        .join('')
+    </script>
+  </body>
+</html>
