@@ -1,24 +1,18 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { Link, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { RunForm } from '../components/RunForm'
-import { ApiError } from '../lib/ApiError'
 import { apiClient } from '../lib/apiClient'
-import { errorMessage } from '../lib/errorMessage'
-import { streamRun } from '../lib/streamRun'
+import { useRunStream } from '../lib/useRunStream'
 import type { VersionResponse } from '../lib/types'
-
-type RunStatus = 'idle' | 'running' | 'completed' | 'failed'
 
 export function RunPage() {
   const { id = '', number = '' } = useParams()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   const version = useQuery({
     queryKey: ['version', id, number],
@@ -26,61 +20,14 @@ export function RunPage() {
       apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${number}`),
   })
 
-  const [status, setStatus] = useState<RunStatus>('idle')
-  const [output, setOutput] = useState('')
-  const [runId, setRunId] = useState<string | null>(null)
-  const [failure, setFailure] = useState<string | null>(null)
-
-  // RunPage isn't remounted when only the route params change (same Route
-  // element), so run state must be reset explicitly or a new prompt/version
-  // would inherit the previous run's stale output/status. Adjusted during
-  // render (not an effect) per https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
-  const runKey = `${id}/${number}`
-  const [prevRunKey, setPrevRunKey] = useState(runKey)
-  if (runKey !== prevRunKey) {
-    setPrevRunKey(runKey)
-    setStatus('idle')
-    setOutput('')
-    setRunId(null)
-    setFailure(null)
-  }
-
-  const run = useCallback(
-    (values: Record<string, string>) => {
-      setStatus('running')
-      setOutput('')
-      setRunId(null)
-      setFailure(null)
-      streamRun(id, number, values, {
-        onMeta: (meta) => setRunId(meta.runId),
-        onToken: (text) => setOutput((current) => current + text),
-        onDone: () => {
-          setStatus('completed')
-          void queryClient.invalidateQueries({ queryKey: ['runs'] })
-        },
-        onError: (info) => {
-          setStatus('failed')
-          setFailure(info.message)
-          void queryClient.invalidateQueries({ queryKey: ['runs'] })
-        },
-      }).catch((error: unknown) => {
-        if (error instanceof ApiError && error.code === 'no_api_key') {
-          navigate('/settings/api-key')
-          return
-        }
-        setStatus('failed')
-        setFailure(errorMessage(error))
-      })
-    },
-    [id, number, navigate, queryClient],
-  )
+  const { status, output, runId, failure, run } = useRunStream(id, number)
 
   // A prompt with no variables has nothing to fill in, so run it immediately.
   // Guarding on status (rather than a ref) both prevents re-triggering once
-  // the run has started and survives the runKey reset above. Schedule the run
-  // in a microtask rather than calling it synchronously here: run() flips
-  // status to 'running', and setState inside an effect body would trigger a
-  // cascading render (react-hooks/set-state-in-effect).
+  // the run has started and survives useRunStream's reset on navigation.
+  // Schedule the run in a microtask rather than calling it synchronously
+  // here: run() flips status to 'running', and setState inside an effect
+  // body would trigger a cascading render (react-hooks/set-state-in-effect).
   useEffect(() => {
     if (status !== 'idle' || !version.data) return
     if (version.data.variables.length === 0) {
