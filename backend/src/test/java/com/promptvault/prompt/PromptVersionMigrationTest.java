@@ -20,10 +20,11 @@ class PromptVersionMigrationTest extends IntegrationTest {
     private UUID insertPromptForNewUser() {
         UUID userId = UUID.randomUUID();
         jdbcTemplate.update(
-                "insert into users (id, email, password_hash) values (?, ?, ?)",
+                "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
                 userId,
                 "owner-" + userId + "@example.com",
-                "hash");
+                "hash",
+                "Owner User");
         UUID promptId = UUID.randomUUID();
         jdbcTemplate.update("insert into prompt (id, user_id) values (?, ?)", promptId, userId);
         return promptId;

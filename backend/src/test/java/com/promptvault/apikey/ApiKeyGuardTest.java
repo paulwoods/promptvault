@@ -22,10 +22,11 @@ class ApiKeyGuardTest extends IntegrationTest {
     private UUID newUser() {
         UUID id = UUID.randomUUID();
         jdbcTemplate.update(
-                "insert into users (id, email, password_hash) values (?, ?, ?)",
+                "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
                 id,
                 "guard-" + id + "@example.com",
-                "hash");
+                "hash",
+                "Guard User");
         return id;
     }
 

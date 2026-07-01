@@ -43,10 +43,11 @@ class VersionNumberingConcurrencyTest extends AbstractDatabaseTest {
     void concurrentAppendsDoNotDuplicateOrSkipNumbers() throws Exception {
         UUID userId = UUID.randomUUID();
         jdbcTemplate.update(
-                "insert into users (id, email, password_hash) values (?, ?, ?)",
+                "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
                 userId,
                 "concurrent@example.com",
-                "hash");
+                "hash",
+                "Concurrent User");
         UUID promptId = promptService.createPrompt(userId, request("v1")).getPromptId();
 
         ExecutorService pool = Executors.newFixedThreadPool(CONCURRENT_APPENDS);

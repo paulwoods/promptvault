@@ -27,10 +27,11 @@ class ApiKeyTableMigrationTest extends IntegrationTest {
     void oneRowPerUserEnforced() {
         UUID userId = UUID.randomUUID();
         jdbcTemplate.update(
-                "insert into users (id, email, password_hash) values (?, ?, ?)",
+                "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
                 userId,
                 "apikey-user@example.com",
-                "hash");
+                "hash",
+                "Api Key User");
         byte[] bytes = {1, 2, 3};
         jdbcTemplate.update(
                 "insert into api_key (id, user_id, iv, ciphertext, auth_tag) values (?, ?, ?, ?, ?)",

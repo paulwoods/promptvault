@@ -26,10 +26,11 @@ class RunStoreTest extends IntegrationTest {
 
     private UUID seedVersionFor(UUID userId) {
         jdbcTemplate.update(
-                "insert into users (id, email, password_hash) values (?, ?, ?)",
+                "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
                 userId,
                 "store-" + userId + "@example.com",
-                "hash");
+                "hash",
+                "Store User");
         UUID promptId = UUID.randomUUID();
         jdbcTemplate.update("insert into prompt (id, user_id) values (?, ?)", promptId, userId);
         UUID versionId = UUID.randomUUID();

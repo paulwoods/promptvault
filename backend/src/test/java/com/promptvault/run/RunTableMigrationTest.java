@@ -21,10 +21,11 @@ class RunTableMigrationTest extends IntegrationTest {
     private Refs seedUserPromptVersion() {
         UUID userId = UUID.randomUUID();
         jdbcTemplate.update(
-                "insert into users (id, email, password_hash) values (?, ?, ?)",
+                "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
                 userId,
                 "run-" + userId + "@example.com",
-                "hash");
+                "hash",
+                "Run User");
         UUID promptId = UUID.randomUUID();
         jdbcTemplate.update("insert into prompt (id, user_id) values (?, ?)", promptId, userId);
         UUID versionId = UUID.randomUUID();

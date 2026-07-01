@@ -24,14 +24,16 @@ class UsersTableMigrationTest extends IntegrationTest {
     @Test
     void lowerEmailUniquenessRejectsCaseVariantDuplicate() {
         jdbcTemplate.update(
-                "insert into users (id, email, password_hash) values (gen_random_uuid(), ?, ?)",
+                "insert into users (id, email, password_hash, name) values (gen_random_uuid(), ?, ?, ?)",
                 "Alice@Example.com",
-                "hash");
+                "hash",
+                "Alice");
 
         assertThatThrownBy(() -> jdbcTemplate.update(
-                        "insert into users (id, email, password_hash) values (gen_random_uuid(), ?, ?)",
+                        "insert into users (id, email, password_hash, name) values (gen_random_uuid(), ?, ?, ?)",
                         "alice@example.com",
-                        "hash"))
+                        "hash",
+                        "Alice"))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 }
