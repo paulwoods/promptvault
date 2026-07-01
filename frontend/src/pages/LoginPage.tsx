@@ -41,6 +41,7 @@ export function LoginPage() {
             name="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            autoFocus
             required
           />
         </label>

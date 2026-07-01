@@ -5,7 +5,10 @@ import com.promptvault.claude.ClaudeException;
 import com.promptvault.claude.ClaudeRequest;
 import com.promptvault.claude.TokenSink;
 import com.promptvault.claude.Usage;
+import java.time.Duration;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Drives the seam and writes frames to a {@link RunStream}: a leading meta frame,
@@ -15,12 +18,28 @@ import org.springframework.stereotype.Component;
 @Component
 public class RunStreamer {
 
+    private static final long STREAM_TIMEOUT_MS = Duration.ofMinutes(10).toMillis();
+
     private final ClaudeClient claudeClient;
     private final RunStore runStore;
+    private final ObjectMapper objectMapper;
 
-    public RunStreamer(ClaudeClient claudeClient, RunStore runStore) {
+    public RunStreamer(ClaudeClient claudeClient, RunStore runStore, ObjectMapper objectMapper) {
         this.claudeClient = claudeClient;
         this.runStore = runStore;
+        this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Builds the SSE channel for a Run and drives it on its own virtual thread,
+     * returning the emitter immediately so the request thread isn't held for the
+     * duration of the generation.
+     */
+    public SseEmitter streamAsync(Run run, int versionNumber, ClaudeRequest request, String apiKey) {
+        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
+        SseRunStream out = new SseRunStream(emitter, objectMapper);
+        Thread.ofVirtual().name("run-stream-", 0).start(() -> stream(out, run, versionNumber, request, apiKey));
+        return emitter;
     }
 
     public void stream(RunStream out, Run run, int versionNumber, ClaudeRequest request, String apiKey) {

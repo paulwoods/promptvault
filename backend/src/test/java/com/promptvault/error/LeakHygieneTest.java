@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.ObjectMapper;
 
 /** Secrets must never appear in any response body or in the logs. */
 class LeakHygieneTest {
@@ -56,7 +57,7 @@ class LeakHygieneTest {
             FakeClaudeClient fake = new FakeClaudeClient();
             fake.failWith(new ClaudeException(ErrorCategory.AUTH, "Authentication with Claude failed"));
             RecordingRunStore store = new RecordingRunStore();
-            RunStreamer streamer = new RunStreamer(fake, store);
+            RunStreamer streamer = new RunStreamer(fake, store, new ObjectMapper());
             RecordingRunStream out = new RecordingRunStream();
             Run run = new Run(
                     UUID.randomUUID(),

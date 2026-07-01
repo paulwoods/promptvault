@@ -12,12 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 class RunStreamerTest {
 
     private final FakeClaudeClient fake = new FakeClaudeClient();
     private final RecordingRunStore store = new RecordingRunStore();
-    private final RunStreamer streamer = new RunStreamer(fake, store);
+    private final RunStreamer streamer = new RunStreamer(fake, store, new ObjectMapper());
 
     private static Run inProgressRun() {
         return new Run(
