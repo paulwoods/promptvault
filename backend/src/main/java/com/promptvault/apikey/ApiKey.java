@@ -32,6 +32,9 @@ public class ApiKey {
     @Column(name = "enc_key_version", nullable = false)
     private int encKeyVersion;
 
+    @Column(name = "last_six")
+    private String lastSix;
+
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
@@ -40,22 +43,27 @@ public class ApiKey {
         // for JPA
     }
 
-    public ApiKey(UUID id, UUID userId, EncryptedPayload payload, int encKeyVersion) {
+    public ApiKey(UUID id, UUID userId, EncryptedPayload payload, String lastSix, int encKeyVersion) {
         this.id = id;
         this.userId = userId;
         this.encKeyVersion = encKeyVersion;
-        applyPayload(payload);
+        applyPayload(payload, lastSix);
     }
 
     /** Replaces the stored ciphertext (used by the upsert when a key already exists). */
-    public void applyPayload(EncryptedPayload payload) {
+    public void applyPayload(EncryptedPayload payload, String lastSix) {
         this.iv = payload.iv();
         this.ciphertext = payload.ciphertext();
         this.authTag = payload.authTag();
+        this.lastSix = lastSix;
     }
 
     public EncryptedPayload toPayload() {
         return new EncryptedPayload(iv, ciphertext, authTag);
+    }
+
+    public String getLastSix() {
+        return lastSix;
     }
 
     public UUID getId() {

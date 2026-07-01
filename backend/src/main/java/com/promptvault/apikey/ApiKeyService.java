@@ -27,13 +27,14 @@ public class ApiKeyService {
     public void save(UUID userId, String rawApiKey) {
         String trimmed = rawApiKey.trim();
         EncryptedPayload payload = encryptionService.encrypt(trimmed.getBytes(StandardCharsets.UTF_8), userId);
+        String lastSix = trimmed.substring(Math.max(0, trimmed.length() - 6));
         ApiKey row = apiKeys.findByUserId(userId)
                 .map(existing -> {
-                    existing.applyPayload(payload);
+                    existing.applyPayload(payload, lastSix);
                     return existing;
                 })
-                .orElseGet(
-                        () -> new ApiKey(UuidCreator.getTimeOrderedEpoch(), userId, payload, CURRENT_ENC_KEY_VERSION));
+                .orElseGet(() -> new ApiKey(
+                        UuidCreator.getTimeOrderedEpoch(), userId, payload, lastSix, CURRENT_ENC_KEY_VERSION));
         apiKeys.save(row);
     }
 
@@ -50,11 +51,7 @@ public class ApiKeyService {
     @Transactional(readOnly = true)
     public ApiKeyStatus status(UUID userId) {
         return apiKeys.findByUserId(userId)
-                .map(key -> {
-                    String plaintext = new String(encryptionService.decrypt(key.toPayload(), userId), StandardCharsets.UTF_8);
-                    String lastSix = plaintext.substring(Math.max(0, plaintext.length() - 6));
-                    return new ApiKeyStatus(true, key.getUpdatedAt(), lastSix);
-                })
+                .map(key -> new ApiKeyStatus(true, key.getUpdatedAt(), key.getLastSix()))
                 .orElseGet(() -> new ApiKeyStatus(false, null, null));
     }
 }
