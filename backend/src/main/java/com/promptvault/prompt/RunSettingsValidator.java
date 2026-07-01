@@ -5,10 +5,12 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * Validates the Run Settings against the model -> capabilities map: the model
- * must be supported, effort/thinking must be valid enums, and a Version may not
- * select a capability its model lacks (adaptive thinking on e.g. Haiku). Effort
- * is stored on every Version regardless of model (only forwarding is per-model).
+ * The single seam that decides whether a Version's Run Settings are legal: the
+ * model must be supported, effort/thinking must be valid enums, and a Version
+ * may not select a capability its model lacks (adaptive thinking on e.g.
+ * Haiku). Effort is stored on every Version regardless of model (only
+ * forwarding is per-model, decided later by ClaudeRequestMapper). Once a
+ * Version is saved, its settings are trusted as legal everywhere downstream.
  * The max_tokens range is enforced by Bean Validation on the request.
  */
 @Component

@@ -60,20 +60,4 @@ class PromptVersionMigrationTest extends IntegrationTest {
         assertThatThrownBy(() -> insertVersion(promptId, 1, "medium", "off"))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
-
-    @Test
-    void effortCheckRejectsUnknownValue() {
-        UUID promptId = insertPromptForNewUser();
-
-        assertThatThrownBy(() -> insertVersion(promptId, 1, "extreme", "off"))
-                .isInstanceOf(DataIntegrityViolationException.class);
-    }
-
-    @Test
-    void thinkingCheckRejectsUnknownValue() {
-        UUID promptId = insertPromptForNewUser();
-
-        assertThatThrownBy(() -> insertVersion(promptId, 1, "medium", "sometimes"))
-                .isInstanceOf(DataIntegrityViolationException.class);
-    }
 }

@@ -6,15 +6,15 @@ import com.anthropic.models.messages.ThinkingConfigAdaptive;
 import com.anthropic.models.messages.ThinkingConfigDisabled;
 import com.promptvault.prompt.ModelCapability;
 import com.promptvault.prompt.ModelCatalog;
-import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * Maps an SDK-agnostic {@link ClaudeRequest} to the SDK's MessageCreateParams,
- * reconciling Run Settings with the model -> capabilities map: effort is
- * forwarded only for models that support it, and adaptive thinking only where
- * supported (otherwise thinking is disabled). The rendered prompt is the user
- * message; the system prompt is sent separately.
+ * Maps an SDK-agnostic {@link ClaudeRequest} to the SDK's MessageCreateParams.
+ * Effort and thinking are already guaranteed legal for the Version's model by
+ * {@link com.promptvault.prompt.RunSettingsValidator} at save time, so this
+ * class only decides whether to forward effort (Haiku 400s if it's present at
+ * all, regardless of value) and forwards thinking as-is. The rendered prompt
+ * is the user message; the system prompt is sent separately.
  */
 @Component
 public class ClaudeRequestMapper {
@@ -34,17 +34,16 @@ public class ClaudeRequestMapper {
             builder.system(request.systemPrompt());
         }
 
-        Optional<ModelCapability> capability = catalog.find(request.model());
-        boolean supportsEffort = capability.map(ModelCapability::supportsEffort).orElse(false);
-        boolean supportsAdaptiveThinking =
-                capability.map(ModelCapability::supportsAdaptiveThinking).orElse(false);
+        boolean supportsEffort = catalog.find(request.model())
+                .map(ModelCapability::supportsEffort)
+                .orElse(false);
 
         if (supportsEffort) {
             builder.outputConfig(OutputConfig.builder()
                     .effort(OutputConfig.Effort.of(request.effort()))
                     .build());
         }
-        if ("adaptive".equals(request.thinking()) && supportsAdaptiveThinking) {
+        if ("adaptive".equals(request.thinking())) {
             builder.thinking(ThinkingConfigAdaptive.builder().build());
         } else {
             builder.thinking(ThinkingConfigDisabled.builder().build());
