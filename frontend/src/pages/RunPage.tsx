@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
@@ -30,7 +30,20 @@ export function RunPage() {
   const [output, setOutput] = useState('')
   const [runId, setRunId] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
-  const autoRan = useRef(false)
+
+  // RunPage isn't remounted when only the route params change (same Route
+  // element), so run state must be reset explicitly or a new prompt/version
+  // would inherit the previous run's stale output/status. Adjusted during
+  // render (not an effect) per https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
+  const runKey = `${id}/${number}`
+  const [prevRunKey, setPrevRunKey] = useState(runKey)
+  if (runKey !== prevRunKey) {
+    setPrevRunKey(runKey)
+    setStatus('idle')
+    setOutput('')
+    setRunId(null)
+    setFailure(null)
+  }
 
   const run = useCallback(
     (values: Record<string, string>) => {
@@ -63,16 +76,17 @@ export function RunPage() {
   )
 
   // A prompt with no variables has nothing to fill in, so run it immediately.
-  // Schedule the run in a microtask rather than calling it synchronously here:
-  // run() flips status to 'running', and setState inside an effect body would
-  // trigger a cascading render (react-hooks/set-state-in-effect).
+  // Guarding on status (rather than a ref) both prevents re-triggering once
+  // the run has started and survives the runKey reset above. Schedule the run
+  // in a microtask rather than calling it synchronously here: run() flips
+  // status to 'running', and setState inside an effect body would trigger a
+  // cascading render (react-hooks/set-state-in-effect).
   useEffect(() => {
-    if (autoRan.current || !version.data) return
+    if (status !== 'idle' || !version.data) return
     if (version.data.variables.length === 0) {
-      autoRan.current = true
       queueMicrotask(() => run({}))
     }
-  }, [version.data, run])
+  }, [version.data, run, status])
 
   if (version.isPending) {
     return <Loading />

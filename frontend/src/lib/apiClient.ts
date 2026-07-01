@@ -10,7 +10,7 @@ interface ErrorEnvelope {
   details?: unknown
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+export async function toApiError(response: Response): Promise<ApiError> {
   let body: ErrorEnvelope = {}
   try {
     body = (await response.json()) as ErrorEnvelope

@@ -1,5 +1,4 @@
-import { ApiError } from './ApiError'
-import { UNAUTHORIZED_EVENT } from './apiClient'
+import { UNAUTHORIZED_EVENT, toApiError } from './apiClient'
 import { clearToken, getToken } from './auth'
 
 export interface RunMeta {
@@ -106,19 +105,4 @@ function dispatch(rawEvent: string, handlers: StreamHandlers): void {
     default:
       break
   }
-}
-
-async function toApiError(response: Response): Promise<ApiError> {
-  let body: { error?: string; message?: string; details?: unknown } = {}
-  try {
-    body = await response.json()
-  } catch {
-    // non-JSON
-  }
-  return new ApiError(
-    response.status,
-    body.error ?? 'error',
-    body.message ?? response.statusText,
-    body.details,
-  )
 }

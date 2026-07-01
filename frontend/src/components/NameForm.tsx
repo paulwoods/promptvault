@@ -51,7 +51,7 @@ export function NameForm() {
             <button
               type="submit"
               className="button-sm"
-              disabled={save.isPending}
+              disabled={save.isPending || !editing}
             >
               Save Name
             </button>

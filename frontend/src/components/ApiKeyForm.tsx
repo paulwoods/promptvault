@@ -56,7 +56,7 @@ export function ApiKeyForm() {
             <button
               type="submit"
               className="button-sm"
-              disabled={save.isPending}
+              disabled={save.isPending || !editing}
             >
               Save Key
             </button>

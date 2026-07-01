@@ -45,6 +45,7 @@ export function VersionForm({
     setValues((current) => ({
       ...current,
       model: modelId,
+      effort: next?.supportsEffort ? current.effort : 'medium',
       thinking: next?.supportsAdaptiveThinking ? current.thinking : 'off',
     }))
   }
