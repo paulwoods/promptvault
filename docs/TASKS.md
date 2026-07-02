@@ -221,8 +221,8 @@ Gaps surfaced during a post-MVP project review (2026-07-01): real product gaps, 
 - **All-time totals only, no time-series/date breakdown** — no charting library or date-range picker exists in this app yet; nothing named a trends need.
 - **Placement:** a third `fieldset` section on `ProfilePage` ("Usage"), alongside the existing Profile and API Key sections — not a dedicated route.
 
-- [ ] **9.4.1 `GET /api/me/usage`** — returns all-time input/output token totals grouped by model for the caller, sourced from `run` by `user_id` (no join, includes deleted-Prompt Runs). → *verify (HTTP): totals match the sum of the caller's Run token counts across all statuses/models; cross-User isolation (only the caller's own Runs count).*
-- [ ] **9.4.2 Frontend: "Usage" section on `ProfilePage`** — renders the per-model token totals (read-only, no actions). → *verify (RTL + MSW): totals render per model; a User with no Runs yet shows a sensible empty/zero state.*
+- [x] **9.4.1 `GET /api/me/usage`** — returns all-time input/output token totals grouped by model for the caller, sourced from `run` by `user_id` (no join, includes deleted-Prompt Runs). → *verify (HTTP): totals match the sum of the caller's Run token counts across all statuses/models; cross-User isolation (only the caller's own Runs count).*
+- [x] **9.4.2 Frontend: "Usage" section on `ProfilePage`** — renders the per-model token totals (read-only, no actions). → *verify (RTL + MSW): totals render per model; a User with no Runs yet shows a sensible empty/zero state.*
 
 ### 9.5 Prompt deletion *(grilled, ADR-0004)*
 
