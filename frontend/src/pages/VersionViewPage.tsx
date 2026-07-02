@@ -6,6 +6,7 @@ import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { SimpleList } from '../components/SimpleList'
 import { apiClient } from '../lib/apiClient'
+import { isRequired } from '../lib/types'
 import type { VersionResponse } from '../lib/types'
 
 export function VersionViewPage() {
@@ -55,7 +56,7 @@ export function VersionViewPage() {
             {data.variables.map((variable) => (
               <li key={variable.name}>
                 {variable.name}
-                {variable.required ? ' (required)' : ''}
+                {isRequired(variable) ? ' (required)' : ''}
               </li>
             ))}
           </SimpleList>

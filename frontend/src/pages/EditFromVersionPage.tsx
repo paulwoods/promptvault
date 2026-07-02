@@ -10,6 +10,7 @@ import type {
   VersionRequestBody,
 } from '../components/versionFormValues'
 import { apiClient } from '../lib/apiClient'
+import { isRequired } from '../lib/types'
 import type { VersionResponse } from '../lib/types'
 
 function toFormValues(version: VersionResponse): VersionFormValues {
@@ -25,7 +26,7 @@ function toFormValues(version: VersionResponse): VersionFormValues {
     variables: version.variables.map((variable) => ({
       name: variable.name,
       description: variable.description ?? '',
-      required: variable.required ?? true,
+      required: isRequired(variable),
       defaultValue: variable.defaultValue ?? '',
     })),
   }

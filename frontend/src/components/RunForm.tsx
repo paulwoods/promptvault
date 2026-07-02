@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { ErrorAlert } from './ErrorAlert'
+import { isRequired } from '../lib/types'
 import type { VariableDeclaration } from '../lib/types'
 
 interface RunFormProps {
   variables: VariableDeclaration[]
   pending?: boolean
   onRun: (values: Record<string, string>) => void
-}
-
-function isRequired(variable: VariableDeclaration): boolean {
-  return variable.required ?? true
 }
 
 /**

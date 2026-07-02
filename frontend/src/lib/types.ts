@@ -15,6 +15,10 @@ export interface VariableDeclaration {
   defaultValue?: string | null
 }
 
+export function isRequired(variable: VariableDeclaration): boolean {
+  return variable.required ?? true
+}
+
 export interface VersionResponse {
   promptId: string
   versionId: string
