@@ -59,4 +59,19 @@ public interface RunRepository extends JpaRepository<Run, UUID> {
             order by r.createdAt desc
             """)
     Slice<Run> findByUserIdAndPromptId(UUID userId, UUID promptId, String status, Pageable pageable);
+
+    /**
+     * All-time token totals grouped by model, filtered directly by the denormalized user_id
+     * (no join through version/prompt) so Runs whose Prompt is since trashed still count.
+     */
+    @Query("""
+            select new com.promptvault.run.ModelUsage(
+                    r.model,
+                    coalesce(sum(r.inputTokens), 0L),
+                    coalesce(sum(r.outputTokens), 0L))
+            from Run r
+            where r.userId = :userId
+            group by r.model
+            """)
+    List<ModelUsage> sumTokensByModel(UUID userId);
 }

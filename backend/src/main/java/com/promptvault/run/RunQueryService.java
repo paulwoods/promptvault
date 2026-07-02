@@ -87,6 +87,12 @@ public class RunQueryService {
                 run.getCreatedAt());
     }
 
+    /** All-time input/output token totals grouped by model, across all of the User's Runs. */
+    @Transactional(readOnly = true)
+    public List<ModelUsage> usage(UUID userId) {
+        return runs.sumTokensByModel(userId);
+    }
+
     private void requireOwnedPrompt(UUID userId, UUID promptId) {
         prompts.findByIdAndUserIdAndDeletedAtIsNull(promptId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));

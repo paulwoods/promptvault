@@ -91,6 +91,12 @@ export interface RunSummary {
   createdAt: string
 }
 
+export interface ModelUsage {
+  model: string
+  inputTokens: number
+  outputTokens: number
+}
+
 export interface RunDetail {
   runId: string
   versionNumber: number
