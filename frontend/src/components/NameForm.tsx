@@ -1,24 +1,21 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
+import { useEditableField } from '../lib/useEditableField'
 import { useMe } from '../lib/useMe'
 import { ErrorAlert } from './ErrorAlert'
 import { Loading } from './Loading'
 
 export function NameForm() {
-  const queryClient = useQueryClient()
   const me = useMe()
-  const [name, setName] = useState('')
-  const [editing, setEditing] = useState(false)
-
-  const save = useMutation({
-    mutationFn: () => apiClient.put('/api/me/name', { name }),
-    onSuccess: () => {
-      setName('')
-      setEditing(false)
-      return queryClient.invalidateQueries({ queryKey: ['me'] })
-    },
+  const {
+    value: name,
+    setValue: setName,
+    editing,
+    setEditing,
+    save,
+  } = useEditableField({
+    queryKey: ['me'],
+    endpoint: '/api/me/name',
+    field: 'name',
   })
 
   if (me.isPending) return <Loading />

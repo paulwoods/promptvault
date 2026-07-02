@@ -1,15 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
+import { useEditableField } from '../lib/useEditableField'
 import type { ApiKeyStatus } from '../lib/types'
 import { ErrorAlert } from './ErrorAlert'
 import { Loading } from './Loading'
 
 export function ApiKeyForm() {
-  const queryClient = useQueryClient()
-  const [apiKey, setApiKey] = useState('')
-  const [editing, setEditing] = useState(false)
+  const {
+    value: apiKey,
+    setValue: setApiKey,
+    editing,
+    setEditing,
+    save,
+  } = useEditableField({
+    queryKey: ['apiKeyStatus'],
+    endpoint: '/api/me/api-key',
+    field: 'apiKey',
+  })
 
   const status = useQuery({
     queryKey: ['apiKeyStatus'],
@@ -21,15 +29,6 @@ export function ApiKeyForm() {
       ? `******${status.data.lastSix}`
       : ''
   const showMasked = masked !== '' && !editing && apiKey === ''
-
-  const save = useMutation({
-    mutationFn: () => apiClient.put('/api/me/api-key', { apiKey }),
-    onSuccess: () => {
-      setApiKey('')
-      setEditing(false)
-      return queryClient.invalidateQueries({ queryKey: ['apiKeyStatus'] })
-    },
-  })
 
   return (
     <>
