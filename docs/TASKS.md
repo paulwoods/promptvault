@@ -253,9 +253,9 @@ Gaps surfaced during a post-MVP project review (2026-07-01): real product gaps, 
 - **Frontend-only, no backend changes** — both Versions' full content is already fetchable via the existing `GET /api/prompts/{id}/versions/{number}` endpoint; the diff is computed client-side with a diff library. This is the app's first new frontend dependency.
 - **Entry point:** the existing Version History page (`PromptDetailPage`, the Versions tab) gets two `<select>` dropdowns (`from`/`to`, populated from the version list already rendered there) plus a "Compare" control navigating to a linkable `/prompts/:id/compare?from=N&to=M` route that renders the diff.
 
-- [ ] **9.6.1 Add a diff library dependency** (e.g. `diff`) to the frontend. → *verify: `npm run build` succeeds; bundle size impact is reasonable for a small, focused library.*
-- [ ] **9.6.2 Frontend: version pickers on `PromptDetailPage`** — two selects (`from`/`to`) plus a "Compare" link to `/prompts/:id/compare?from=N&to=M`. → *verify (RTL): selecting two versions and clicking Compare navigates to the right URL.*
-- [ ] **9.6.3 Frontend: `CompareVersionsPage`** — fetches both Versions (existing endpoint), renders a word-level diff of `prompt_text` and an "old → new" list of every other field that differs (name, description, model, system_prompt, max_tokens, effort, thinking, variables); fields with no change are omitted. → *verify (RTL + MSW): a text change renders as a word-level diff; a Run Settings change (e.g. model) renders as old → new; unchanged fields don't appear; comparing a Version to itself shows no differences.*
+- [x] **9.6.1 Add a diff library dependency** (e.g. `diff`) to the frontend. → *verify: `npm run build` succeeds; bundle size impact is reasonable for a small, focused library.*
+- [x] **9.6.2 Frontend: version pickers on `PromptDetailPage`** — two selects (`from`/`to`) plus a "Compare" link to `/prompts/:id/compare?from=N&to=M`. → *verify (RTL): selecting two versions and clicking Compare navigates to the right URL.*
+- [x] **9.6.3 Frontend: `CompareVersionsPage`** — fetches both Versions (existing endpoint), renders a word-level diff of `prompt_text` and an "old → new" list of every other field that differs (name, description, model, system_prompt, max_tokens, effort, thinking, variables); fields with no change are omitted. → *verify (RTL + MSW): a text change renders as a word-level diff; a Run Settings change (e.g. model) renders as old → new; unchanged fields don't appear; comparing a Version to itself shows no differences.*
 
 ---
 

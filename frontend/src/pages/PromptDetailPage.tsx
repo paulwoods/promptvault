@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
@@ -27,6 +28,17 @@ export function PromptDetailPage() {
       navigate('/')
     },
   })
+
+  // Version pickers for the diff view (9.6) — default to the oldest and
+  // newest Version so the common "what changed since the first one" case
+  // needs no interaction, but either select can be changed to compare any
+  // two arbitrary Versions.
+  const [fromNumber, setFromNumber] = useState('')
+  const [toNumber, setToNumber] = useState('')
+  const versions = prompt.data?.versions ?? []
+  const effectiveFrom = fromNumber || String(versions[0]?.number ?? '')
+  const effectiveTo =
+    toNumber || String(versions[versions.length - 1]?.number ?? '')
 
   return (
     <>
@@ -65,6 +77,47 @@ export function PromptDetailPage() {
             </li>
           ))}
         </ul>
+      )}
+      {prompt.data && prompt.data.versions.length >= 2 && (
+        <section>
+          <h2>Compare versions</h2>
+          <div className="compare-picker">
+            <label>
+              From
+              <select
+                aria-label="From version"
+                value={effectiveFrom}
+                onChange={(event) => setFromNumber(event.target.value)}
+              >
+                {prompt.data.versions.map((version) => (
+                  <option key={version.versionId} value={version.number}>
+                    {version.name} (v{version.number})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              To
+              <select
+                aria-label="To version"
+                value={effectiveTo}
+                onChange={(event) => setToNumber(event.target.value)}
+              >
+                {prompt.data.versions.map((version) => (
+                  <option key={version.versionId} value={version.number}>
+                    {version.name} (v{version.number})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Link
+              to={`/prompts/${id}/compare?from=${effectiveFrom}&to=${effectiveTo}`}
+              className="button-link button-link-sm"
+            >
+              Compare
+            </Link>
+          </div>
+        </section>
       )}
     </>
   )
