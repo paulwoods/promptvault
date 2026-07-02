@@ -8,7 +8,7 @@ The shared, implementation-free vocabulary for Prompt Vault. Use these names in 
 An account holder. Every [Prompt](#prompt) (and therefore its [Versions](#version)) and every [Run](#run) is owned by exactly one User. A User can only see and act on their own Prompts and Runs; authorization is enforced on every endpoint. Each User supplies their own **Anthropic API key**, which is stored encrypted at rest, never returned to the client, and used for that User's [Runs](#run) — so cost is attributed per User.
 
 ### Prompt
-The stable identity for something a user maintains over time. A Prompt carries **no editable fields of its own** — it is purely an identifier plus an ordered history of one or more [Versions](#version). All meaningful content lives on the Versions. A Prompt is referred to in lists by the name of its *current* (latest) Version.
+The stable identity for something a user maintains over time. A Prompt carries **no editable fields of its own** — it is purely an identifier plus an ordered history of one or more [Versions](#version). All meaningful content lives on the Versions. A Prompt is referred to in lists by the name of its *current* (latest) Version. A Prompt can be moved to [Trash](#trash) and restored; this is the only way a Prompt's visibility changes, and it never touches the immutability of its Versions or Runs.
 
 ### Version
 An immutable snapshot identified by an integer that starts at **1** and increments by one per save. A Version freezes **everything**: name, description, the prompt text, and the [Run Settings](#run-settings). Once created, a Version never changes. Any edit — including a rename — appends a new Version rather than mutating an existing one. Any historical Version can be viewed and [run](#run). The newest Version is the *current* (latest) Version.
@@ -21,3 +21,6 @@ The Claude parameters frozen into a Version that make a [Run](#run) reproducible
 
 ### Variable
 A named, **explicitly declared** input on a Version. Each Variable has a name, a description, a `required` flag, and an optional default value. The prompt text references Variables by name as `{{name}}` placeholders. At [run](#run) time the user supplies a value for each Variable (defaults pre-fill); values are substituted into the text before it is sent to Claude. Because the declared list and the `{{...}}` in the text are separate, saving a Version is **strictly validated**: the set of `{{placeholders}}` in the text must match the set of declared Variable names *exactly* — every placeholder must be declared, and every declared Variable must be used. Mismatches reject the save.
+
+### Trash
+The holding state for a deleted [Prompt](#prompt). Deletion is soft and applies only at the whole-Prompt grain — never to an individual Version or Run, both of which stay permanently immutable and undeletable. A deleted Prompt, together with everything under it (its Versions and Runs), disappears from every normal view until it is **restored**; there is no permanent-delete action anywhere, and Trash holds a Prompt indefinitely.

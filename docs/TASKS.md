@@ -172,8 +172,93 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - [x] **8.3 Durability check** — write data, restart the app against the **same** Postgres; assert all data is readable/unchanged and startup is clean under `ddl-auto=validate` + Flyway on the **populated** DB (schema-drift guard); note run-finalization atomicity. → *verify: data persists across restart; no re-migration / no validation failure on the populated DB.*
 - [x] **8.4 Confirm ADR-0003 disconnect semantics + doc-consistency pass.** Confirm the Phase-6 disconnect behavior is wired (abort + close per-Run client + `failed`/`CLIENT_DISCONNECT`, no background completion, no reaper) and the model list is enforced (`claude-opus-4-8` default, `claude-sonnet-4-6`, `claude-haiku-4-5`, `claude-fable-5`); reconcile stale "undecided" notes (registration policy — resolved to open self-serve signup in Phase 2; ADR-0003 — already marked resolved; CONTEXT.md `thinking` — already added). → *verify: behavior matches Phase 6; model list enforced; no doc still calls a resolved question "undecided".*
 
+## Phase 9 — Candidate v2 features
+
+Gaps surfaced during a post-MVP project review (2026-07-01): real product gaps, but outside the PRD's user stories and not already named in the "Out of scope" list below. All six items below were grilled (2026-07-01) in this order: deletion first (most foundational — it changes the query shape for the rest), then the remainder in their original listed order (9.1 → 9.2 → 9.3 → 9.4 → 9.6). Every item now has decisions locked; none are built yet.
+
+### 9.1 Prompt/run search & filtering *(grilled)*
+
+**Decisions locked (grilling session, 2026-07-01):**
+- Split into two independent pieces — Prompt search and Run filtering — different data shapes, no reason to ship together.
+- **Prompt search:** matches the current (latest) Version's `name` and `description` only — not historical Version names, not `prompt_text`. Case-insensitive substring match (`ILIKE`), not full-text/fuzzy. Server-side via a `q` query param on `GET /api/prompts` (not client-side filtering), chosen specifically because 9.2 (pagination, next) needs server-side filtering anyway. Applies to the active Prompt list only — Trash (ADR-0004) stays unsearched, consistent with keeping it minimal.
+- **Run filtering:** scoped to the existing per-Prompt run views (`GET /api/prompts/{id}/runs` and `.../versions/{number}/runs`) — no new global "all my Runs" view/endpoint. Filters by `status` only (`completed`/`failed`/`in_progress`); no date range, no full-text search over `rendered_prompt`/`response` (deferred, not requested).
+
+- [ ] **9.1.1 `GET /api/prompts?q=term`** — case-insensitive substring match against the current Version's `name`/`description`; omitted/blank `q` returns the full list unchanged. → *verify (HTTP): a substring match in name or description returns the Prompt; a non-matching term excludes it; no `q` behaves as today.*
+- [ ] **9.1.2 `status` filter on the two run-history reads** — optional `status` query param, one of `completed`/`failed`/`in_progress`; omitted returns all statuses (today's behavior). → *verify (HTTP): filtering returns only matching Runs; omitted param unchanged; owner-scoping and the ADR-0004 deletion cascade still apply.*
+- [ ] **9.1.3 Frontend: search box on the Prompt list** — debounced input driving `q`; empty state distinguishes "no Prompts yet" from "no matches for this search." → *verify (RTL + MSW): typing filters the list; clearing restores the full list.*
+- [ ] **9.1.4 Frontend: status filter on Run history views** — a control driving the `status` param on the per-Prompt and per-Version run views. → *verify (RTL + MSW): selecting a status filters visible Runs; "all" restores the full list.*
+
+### 9.2 Pagination *(grilled)*
+
+**Decisions locked (grilling session, 2026-07-01):**
+- Paginates the Prompt list and both Run-history views only (per-Prompt, per-Version) — Trash stays unpaginated, consistent with keeping it minimal (9.5).
+- Offset-based (`LIMIT`/`OFFSET`), not keyset/cursor — simplest correct fit for one user browsing their own data at this scale.
+- Fixed default page size, no client-configurable `size` param.
+- "Load more" button (append-style), not numbered pages — no `COUNT(*)` query, no page-number UI needed; matches chronological/casual browsing.
+
+- [ ] **9.2.1 `GET /api/prompts?page=N` (+ existing `q` from 9.1)** — fixed page size, returns `{items, hasMore}` (no total count); page 1 default. → *verify (HTTP): page 1 returns the first page-size Prompts + `hasMore`; requesting past the end returns an empty page + `hasMore=false`; composes with `q`.*
+- [ ] **9.2.2 `page` param on both run-history reads (+ existing `status` from 9.1)** — same `{items, hasMore}` shape, fixed page size, ordered by `created_at` descending (existing order, Phase 6.5). → *verify (HTTP): pagination and `status` filtering compose correctly; last page reports `hasMore=false`.*
+- [ ] **9.2.3 Frontend: "Load more" on the Prompt list and both Run-history views** — appends the next page to the rendered list; button hides when `hasMore=false`. → *verify (RTL + MSW): clicking Load more appends further items; button disappears at the end.*
+
+### 9.3 Duplicate/fork a Prompt *(grilled)*
+
+**Decisions locked (grilling session, 2026-07-01):**
+- Reuses the existing "edit from any Version" machinery (`EditFromVersionPage`'s `toFormValues` + `VersionForm`) almost entirely — the only difference is POSTing to `POST /api/prompts` (create) instead of `POST /api/prompts/{id}/versions` (append). **No backend changes required** — this is a frontend-only feature.
+- Can fork from any historical Version, not just the current one — mirrors "edit from any Version" (story 25) exactly.
+- The pre-filled name is left identical to the source, no auto-"Copy of" prefix — the review-step form already lets the user rename before saving, and prefixing invites a runaway-prefix problem on repeated duplication.
+- Entry point: a sixth tab in `PromptTabs` (`Duplicate`), alongside View/Edit/Run — same version-scoped routing pattern (`/prompts/:id/versions/:number/duplicate`).
+- The new Prompt starts with zero Run history, as any newly created Prompt does — not carried over from the source (this is a fork, not a branch within the same history).
+
+- [ ] **9.3.1 Frontend: `DuplicateFromVersionPage`** — fetches the source Version, pre-fills `VersionForm` via `toFormValues` (reused from `EditFromVersionPage`), and on submit POSTs to `POST /api/prompts` (not `.../versions`) to create a brand-new Prompt; navigates to the new Prompt on success. → *verify (RTL + MSW): duplicating pre-fills the form with the source Version's content; saving creates a new, independent Prompt (its own Version 1) and does not alter the source Prompt's history.*
+- [ ] **9.3.2 Frontend: `Duplicate` tab in `PromptTabs`.** → *verify (RTL): the tab appears alongside View/Edit/Run and links to the duplicate route for the current version-in-context.*
+
+### 9.4 Usage/cost dashboard *(grilled, ADR-0005)*
+
+**Decisions locked (grilling session, 2026-07-01):**
+- **Token counts only, no dollar conversion** — respects the PRD's existing "no billing/cost-tracking beyond per-User attribution" boundary rather than quietly reopening it; no per-model price table exists or is being added.
+- **Account-wide only, no per-Prompt breakdown** — a single aggregate across all the User's Runs, `GROUP BY model`; per-Prompt usage is a separate, smaller future feature.
+- Queries `run` directly, filtered by the denormalized `user_id`, **no join** through `version`/`prompt` — so it **includes** token usage from Runs whose Prompt is now in Trash (ADR-0004); the tokens were genuinely spent regardless of current visibility.
+- **All-time totals only, no time-series/date breakdown** — no charting library or date-range picker exists in this app yet; nothing named a trends need.
+- **Placement:** a third `fieldset` section on `ProfilePage` ("Usage"), alongside the existing Profile and API Key sections — not a dedicated route.
+
+- [ ] **9.4.1 `GET /api/me/usage`** — returns all-time input/output token totals grouped by model for the caller, sourced from `run` by `user_id` (no join, includes deleted-Prompt Runs). → *verify (HTTP): totals match the sum of the caller's Run token counts across all statuses/models; cross-User isolation (only the caller's own Runs count).*
+- [ ] **9.4.2 Frontend: "Usage" section on `ProfilePage`** — renders the per-model token totals (read-only, no actions). → *verify (RTL + MSW): totals render per model; a User with no Runs yet shows a sensible empty/zero state.*
+
+### 9.5 Prompt deletion *(grilled, ADR-0004)*
+
+**Decisions locked (grilling session, 2026-07-01):**
+- **Soft delete, not hard delete:** a nullable `deleted_at timestamptz` on `prompt`. A hard delete would cascade-destroy Run history, undermining ADR-0001's "a Run always points at its precise inputs" guarantee.
+- **Real Trash view**, not an invisible safety-net flag: a separate route (e.g. `/trash`), restore is a first-class user action.
+- **Restore-only, forever:** no "permanently delete" action anywhere; retention is indefinite; no purge job.
+- **No confirmation dialog:** delete fires immediately on click, matching the app's existing convention of zero confirm dialogs anywhere (e.g. logout) — safe because Trash + restore already makes it low-stakes.
+- **Trash list is minimal:** name + deleted-at timestamp + Restore button only. No drill-in to content or Version history from Trash.
+- **Full cascade:** while deleted, the Prompt's detail page, historical Versions, and Runs (including direct `/runs/:id` links and the run-history reads) all read as not-found — same convention as owner-scoped 404, just another reason a resource isn't currently reachable. Only the Trash list can see it (name/date only) and restore it.
+- **Cascade implementation:** a `run → version → prompt` join for the `deleted_at` check on Run reads, rather than denormalizing a deleted/visible flag onto `run` — deliberately diverging from ADR-0003's `user_id` denormalization, since that exists to keep the *owner* filter join-free everywhere, whereas this is a one-off, low-frequency check not worth the write-amplification of updating every `run` row on each delete/restore.
+- **In-progress Runs:** deleting a Prompt with an `in_progress` Run is unconditional, no blocking/409 — the stream finishes as normal; the Run row is just hidden by the cascade until restored (consistent with the app's existing tolerance for orphaned in-progress Runs on crash).
+- **Not a reopening of "no `DELETE`":** Phase 4's "no `DELETE` on Prompts/Versions" is about individual Versions/Runs, which remain permanently undeletable; whole-Prompt deletion is a distinct, coarser operation.
+
+- [ ] **9.5.1 Migration: `deleted_at timestamptz` nullable on `prompt`.** → *verify: migration applies; existing rows default to `NULL` (active).*
+- [ ] **9.5.2 `DELETE /api/prompts/{id}`** — sets `deleted_at = now()`; owner-scoped, idempotent-if-already-deleted; unconditional even with an `in_progress` Run against it. → *verify (HTTP): delete sets the timestamp; cross-User → 404; deleting twice doesn't error.*
+- [ ] **9.5.3 `POST /api/prompts/{id}/restore`** — clears `deleted_at`; only reachable for a Prompt currently in Trash. → *verify (HTTP): restores an active Prompt back to normal lists/detail; restoring a never-deleted or already-active Prompt → 404/no-op (pick one, document it).*
+- [ ] **9.5.4 `GET /api/prompts/trash`** — lists the caller's soft-deleted Prompts (name, deleted-at, promptId only), owner-scoped. → *verify (HTTP): shows only the caller's deleted Prompts; excludes active ones.*
+- [ ] **9.5.5 Cascade filtering on existing reads** — `GET /api/prompts`, `/api/prompts/{id}`, `/api/prompts/{id}/versions/{number}`, `/api/prompts/{id}/runs`, `/api/prompts/{id}/versions/{number}/runs`, and `/api/runs/{id}` all exclude a soft-deleted Prompt's data (the last three via the new `run → version → prompt` join). → *verify (HTTP): every one of these 404s for a deleted Prompt's resources; all resume working after restore.*
+- [ ] **9.5.6 Frontend: Delete action + Trash route** — a Delete button on the Prompt detail page (fires immediately, no confirmation); a `/trash` route (nav-linked) listing deleted Prompts with a Restore button; a restored Prompt returns to the normal list. → *verify (RTL + MSW): delete removes the Prompt from the list and it appears in Trash; restore reverses both.*
+
+### 9.6 Version diff view *(grilled)*
+
+**Decisions locked (grilling session, 2026-07-01):**
+- Compares **any two arbitrary Versions**, not just adjacent ones — mirrors the existing "compare across Versions" precedent already established for Runs (story 37); the common real case ("what changed since the one I liked") is often not adjacent.
+- Diffs **all frozen fields**, not just `prompt_text` — CONTEXT.md defines a Version as freezing *everything* (name, description, prompt_text, Run Settings, Variables), so a diff that only covered text would silently hide a model swap or a Variable added/removed. `prompt_text` gets a real diff; every other field is shown only if it differs, as a simple "old → new."
+- `prompt_text` diff granularity is **word-level** (e.g. `diffWords` from the `diff`/jsdiff library), not line-level — prompt text is prose, and a line-level diff on a paragraph just flags "this whole line changed," which isn't useful.
+- **Frontend-only, no backend changes** — both Versions' full content is already fetchable via the existing `GET /api/prompts/{id}/versions/{number}` endpoint; the diff is computed client-side with a diff library. This is the app's first new frontend dependency.
+- **Entry point:** the existing Version History page (`PromptDetailPage`, the Versions tab) gets two `<select>` dropdowns (`from`/`to`, populated from the version list already rendered there) plus a "Compare" control navigating to a linkable `/prompts/:id/compare?from=N&to=M` route that renders the diff.
+
+- [ ] **9.6.1 Add a diff library dependency** (e.g. `diff`) to the frontend. → *verify: `npm run build` succeeds; bundle size impact is reasonable for a small, focused library.*
+- [ ] **9.6.2 Frontend: version pickers on `PromptDetailPage`** — two selects (`from`/`to`) plus a "Compare" link to `/prompts/:id/compare?from=N&to=M`. → *verify (RTL): selecting two versions and clicking Compare navigates to the right URL.*
+- [ ] **9.6.3 Frontend: `CompareVersionsPage`** — fetches both Versions (existing endpoint), renders a word-level diff of `prompt_text` and an "old → new" list of every other field that differs (name, description, model, system_prompt, max_tokens, effort, thinking, variables); fields with no change are omitted. → *verify (RTL + MSW): a text change renders as a word-level diff; a Run Settings change (e.g. model) renders as old → new; unchanged fields don't appear; comparing a Version to itself shows no differences.*
+
 ---
 
 ### Out of scope (do **not** build — from the PRD)
 
-Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · OAuth/SSO/social login · draft-vs-published Versions · sharing/teams/roles · folders/tags/search/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2).
+Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · OAuth/SSO/social login · draft-vs-published Versions · sharing/teams/roles · folders/tags/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2). *Note: "search" was also originally on this list; Phase 9.1 subsequently scoped in a narrow name/description substring search — folders/tags/favorites (prompt organization) remain out of scope.*
