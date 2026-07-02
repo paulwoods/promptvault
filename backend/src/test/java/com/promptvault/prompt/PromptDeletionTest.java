@@ -204,6 +204,37 @@ class PromptDeletionTest extends IntegrationTest {
     }
 
     @Test
+    void addVersionToATrashedPromptReturns404AndResumesAfterRestore() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "trash-editor@example.com", "password123");
+        String promptId = createPrompt(token, "TrashEdit");
+
+        mockMvc.perform(delete("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isNoContent());
+
+        // While deleted: appending a Version is cascade-filtered (ADR-0004), like every read.
+        mockMvc.perform(post("/api/prompts/" + promptId + "/versions")
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("TrashEdit v2")))
+                .andExpect(status().isNotFound());
+        entityManager.flush();
+        Integer versionCount = jdbcTemplate.queryForObject(
+                "select count(*) from version where prompt_id = ?", Integer.class, UUID.fromString(promptId));
+        assertThat(versionCount).isEqualTo(1);
+
+        mockMvc.perform(post("/api/prompts/" + promptId + "/restore").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isNoContent());
+
+        // After restore: appending resolves again and numbering continues from 1.
+        mockMvc.perform(post("/api/prompts/" + promptId + "/versions")
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("TrashEdit v2")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.number").value(2));
+    }
+
+    @Test
     void cascadeFiltersAllReadsForADeletedPromptAndResumesAfterRestore() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "cascade@example.com", "password123");
         UUID userId =

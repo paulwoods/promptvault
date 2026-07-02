@@ -43,11 +43,11 @@ public class PromptService {
 
     /**
      * Appends the next Version to the caller's prompt (covers edit and rename).
-     * Cross-user access is not found (404).
+     * Cross-user or Trashed (ADR-0004) -> 404.
      */
     @Transactional
     public Version addVersion(UUID userId, UUID promptId, VersionRequest request) {
-        if (prompts.findByIdAndUserId(promptId, userId).isEmpty()) {
+        if (prompts.findByIdAndUserIdAndDeletedAtIsNull(promptId, userId).isEmpty()) {
             throw new ResourceNotFoundException("Prompt not found");
         }
         return appendVersion(promptId, request);
