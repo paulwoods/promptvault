@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import { Layout } from '../components/Layout'
 import { ApiKeyPage } from '../pages/ApiKeyPage'
 import { CreatePromptPage } from '../pages/CreatePromptPage'
+import { DuplicateFromVersionPage } from '../pages/DuplicateFromVersionPage'
 import { EditFromVersionPage } from '../pages/EditFromVersionPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
@@ -85,6 +86,14 @@ export function AppRoutes() {
             element={
               <RequireAuth>
                 <RunPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id/versions/:number/duplicate"
+            element={
+              <RequireAuth>
+                <DuplicateFromVersionPage />
               </RequireAuth>
             }
           />

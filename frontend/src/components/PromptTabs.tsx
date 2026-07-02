@@ -9,7 +9,7 @@ interface PromptTabsProps {
   versionNumber?: number | string
 }
 
-/** Navigation between a prompt's pages: View, Edit, Run, Versions, Runs. */
+/** Navigation between a prompt's pages: View, Edit, Run, Duplicate, Versions, Runs. */
 export function PromptTabs({ promptId, versionNumber }: PromptTabsProps) {
   const detail = useQuery({
     queryKey: ['prompt', promptId],
@@ -32,6 +32,9 @@ export function PromptTabs({ promptId, versionNumber }: PromptTabsProps) {
           </NavLink>
           <NavLink to={`/prompts/${promptId}/versions/${number}/run`}>
             Run
+          </NavLink>
+          <NavLink to={`/prompts/${promptId}/versions/${number}/duplicate`}>
+            Duplicate
           </NavLink>
         </>
       )}

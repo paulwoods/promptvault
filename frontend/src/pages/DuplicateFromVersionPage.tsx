@@ -12,7 +12,7 @@ import {
 import { apiClient } from '../lib/apiClient'
 import type { VersionResponse } from '../lib/types'
 
-export function EditFromVersionPage() {
+export function DuplicateFromVersionPage() {
   const { id = '', number = '' } = useParams()
   const navigate = useNavigate()
 
@@ -24,8 +24,8 @@ export function EditFromVersionPage() {
 
   const mutation = useMutation({
     mutationFn: (body: VersionRequestBody) =>
-      apiClient.post<VersionResponse>(`/api/prompts/${id}/versions`, body),
-    onSuccess: () => navigate(`/prompts/${id}`),
+      apiClient.post<VersionResponse>('/api/prompts', body),
+    onSuccess: (data) => navigate(`/prompts/${data.promptId}`),
   })
 
   if (version.isPending) {
@@ -38,10 +38,10 @@ export function EditFromVersionPage() {
   return (
     <>
       <PromptTabs promptId={id} versionNumber={number} />
-      <PageHeader title="Edit (new version)" />
+      <PageHeader title="Duplicate prompt" />
       <VersionForm
         initial={toFormValues(version.data)}
-        submitLabel="Save new version"
+        submitLabel="Create prompt"
         pending={mutation.isPending}
         error={mutation.error}
         onSubmit={(body) => mutation.mutate(body)}

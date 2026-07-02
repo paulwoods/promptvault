@@ -209,8 +209,8 @@ Gaps surfaced during a post-MVP project review (2026-07-01): real product gaps, 
 - Entry point: a sixth tab in `PromptTabs` (`Duplicate`), alongside View/Edit/Run — same version-scoped routing pattern (`/prompts/:id/versions/:number/duplicate`).
 - The new Prompt starts with zero Run history, as any newly created Prompt does — not carried over from the source (this is a fork, not a branch within the same history).
 
-- [ ] **9.3.1 Frontend: `DuplicateFromVersionPage`** — fetches the source Version, pre-fills `VersionForm` via `toFormValues` (reused from `EditFromVersionPage`), and on submit POSTs to `POST /api/prompts` (not `.../versions`) to create a brand-new Prompt; navigates to the new Prompt on success. → *verify (RTL + MSW): duplicating pre-fills the form with the source Version's content; saving creates a new, independent Prompt (its own Version 1) and does not alter the source Prompt's history.*
-- [ ] **9.3.2 Frontend: `Duplicate` tab in `PromptTabs`.** → *verify (RTL): the tab appears alongside View/Edit/Run and links to the duplicate route for the current version-in-context.*
+- [x] **9.3.1 Frontend: `DuplicateFromVersionPage`** — fetches the source Version, pre-fills `VersionForm` via `toFormValues` (reused from `EditFromVersionPage`), and on submit POSTs to `POST /api/prompts` (not `.../versions`) to create a brand-new Prompt; navigates to the new Prompt on success. → *verify (RTL + MSW): duplicating pre-fills the form with the source Version's content; saving creates a new, independent Prompt (its own Version 1) and does not alter the source Prompt's history.*
+- [x] **9.3.2 Frontend: `Duplicate` tab in `PromptTabs`.** → *verify (RTL): the tab appears alongside View/Edit/Run and links to the duplicate route for the current version-in-context.*
 
 ### 9.4 Usage/cost dashboard *(grilled, ADR-0005)*
 
