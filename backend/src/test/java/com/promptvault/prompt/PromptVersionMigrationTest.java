@@ -49,7 +49,8 @@ class PromptVersionMigrationTest extends IntegrationTest {
     void promptHasNoMutableContentColumns() {
         List<String> columns = jdbcTemplate.queryForList(
                 "select column_name from information_schema.columns where table_name = 'prompt'", String.class);
-        assertThat(columns).containsExactlyInAnyOrder("id", "user_id", "created_at");
+        // deleted_at (V8) is lifecycle metadata (ADR-0004 soft delete), not content.
+        assertThat(columns).containsExactlyInAnyOrder("id", "user_id", "created_at", "deleted_at");
     }
 
     @Test

@@ -19,6 +19,7 @@ export function TopNav() {
         <div className="nav-right">
           {isAuthenticated && me.data ? (
             <div className="nav-links">
+              <NavLink to="/trash">Trash</NavLink>
               <NavLink to="/profile" className="nav-user">
                 {me.data.name}
               </NavLink>

@@ -1,5 +1,11 @@
 /** Shared API DTO types mirroring the backend contracts. */
 
+/** An offset-paginated list (9.2) — no total count, "Load more" rather than numbered pages. */
+export interface Page<T> {
+  items: T[]
+  hasMore: boolean
+}
+
 export interface PromptSummary {
   promptId: string
   name: string
@@ -46,6 +52,12 @@ export interface VersionSummary {
 export interface PromptDetail {
   promptId: string
   versions: VersionSummary[]
+}
+
+export interface TrashedPromptSummary {
+  promptId: string
+  name: string
+  deletedAt: string
 }
 
 export interface ModelCapability {

@@ -1,19 +1,40 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { AppIcon } from '../components/AppIcon'
 import { EmptyState } from '../components/EmptyState'
 import { LoadError } from '../components/LoadError'
+import { LoadMoreButton } from '../components/LoadMoreButton'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
-import type { PromptSummary } from '../lib/types'
+import { useDebouncedValue } from '../lib/useDebouncedValue'
+import type { Page, PromptSummary } from '../lib/types'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { data, isPending, isError } = useQuery({
-    queryKey: ['prompts'],
-    queryFn: () => apiClient.get<PromptSummary[]>('/api/prompts'),
+  const [search, setSearch] = useState('')
+  const q = useDebouncedValue(search)
+  const {
+    data,
+    isPending,
+    isError,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['prompts', q],
+    queryFn: ({ pageParam }) =>
+      apiClient.get<Page<PromptSummary>>(
+        q
+          ? `/api/prompts?q=${encodeURIComponent(q)}&page=${pageParam}`
+          : `/api/prompts?page=${pageParam}`,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.hasMore ? pages.length + 1 : undefined,
   })
+  const prompts = data?.pages.flatMap((page) => page.items)
 
   return (
     <>
@@ -30,12 +51,23 @@ export function HomePage() {
           </Link>
         }
       />
+      <input
+        type="search"
+        aria-label="Search prompts"
+        placeholder="Search prompts…"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+      />
       {isPending && <Loading />}
       {isError && <LoadError>Could not load prompts.</LoadError>}
-      {data && data.length === 0 && <EmptyState>No prompts yet.</EmptyState>}
-      {data && data.length > 0 && (
+      {prompts && prompts.length === 0 && (
+        <EmptyState>
+          {q ? 'No matches for this search.' : 'No prompts yet.'}
+        </EmptyState>
+      )}
+      {prompts && prompts.length > 0 && (
         <ul className="prompt-grid">
-          {data.map((prompt) => (
+          {prompts.map((prompt) => (
             <li
               key={prompt.promptId}
               className="prompt-card"
@@ -98,6 +130,11 @@ export function HomePage() {
           ))}
         </ul>
       )}
+      <LoadMoreButton
+        hasMore={hasNextPage}
+        isLoading={isFetchingNextPage}
+        onClick={() => fetchNextPage()}
+      />
     </>
   )
 }

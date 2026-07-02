@@ -11,6 +11,7 @@ import { RegisterPage } from '../pages/RegisterPage'
 import { RunDetailPage } from '../pages/RunDetailPage'
 import { RunListPage } from '../pages/RunListPage'
 import { RunPage } from '../pages/RunPage'
+import { TrashPage } from '../pages/TrashPage'
 import { VersionViewPage } from '../pages/VersionViewPage'
 import { AuthListener } from './AuthListener'
 import { RequireAuth } from './RequireAuth'
@@ -64,6 +65,14 @@ export function AppRoutes() {
             }
           />
           <Route
+            path="/prompts/:id/versions/:number/runs"
+            element={
+              <RequireAuth>
+                <RunListPage />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/prompts/:id/versions/:number/edit"
             element={
               <RequireAuth>
@@ -84,6 +93,14 @@ export function AppRoutes() {
             element={
               <RequireAuth>
                 <RunDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trash"
+            element={
+              <RequireAuth>
+                <TrashPage />
               </RequireAuth>
             }
           />

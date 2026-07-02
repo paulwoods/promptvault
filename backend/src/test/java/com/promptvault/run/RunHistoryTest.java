@@ -74,13 +74,14 @@ class RunHistoryTest extends IntegrationTest {
         mockMvc.perform(get("/api/prompts/" + promptId + "/runs").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 // newest first (v2 failed), then v1 in_progress, then v1 completed
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].versionNumber").value(2))
-                .andExpect(jsonPath("$[0].status").value("failed"))
-                .andExpect(jsonPath("$[1].status").value("in_progress"))
-                .andExpect(jsonPath("$[2].versionNumber").value(1))
-                .andExpect(jsonPath("$[2].status").value("completed"))
-                .andExpect(jsonPath("$[2].responsePreview").value("the full answer"));
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.hasMore").value(false))
+                .andExpect(jsonPath("$.items[0].versionNumber").value(2))
+                .andExpect(jsonPath("$.items[0].status").value("failed"))
+                .andExpect(jsonPath("$.items[1].status").value("in_progress"))
+                .andExpect(jsonPath("$.items[2].versionNumber").value(1))
+                .andExpect(jsonPath("$.items[2].status").value("completed"))
+                .andExpect(jsonPath("$.items[2].responsePreview").value("the full answer"));
     }
 
     @Test
@@ -95,8 +96,8 @@ class RunHistoryTest extends IntegrationTest {
 
         mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1/runs").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].versionNumber").value(1));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].versionNumber").value(1));
     }
 
     @Test

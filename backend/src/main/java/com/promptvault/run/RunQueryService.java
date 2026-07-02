@@ -1,5 +1,7 @@
 package com.promptvault.run;
 
+import com.promptvault.common.Page;
+import com.promptvault.common.Pagination;
 import com.promptvault.error.ResourceNotFoundException;
 import com.promptvault.prompt.PromptRepository;
 import com.promptvault.prompt.Version;
@@ -8,8 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /** Owner-scoped reads of Run history (lists carry previews; single-run carries full detail). */
 @Service
@@ -27,31 +31,45 @@ public class RunQueryService {
         this.versions = versions;
     }
 
-    /** All runs across every Version of the prompt, tagged with each run's Version number. */
+    /**
+     * All runs across every Version of the prompt, tagged with each run's
+     * Version number. {@code status} optionally restricts to one of
+     * completed/failed/in_progress (9.1.2); blank/null returns all statuses.
+     * Paginated (9.2.2) — {@code page} is 1-based and defaults to 1.
+     */
     @Transactional(readOnly = true)
-    public List<RunSummary> listByPrompt(UUID userId, UUID promptId) {
+    public Page<RunSummary> listByPrompt(UUID userId, UUID promptId, String status, Integer page) {
         requireOwnedPrompt(userId, promptId);
         Map<UUID, Integer> versionNumbers = versions.findByPromptIdOrderByNumberDesc(promptId).stream()
                 .collect(Collectors.toMap(Version::getId, Version::getNumber));
-        return runs.findByUserIdAndPromptId(userId, promptId).stream()
+        Slice<Run> slice = runs.findByUserIdAndPromptId(userId, promptId, normalizeStatus(status), Pagination.of(page));
+        List<RunSummary> items = slice.getContent().stream()
                 .map(run -> toSummary(run, versionNumbers.getOrDefault(run.getVersionId(), 0)))
                 .toList();
+        return new Page<>(items, slice.hasNext());
     }
 
     @Transactional(readOnly = true)
-    public List<RunSummary> listByVersion(UUID userId, UUID promptId, int versionNumber) {
+    public Page<RunSummary> listByVersion(UUID userId, UUID promptId, int versionNumber, String status, Integer page) {
         requireOwnedPrompt(userId, promptId);
         Version version = versions.findByPromptIdAndNumber(promptId, versionNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Version not found"));
-        return runs.findByUserIdAndVersionIdOrderByCreatedAtDesc(userId, version.getId()).stream()
+        Slice<Run> slice = runs.findByUserIdAndVersionIdAndStatus(
+                userId, version.getId(), normalizeStatus(status), Pagination.of(page));
+        List<RunSummary> items = slice.getContent().stream()
                 .map(run -> toSummary(run, versionNumber))
                 .toList();
+        return new Page<>(items, slice.hasNext());
+    }
+
+    private static String normalizeStatus(String status) {
+        return StringUtils.hasText(status) ? status : null;
     }
 
     @Transactional(readOnly = true)
     public RunDetail getRun(UUID userId, UUID runId) {
-        Run run =
-                runs.findByIdAndUserId(runId, userId).orElseThrow(() -> new ResourceNotFoundException("Run not found"));
+        Run run = runs.findActiveByIdAndUserId(runId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Run not found"));
         int versionNumber =
                 versions.findById(run.getVersionId()).map(Version::getNumber).orElse(0);
         return new RunDetail(
@@ -70,7 +88,7 @@ public class RunQueryService {
     }
 
     private void requireOwnedPrompt(UUID userId, UUID promptId) {
-        prompts.findByIdAndUserId(promptId, userId)
+        prompts.findByIdAndUserIdAndDeletedAtIsNull(promptId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
     }
 

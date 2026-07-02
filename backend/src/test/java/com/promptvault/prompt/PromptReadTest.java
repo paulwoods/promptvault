@@ -58,11 +58,11 @@ class PromptReadTest extends IntegrationTest {
 
         mockMvc.perform(get("/api/prompts").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
-                .andExpect(
-                        jsonPath("$[?(@.promptId == '" + promptId + "')].name").value("Second"))
-                .andExpect(jsonPath("$[?(@.promptId == '" + promptId + "')].description")
+                .andExpect(jsonPath("$.items[?(@.promptId == '" + promptId + "')].name")
+                        .value("Second"))
+                .andExpect(jsonPath("$.items[?(@.promptId == '" + promptId + "')].description")
                         .value("Second desc"))
-                .andExpect(jsonPath("$[?(@.promptId == '" + promptId + "')].currentVersionNumber")
+                .andExpect(jsonPath("$.items[?(@.promptId == '" + promptId + "')].currentVersionNumber")
                         .value(2));
     }
 
@@ -102,6 +102,7 @@ class PromptReadTest extends IntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/prompts").header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.promptId == '" + promptId + "')]").isEmpty());
+                .andExpect(
+                        jsonPath("$.items[?(@.promptId == '" + promptId + "')]").isEmpty());
     }
 }

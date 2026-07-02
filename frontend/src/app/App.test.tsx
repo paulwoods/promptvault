@@ -12,7 +12,7 @@ describe('app shell', () => {
     server.use(
       http.get('/api/prompts', ({ request }) => {
         authHeader = request.headers.get('Authorization')
-        return HttpResponse.json([])
+        return HttpResponse.json({ items: [], hasMore: false })
       }),
     )
 
