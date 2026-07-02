@@ -2,12 +2,14 @@ package com.promptvault.run;
 
 import com.promptvault.common.Page;
 import com.promptvault.common.Pagination;
+import com.promptvault.error.DomainValidationException;
 import com.promptvault.error.ResourceNotFoundException;
 import com.promptvault.prompt.PromptRepository;
 import com.promptvault.prompt.Version;
 import com.promptvault.prompt.VersionRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Slice;
@@ -20,6 +22,8 @@ import org.springframework.util.StringUtils;
 public class RunQueryService {
 
     private static final int PREVIEW_LENGTH = 200;
+
+    private static final Set<String> STATUSES = Set.of(Run.IN_PROGRESS, Run.COMPLETED, Run.FAILED);
 
     private final RunRepository runs;
     private final PromptRepository prompts;
@@ -62,8 +66,15 @@ public class RunQueryService {
         return new Page<>(items, slice.hasNext());
     }
 
+    /** Blank/null means no filter; a value outside the known statuses is a validation error (400). */
     private static String normalizeStatus(String status) {
-        return StringUtils.hasText(status) ? status : null;
+        if (!StringUtils.hasText(status)) {
+            return null;
+        }
+        if (!STATUSES.contains(status)) {
+            throw new DomainValidationException("status", "Invalid status: " + status);
+        }
+        return status;
     }
 
     @Transactional(readOnly = true)

@@ -112,6 +112,27 @@ class RunFilterTest extends IntegrationTest {
     }
 
     @Test
+    void unknownStatusValueIsAValidationError() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "filter-bogus@example.com", "password123");
+        UUID userId = userId("filter-bogus@example.com");
+        UUID promptId = insertPrompt(userId);
+        insertVersion(promptId, 1);
+
+        mockMvc.perform(get("/api/prompts/" + promptId + "/runs")
+                        .param("status", "bogus")
+                        .header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("validation_error"))
+                .andExpect(jsonPath("$.details.status").value("Invalid status: bogus"));
+
+        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1/runs")
+                        .param("status", "bogus")
+                        .header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("validation_error"));
+    }
+
+    @Test
     void statusFilterStillRespectsOwnerScoping() throws Exception {
         String ownerToken = "Bearer " + TestTokens.registerAndLogin(mockMvc, "filter-owner@example.com", "password123");
         UUID ownerId = userId("filter-owner@example.com");

@@ -78,6 +78,27 @@ class PromptSearchTest extends IntegrationTest {
     }
 
     @Test
+    void likeWildcardsInQMatchLiterally() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "searcher-wild@example.com", "password123");
+        createPrompt(token, "Discount 100%", "percent sign");
+        createPrompt(token, "Discount 100x", "no percent sign");
+        createPrompt(token, "a_b", "underscore");
+        createPrompt(token, "axb", "no underscore");
+
+        // "%" is a literal, not match-anything.
+        mockMvc.perform(get("/api/prompts").param("q", "100%").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].name").value("Discount 100%"));
+
+        // "_" is a literal, not match-any-character.
+        mockMvc.perform(get("/api/prompts").param("q", "a_b").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].name").value("a_b"));
+    }
+
+    @Test
     void omittedOrBlankQReturnsFullListUnchanged() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "searcher-omit@example.com", "password123");
         createPrompt(token, "Alpha", "alpha desc");

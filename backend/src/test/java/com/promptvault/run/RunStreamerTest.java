@@ -83,6 +83,51 @@ class RunStreamerTest {
     }
 
     @Test
+    void finalizationFailureIsNotLabeledClientDisconnectAndStillClosesTheStream() {
+        fake.respondWith(List.of("Hello"), new Usage(1, 1));
+        // The completed write fails (DB hiccup) after a fully successful generation.
+        RecordingRunStore failingStore = new RecordingRunStore() {
+            @Override
+            public void finalizeCompleted(UUID runId, String response, Usage usage) {
+                throw new IllegalStateException("db down");
+            }
+        };
+        RunStreamer failingStreamer = new RunStreamer(fake, failingStore, new ObjectMapper());
+        Run run = inProgressRun();
+        RecordingRunStream out = new RecordingRunStream();
+
+        failingStreamer.stream(out, run, 1, request(), "sk-ant");
+
+        assertThat(failingStore.failedCategory).isEqualTo("OTHER");
+        assertThat(failingStore.failedPartialResponse).isEqualTo("Hello");
+        assertThat(out.failedWith).isNotNull(); // stream closed, client not left hanging
+    }
+
+    @Test
+    void streamStillClosesWhenFinalizationKeepsFailing() {
+        fake.respondWith(List.of("Hello"), new Usage(1, 1));
+        // Both finalization writes fail — the stream must still be closed.
+        RecordingRunStore brokenStore = new RecordingRunStore() {
+            @Override
+            public void finalizeCompleted(UUID runId, String response, Usage usage) {
+                throw new IllegalStateException("db down");
+            }
+
+            @Override
+            public void finalizeFailed(UUID runId, String errorCategory, String errorMessage, String partial) {
+                throw new IllegalStateException("db still down");
+            }
+        };
+        RunStreamer brokenStreamer = new RunStreamer(fake, brokenStore, new ObjectMapper());
+        Run run = inProgressRun();
+        RecordingRunStream out = new RecordingRunStream();
+
+        brokenStreamer.stream(out, run, 1, request(), "sk-ant");
+
+        assertThat(out.failedWith).isNotNull();
+    }
+
+    @Test
     void clientDisconnectAbortsAndFinalizesClientDisconnect() {
         fake.respondWith(List.of("Hello", " world"), new Usage(3, 5));
         Run run = inProgressRun();

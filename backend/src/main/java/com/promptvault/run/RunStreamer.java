@@ -3,9 +3,14 @@ package com.promptvault.run;
 import com.promptvault.claude.ClaudeClient;
 import com.promptvault.claude.ClaudeException;
 import com.promptvault.claude.ClaudeRequest;
+import com.promptvault.claude.ErrorCategory;
 import com.promptvault.claude.TokenSink;
 import com.promptvault.claude.Usage;
+import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
@@ -17,6 +22,8 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Component
 public class RunStreamer {
+
+    private static final Logger log = LoggerFactory.getLogger(RunStreamer.class);
 
     private static final long STREAM_TIMEOUT_MS = Duration.ofMinutes(10).toMillis();
 
@@ -72,12 +79,33 @@ public class RunStreamer {
             });
             out.complete();
         } catch (RuntimeException e) {
-            // A frame send failed (client disconnected) or an unexpected error mid-stream.
-            // The per-Run client is already closed as the seam call unwinds.
+            // A frame send failed (client disconnected) or an unexpected error mid-stream
+            // (e.g. finalization itself). The per-Run client is already closed as the seam
+            // call unwinds.
             if (!finalized[0]) {
-                runStore.finalizeFailed(run.getId(), "CLIENT_DISCONNECT", "Client disconnected", response.toString());
+                finalizeFailedQuietly(run.getId(), e, response.toString());
             }
             out.completeWithError(e);
+        }
+    }
+
+    /**
+     * Marks the Run failed with a category matching the actual cause: a failed
+     * frame send (UncheckedIOException) is a client disconnect; anything else
+     * (e.g. a DB error during finalization) is not. Never throws — the stream
+     * must still be closed even when this write fails too.
+     */
+    private void finalizeFailedQuietly(UUID runId, RuntimeException cause, String partialResponse) {
+        try {
+            if (cause instanceof UncheckedIOException) {
+                runStore.finalizeFailed(
+                        runId, ErrorCategory.CLIENT_DISCONNECT.name(), "Client disconnected", partialResponse);
+            } else {
+                runStore.finalizeFailed(
+                        runId, ErrorCategory.OTHER.name(), "Streaming failed unexpectedly", partialResponse);
+            }
+        } catch (RuntimeException persistFailure) {
+            log.error("Could not finalize run {} after streaming error", runId, persistFailure);
         }
     }
 }

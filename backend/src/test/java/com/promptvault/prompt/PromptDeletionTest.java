@@ -204,6 +204,23 @@ class PromptDeletionTest extends IntegrationTest {
     }
 
     @Test
+    void trashToleratesAPromptWithNoVersions() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "trash-empty@example.com", "password123");
+        UUID userId = jdbcTemplate.queryForObject(
+                "select id from users where email = ?", UUID.class, "trash-empty@example.com");
+        // Unreachable via the API (create is transactional with Version 1), but the
+        // Trash listing must not 500 if such a row ever exists.
+        UUID promptId = UUID.randomUUID();
+        jdbcTemplate.update("insert into prompt (id, user_id, deleted_at) values (?, ?, now())", promptId, userId);
+
+        mockMvc.perform(get("/api/prompts/trash").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].promptId").value(promptId.toString()))
+                .andExpect(jsonPath("$[0].name").isEmpty());
+    }
+
+    @Test
     void addVersionToATrashedPromptReturns404AndResumesAfterRestore() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "trash-editor@example.com", "password123");
         String promptId = createPrompt(token, "TrashEdit");

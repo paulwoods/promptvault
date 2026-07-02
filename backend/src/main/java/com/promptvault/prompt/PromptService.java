@@ -5,7 +5,9 @@ import com.promptvault.common.Page;
 import com.promptvault.common.Pagination;
 import com.promptvault.error.ResourceNotFoundException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,13 +65,18 @@ public class PromptService {
     @Transactional(readOnly = true)
     public Page<PromptSummary> listPrompts(UUID userId, String q, Integer page) {
         Slice<Version> current = StringUtils.hasText(q)
-                ? versions.searchCurrentVersionsByUser(userId, q.trim(), Pagination.of(page))
+                ? versions.searchCurrentVersionsByUser(userId, escapeLike(q.trim()), Pagination.of(page))
                 : versions.findCurrentVersionsByUser(userId, Pagination.of(page));
         List<PromptSummary> items = current.getContent().stream()
                 .map(v -> new PromptSummary(
                         v.getPromptId(), v.getName(), v.getDescription(), v.getNumber(), v.getCreatedAt()))
                 .toList();
         return new Page<>(items, current.hasNext());
+    }
+
+    /** Escapes LIKE wildcards so a search for e.g. "100%" matches the literal text (query uses escape '!'). */
+    private static String escapeLike(String q) {
+        return q.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     /**
@@ -129,13 +136,17 @@ public class PromptService {
     /** The caller's Trashed prompts: identity, current-version name, and when each was deleted. */
     @Transactional(readOnly = true)
     public List<TrashedPromptSummary> listTrash(UUID userId) {
-        return prompts.findByUserIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(userId).stream()
-                .map(p -> new TrashedPromptSummary(p.getId(), currentVersionName(p.getId()), p.getDeletedAt()))
+        List<Prompt> trashed = prompts.findByUserIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(userId);
+        if (trashed.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> currentNames = versions
+                .findCurrentVersionsByPromptIds(trashed.stream().map(Prompt::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(Version::getPromptId, Version::getName));
+        return trashed.stream()
+                .map(p -> new TrashedPromptSummary(p.getId(), currentNames.get(p.getId()), p.getDeletedAt()))
                 .toList();
-    }
-
-    private String currentVersionName(UUID promptId) {
-        return versions.findByPromptIdOrderByNumberDesc(promptId).getFirst().getName();
     }
 
     /**
