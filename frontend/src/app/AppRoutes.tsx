@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import { Layout } from '../components/Layout'
 import { ApiKeyPage } from '../pages/ApiKeyPage'
+import { CompareVersionsPage } from '../pages/CompareVersionsPage'
 import { CreatePromptPage } from '../pages/CreatePromptPage'
 import { EditFromVersionPage } from '../pages/EditFromVersionPage'
 import { HomePage } from '../pages/HomePage'
@@ -60,6 +61,14 @@ export function AppRoutes() {
             element={
               <RequireAuth>
                 <VersionViewPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id/compare"
+            element={
+              <RequireAuth>
+                <CompareVersionsPage />
               </RequireAuth>
             }
           />

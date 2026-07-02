@@ -585,6 +585,27 @@ fieldset > div:last-child {
   flex: 1;
 }
 
+/* Version diff (9.6): from/to pickers + Compare link in a row */
+.compare-picker {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+
+/* Word-level prompt_text diff highlighting */
+ins.diff-added {
+  text-decoration: none;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.14);
+}
+
+del.diff-removed {
+  text-decoration: line-through;
+  color: var(--error);
+  background: var(--error-bg);
+}
+
 .button-gold {
   background: var(--gold);
   color: var(--carbon);
