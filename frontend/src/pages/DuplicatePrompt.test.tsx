@@ -89,7 +89,7 @@ describe('duplicate prompt', () => {
 
     renderApp('/prompts/p1/versions/1/duplicate')
     await screen.findByLabelText('Name')
-    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }))
 
     expect(
       await screen.findByRole('heading', { name: 'Version History' }),

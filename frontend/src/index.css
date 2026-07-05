@@ -471,6 +471,13 @@ button[type='submit']:active:not(:disabled) {
   transform: translateY(1px);
 }
 
+.button-inline {
+  width: auto;
+  align-self: flex-end;
+  padding: var(--space-6) var(--space-12);
+  font-size: 13px;
+}
+
 /* Link styled as a primary button */
 .button-link {
   display: inline-flex;
@@ -683,6 +690,8 @@ li {
 
 .prompt-grid > li > .row-actions {
   margin-top: 2em;
+  width: 100%;
+  justify-content: space-between;
 }
 
 li > span {

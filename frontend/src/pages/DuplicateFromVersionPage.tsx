@@ -41,7 +41,8 @@ export function DuplicateFromVersionPage() {
       <PageHeader title="Duplicate prompt" />
       <VersionForm
         initial={toFormValues(version.data)}
-        submitLabel="Create prompt"
+        submitLabel="Duplicate"
+        submitClassName="button-inline"
         pending={mutation.isPending}
         error={mutation.error}
         onSubmit={(body) => mutation.mutate(body)}

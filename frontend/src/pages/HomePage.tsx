@@ -92,7 +92,7 @@ export function HomePage() {
             >
               <div className="prompt-card-header">
                 <Link
-                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}`}
+                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`}
                 >
                   {prompt.name}
                 </Link>
@@ -108,22 +108,16 @@ export function HomePage() {
               )}
               <span className="row-actions">
                 <Link
+                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}`}
+                  className="button-link button-link-sm button-link-outline"
+                >
+                  View
+                </Link>
+                <Link
                   to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/edit`}
                   className="button-link button-link-sm button-link-outline"
                 >
                   Edit
-                </Link>
-                <Link
-                  to={`/prompts/${prompt.promptId}`}
-                  className="button-link button-link-sm button-link-outline"
-                >
-                  Versions
-                </Link>
-                <Link
-                  to={`/prompts/${prompt.promptId}/runs`}
-                  className="button-link button-link-sm button-link-outline"
-                >
-                  Runs
                 </Link>
               </span>
             </li>

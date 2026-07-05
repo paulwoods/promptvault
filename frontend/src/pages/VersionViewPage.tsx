@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
@@ -27,17 +27,7 @@ export function VersionViewPage() {
   return (
     <>
       <PromptTabs promptId={id} versionNumber={data.number} />
-      <PageHeader
-        title={`${data.name} (v${data.number})`}
-        actions={
-          <Link
-            to={`/prompts/${id}/versions/${data.number}/runs`}
-            className="button-link button-link-sm button-link-outline"
-          >
-            Runs for this version
-          </Link>
-        }
-      />
+      <PageHeader title={`${data.name} (v${data.number})`} />
       {data.description && <p>{data.description}</p>}
       <dl>
         <dt>Model</dt>

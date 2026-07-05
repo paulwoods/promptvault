@@ -16,6 +16,7 @@ const EFFORTS = ['low', 'medium', 'high']
 interface VersionFormProps {
   initial: VersionFormValues
   submitLabel: string
+  submitClassName?: string
   pending: boolean
   error: unknown
   onSubmit: (body: VersionRequestBody) => void
@@ -24,6 +25,7 @@ interface VersionFormProps {
 export function VersionForm({
   initial,
   submitLabel,
+  submitClassName,
   pending,
   error,
   onSubmit,
@@ -269,7 +271,7 @@ export function VersionForm({
         </button>
       </fieldset>
 
-      <button type="submit" disabled={pending}>
+      <button type="submit" className={submitClassName} disabled={pending}>
         {submitLabel}
       </button>
       {error != null && <ErrorAlert>{errorMessage(error)}</ErrorAlert>}

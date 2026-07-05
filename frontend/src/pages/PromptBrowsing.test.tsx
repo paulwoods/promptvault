@@ -135,7 +135,7 @@ describe('prompt browsing', () => {
     )
 
     renderApp('/')
-    await user.click(await screen.findByRole('link', { name: /Greeting/ }))
+    await user.click(await screen.findByRole('link', { name: 'View' }))
 
     expect(
       await screen.findByRole('heading', { name: 'Greeting (v1)' }),
