@@ -2,13 +2,25 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit",
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "Checking edited frontend file…",
+            "timeout": 60,
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/frontend-check.sh edit"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
         "hooks": [
           {
             "type": "command",
             "statusMessage": "Typechecking + linting frontend…",
             "timeout": 120,
-            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in */frontend/*.ts|*/frontend/*.tsx|*/frontend/*.js|*/frontend/*.jsx) ;; *) exit 0 ;; esac; cd \"${f%%/frontend/*}/frontend\" || exit 0; out=$(npx --no-install tsc -b 2>&1 && npm run --silent lint 2>&1); [ $? -eq 0 ] || { printf '%s\\n' \"$out\" >&2; exit 2; }"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/frontend-check.sh stop"
           }
         ]
       }
