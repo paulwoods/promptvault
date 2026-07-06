@@ -1,6 +1,8 @@
 package com.promptvault.apikey;
 
 import com.github.f4b6a3.uuid.UuidCreator;
+import com.promptvault.activity.ActivityEvent;
+import com.promptvault.activity.ActivityRecorder;
 import com.promptvault.crypto.EncryptedPayload;
 import com.promptvault.crypto.EncryptionService;
 import com.promptvault.error.NoApiKeyException;
@@ -16,10 +18,13 @@ public class ApiKeyService {
 
     private final ApiKeyRepository apiKeys;
     private final EncryptionService encryptionService;
+    private final ActivityRecorder activityRecorder;
 
-    public ApiKeyService(ApiKeyRepository apiKeys, EncryptionService encryptionService) {
+    public ApiKeyService(
+            ApiKeyRepository apiKeys, EncryptionService encryptionService, ActivityRecorder activityRecorder) {
         this.apiKeys = apiKeys;
         this.encryptionService = encryptionService;
+        this.activityRecorder = activityRecorder;
     }
 
     /** Idempotent upsert: stores the first key and replaces an existing one. */
@@ -36,6 +41,7 @@ public class ApiKeyService {
                 .orElseGet(() -> new ApiKey(
                         UuidCreator.getTimeOrderedEpoch(), userId, payload, lastSix, CURRENT_ENC_KEY_VERSION));
         apiKeys.save(row);
+        activityRecorder.record(userId, ActivityEvent.API_KEY_SET, "API key saved");
     }
 
     /**

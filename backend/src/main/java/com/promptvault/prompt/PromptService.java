@@ -1,6 +1,8 @@
 package com.promptvault.prompt;
 
 import com.github.f4b6a3.uuid.UuidCreator;
+import com.promptvault.activity.ActivityEvent;
+import com.promptvault.activity.ActivityRecorder;
 import com.promptvault.common.Page;
 import com.promptvault.common.Pagination;
 import com.promptvault.error.ResourceNotFoundException;
@@ -21,18 +23,21 @@ public class PromptService {
     private final RunSettingsValidator runSettingsValidator;
     private final VariableValidator variableValidator;
     private final PlaceholderValidator placeholderValidator;
+    private final ActivityRecorder activityRecorder;
 
     public PromptService(
             PromptRepository prompts,
             VersionRepository versions,
             RunSettingsValidator runSettingsValidator,
             VariableValidator variableValidator,
-            PlaceholderValidator placeholderValidator) {
+            PlaceholderValidator placeholderValidator,
+            ActivityRecorder activityRecorder) {
         this.prompts = prompts;
         this.versions = versions;
         this.runSettingsValidator = runSettingsValidator;
         this.variableValidator = variableValidator;
         this.placeholderValidator = placeholderValidator;
+        this.activityRecorder = activityRecorder;
     }
 
     /** Creates a Prompt and its Version 1 from the full snapshot. */
@@ -40,7 +45,7 @@ public class PromptService {
     public Version createPrompt(UUID userId, VersionRequest request) {
         Prompt prompt = new Prompt(UuidCreator.getTimeOrderedEpoch(), userId);
         prompts.save(prompt);
-        return appendVersion(prompt.getId(), request);
+        return appendVersion(userId, prompt.getId(), request);
     }
 
     /**
@@ -52,7 +57,7 @@ public class PromptService {
         if (prompts.findByIdAndUserIdAndDeletedAtIsNull(promptId, userId).isEmpty()) {
             throw new ResourceNotFoundException("Prompt not found");
         }
-        return appendVersion(promptId, request);
+        return appendVersion(userId, promptId, request);
     }
 
     /**
@@ -130,6 +135,7 @@ public class PromptService {
         Prompt prompt = prompts.findByIdAndUserId(promptId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
         prompt.markDeleted();
+        activityRecorder.record(userId, ActivityEvent.PROMPT_DELETED, currentVersionName(promptId), promptId, null);
     }
 
     /**
@@ -143,6 +149,7 @@ public class PromptService {
         Prompt prompt = prompts.findByIdAndUserIdAndDeletedAtIsNotNull(promptId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
         prompt.restore();
+        activityRecorder.record(userId, ActivityEvent.PROMPT_RESTORED, currentVersionName(promptId), promptId, null);
     }
 
     /** The caller's Trashed prompts: identity, current-version name, and when each was deleted. */
@@ -152,20 +159,32 @@ public class PromptService {
         if (trashed.isEmpty()) {
             return List.of();
         }
-        Map<UUID, String> currentNames = versions
-                .findCurrentVersionsByPromptIds(trashed.stream().map(Prompt::getId).toList())
-                .stream()
-                .collect(Collectors.toMap(Version::getPromptId, Version::getName));
+        Map<UUID, String> currentNames =
+                versions
+                        .findCurrentVersionsByPromptIds(
+                                trashed.stream().map(Prompt::getId).toList())
+                        .stream()
+                        .collect(Collectors.toMap(Version::getPromptId, Version::getName));
         return trashed.stream()
                 .map(p -> new TrashedPromptSummary(p.getId(), currentNames.get(p.getId()), p.getDeletedAt()))
                 .toList();
     }
 
+    /** The current (max-number) Version's name, for Activity labels; null if the prompt somehow has none. */
+    private String currentVersionName(UUID promptId) {
+        return versions.findCurrentVersionsByPromptIds(List.of(promptId)).stream()
+                .findFirst()
+                .map(Version::getName)
+                .orElse(null);
+    }
+
     /**
      * Appends the next Version to an existing prompt. The prompt row is locked
      * (FOR UPDATE) so concurrent appends serialize and numbers never collide.
+     * Records prompt_created for the first Version, version_saved thereafter
+     * (matches the V9 migration's backfill rule).
      */
-    Version appendVersion(UUID promptId, VersionRequest request) {
+    Version appendVersion(UUID userId, UUID promptId, VersionRequest request) {
         runSettingsValidator.validate(request);
         List<VariableDeclaration> variables = variableValidator.normalize(request.variables());
         placeholderValidator.validateSetEquality(request.promptText(), variables);
@@ -186,6 +205,9 @@ public class PromptService {
                 request.effort(),
                 request.thinking(),
                 variables);
-        return versions.save(version);
+        versions.save(version);
+        String type = number == 1 ? ActivityEvent.PROMPT_CREATED : ActivityEvent.VERSION_SAVED;
+        activityRecorder.record(userId, type, version.getName(), promptId, number);
+        return version;
     }
 }

@@ -16,7 +16,7 @@ public class RecordingRunStore extends RunStore {
     String failedPartialResponse;
 
     public RecordingRunStore() {
-        super(null);
+        super(null, null);
     }
 
     @Override

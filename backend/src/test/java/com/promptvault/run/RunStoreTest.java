@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.promptvault.IntegrationTest;
 import com.promptvault.claude.Usage;
+import com.promptvault.prompt.VariableDeclaration;
+import com.promptvault.prompt.Version;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -24,7 +27,11 @@ class RunStoreTest extends IntegrationTest {
     @PersistenceContext
     private EntityManager entityManager;
 
-    private UUID seedVersionFor(UUID userId) {
+    private Version seedVersionFor(UUID userId) {
+        return seedVersionFor(userId, List.of());
+    }
+
+    private Version seedVersionFor(UUID userId, List<VariableDeclaration> variables) {
         jdbcTemplate.update(
                 "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
                 userId,
@@ -39,14 +46,15 @@ class RunStoreTest extends IntegrationTest {
                         + " values (?, ?, 1, 'v1', 'hi', 'claude-opus-4-8', 1000, 'medium', 'off')",
                 versionId,
                 promptId);
-        return versionId;
+        return new Version(
+                versionId, promptId, 1, "v1", null, "hi", "claude-opus-4-8", null, 1000, "medium", "off", variables);
     }
 
     @Test
     void finalizeCompletedUpdatesTheSameRowInPlace() {
         UUID userId = UUID.randomUUID();
-        UUID versionId = seedVersionFor(userId);
-        Run run = runStore.createInProgress(userId, versionId, Map.of(), "rendered", "claude-opus-4-8");
+        Version version = seedVersionFor(userId);
+        Run run = runStore.createInProgress(userId, version, Map.of(), "rendered");
 
         runStore.finalizeCompleted(run.getId(), "the answer", new Usage(10, 20));
         entityManager.flush();
@@ -63,10 +71,28 @@ class RunStoreTest extends IntegrationTest {
     }
 
     @Test
+    void runStartedEventLabelIncludesVariableValuesInDeclarationOrder() {
+        UUID userId = UUID.randomUUID();
+        Version version = seedVersionFor(
+                userId,
+                List.of(
+                        new VariableDeclaration("topic", null, true, null),
+                        new VariableDeclaration("tone", null, true, null)));
+
+        Run run = runStore.createInProgress(
+                userId, version, Map.of("topic", "rivers", "tone", "formal"), "rendered");
+        entityManager.flush();
+
+        assertThat(jdbcTemplate.queryForObject(
+                        "select label from activity_event where run_id = ?", String.class, run.getId()))
+                .isEqualTo("v1 (topic: rivers, tone: formal)");
+    }
+
+    @Test
     void finalizeFailedRecordsCategoryAndMessage() {
         UUID userId = UUID.randomUUID();
-        UUID versionId = seedVersionFor(userId);
-        Run run = runStore.createInProgress(userId, versionId, Map.of(), "rendered", "claude-opus-4-8");
+        Version version = seedVersionFor(userId);
+        Run run = runStore.createInProgress(userId, version, Map.of(), "rendered");
 
         runStore.finalizeFailed(run.getId(), "AUTH", "Authentication with Claude failed", "partial");
         entityManager.flush();

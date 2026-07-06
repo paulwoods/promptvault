@@ -97,6 +97,15 @@ export interface ModelUsage {
   outputTokens: number
 }
 
+export interface ActivityItem {
+  id: string
+  type: string
+  occurredAt: string
+  label: string
+  versionNumber?: number | null
+  runStatus?: string | null
+}
+
 export interface RunDetail {
   runId: string
   versionNumber: number

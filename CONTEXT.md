@@ -24,3 +24,6 @@ A named, **explicitly declared** input on a Version. Each Variable has a name, a
 
 ### Trash
 The holding state for a deleted [Prompt](#prompt). Deletion is soft and applies only at the whole-Prompt grain — never to an individual Version or Run, both of which stay permanently immutable and undeletable. A deleted Prompt, together with everything under it (its Versions and Runs), disappears from every normal view until it is **restored**; there is no permanent-delete action anywhere, and Trash holds a Prompt indefinitely.
+
+### Activity
+A [User](#user)'s own account history: an append-only record of every mutation plus login — registration, logins, API-key sets, name changes, Prompt creates/deletes/restores, Version saves, and [Run](#run) starts — shown newest-first on the Profile page. Each event freezes its type, timestamp, and a display label (e.g. the Prompt's name at event time); it is written in the same transaction as the action it describes, is never edited or purged, and stays visible even when the Prompt it references is in [Trash](#trash). Activity records only *what* happened and *when* — never where from or on what device — and is visible only to the owning User.

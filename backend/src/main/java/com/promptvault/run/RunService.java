@@ -43,7 +43,7 @@ public class RunService {
         String apiKey = apiKeyService.getDecryptedKey(userId);
         Version version = promptService.getVersion(userId, promptId, versionNumber);
         ClaudeRequest request = runPreparer.prepare(version, values);
-        Run run = runStore.createInProgress(userId, version.getId(), values, request.userMessage(), version.getModel());
+        Run run = runStore.createInProgress(userId, version, values, request.userMessage());
         return runStreamer.streamAsync(run, version.getNumber(), request, apiKey);
     }
 }

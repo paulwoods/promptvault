@@ -67,6 +67,44 @@ Prompt Vault is a web app where a signed-in User creates and maintains Prompts, 
 40. As a User, I want clear validation errors when a request is malformed, so that I can correct it.
 41. As a User, I want my data to survive restarts and be stored durably, so that my vault is reliable.
 
+> Stories 42+ were added after the original MVP scope, documenting features built during/after the initial build (see ADR-0004 and ADR-0005). They are numbered as appended so the story ranges cited in `docs/TASKS.md` stay valid.
+
+### Deleting Prompts & Trash (ADR-0004)
+42. As a User, I want to delete a Prompt, so that it disappears from my lists — moved to Trash rather than destroyed, so its history is never lost.
+43. As a User, I want a deleted Prompt's Versions and Runs to become unreachable everywhere (lists, detail pages, and direct Run links), so that deletion behaves consistently across the app.
+44. As a User, I want to see the Prompts in my Trash, each with its name and when it was deleted, so that I can find something I removed.
+45. As a User, I want to restore a Prompt from Trash, so that it and its full Version and Run history reappear exactly as they were.
+46. As a User, I want Trash to be restore-only — no permanent-delete action anywhere — so that I can never irreversibly destroy Run history.
+
+### Duplicating a Prompt
+47. As a User, I want to duplicate any Version into a brand-new Prompt (whose copy becomes Version 1), so that I can fork an existing Prompt without touching the original's history.
+
+### Comparing Version content
+48. As a User, I want to pick two Versions of a Prompt and see a diff of their frozen content (word-level prompt-text diff, plus any other field that changed), so that I can see exactly what an edit changed. (Complements story 37, which compares Run *outputs*.)
+
+### Searching & filtering
+49. As a User, I want to search my Prompt list by name and see the list filter as I type, so that I can find a Prompt quickly in a large vault.
+50. As a User, I want to filter a Prompt's or Version's Run list by status, so that I can focus on (for example) just the failed Runs.
+51. As a User, I want long lists (Prompts, Runs) to load a page at a time with a "load more" control, so that a large vault stays fast.
+
+### Profile & usage
+52. As a User, I want to see my profile (email and display name) and set or change my display name, so that my account identifies me the way I choose.
+53. As a User, I want to see my all-time token usage per model (input and output tokens) on my profile, so that I know how heavily I'm using each model — reported as token counts, not dollars (ADR-0005).
+
+### API key status detail (extends stories 8 and 11)
+54. As a User, I want to see the last few characters of my saved API key and when it was last updated, so that I can tell *which* key is saved without the full key ever being shown.
+
+### UI preferences
+55. As a User, I want to switch between dark and light themes and have my choice remembered, so that the app matches my preference on every visit.
+
+### Activity feed (ADR-0006; designed 2026-07-05, built as Phase 11 in `docs/TASKS.md`)
+56. As a User, I want my account activity recorded automatically — registration, logins, API-key sets, name changes, Prompt creates/deletes/restores, Version saves, and Run starts — so that I have a trustworthy history of what happened in my vault.
+57. As a User, I want to see my recent activity on my profile page, newest first with a "load more" control, so that I can review what I did and when.
+58. As a User, I want an activity entry for a Run to show that Run's current status, so that the feed reflects what actually happened rather than only that I clicked Run.
+59. As a User, I want activity that references a Prompt now in Trash to remain visible (by the Prompt's name at the time), so that my history never lies by omission.
+60. As a User, I want my pre-existing history — my registration, every Version I saved, every Run I started — to appear in the feed from the day the feature ships, so that tracking doesn't start from empty.
+61. As a User, I want activity entries to record only what happened and when — never my IP address or device — so that my history is not a surveillance log.
+
 ## Implementation Decisions
 
 ### Architecture & stack
@@ -132,8 +170,8 @@ A good test asserts **external, user-observable behavior** — request in / resp
 - A single shared server-side API key or any billing/cost-tracking beyond per-User attribution via the User's own key.
 - External OAuth / SSO / social login (email + password + JWT only).
 - A draft/published-Version distinction; sharing Prompts or Runs between Users; teams/organizations; roles/permissions beyond owner-only.
-- Prompt folders, tags, search, or favorites.
-- Editing or deleting Versions or Runs (history is append-only / immutable).
+- Prompt folders, tags, or favorites. (*Name search was originally out of scope but was later built — story 49.*)
+- Editing or deleting Versions or Runs (history is append-only / immutable). (*Whole-Prompt soft delete with a restore-only Trash was added later at a coarser grain — ADR-0004, stories 42–46; individual Versions and Runs remain undeletable.*)
 - Temperature / top_p / top_k controls.
 - Key rotation tooling for `PROMPTVAULT_ENC_KEY` re-encryption (noted as a future need in ADR-0002).
 - **Registration policy** — resolved during the build grilling to **open self-serve signup** (public registration; tightenable later via a single env flag). No longer an open question.

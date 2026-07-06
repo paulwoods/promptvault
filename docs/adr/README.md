@@ -7,3 +7,4 @@ Why Prompt Vault is shaped the way it is. Each ADR records *that* a decision was
 - [0003 — Runs stream over SSE with an explicit lifecycle](0003-sse-streaming-runs.md)
 - [0004 — Soft-deletable Prompts with a restore-only Trash](0004-soft-deletable-prompts-with-trash.md)
 - [0005 — Usage dashboard shows token counts, not dollar cost](0005-usage-dashboard-tokens-not-dollars.md)
+- [0006 — User-facing activity feed recorded in the same transaction](0006-user-facing-activity-feed.md)
