@@ -97,6 +97,18 @@ public class PromptService {
     }
 
     /**
+     * Full frozen content of the caller's prompt's current (max-number) Version;
+     * cross-user or Trashed (ADR-0004) -> 404.
+     */
+    @Transactional(readOnly = true)
+    public Version getCurrentVersion(UUID userId, UUID promptId) {
+        prompts.findByIdAndUserIdAndDeletedAtIsNull(promptId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
+        return versions.findByPromptIdAndNumber(promptId, versions.maxNumber(promptId))
+                .orElseThrow(() -> new ResourceNotFoundException("Version not found"));
+    }
+
+    /**
      * Full frozen content of a specific Version of the caller's prompt;
      * cross-user or Trashed (ADR-0004) -> 404.
      */

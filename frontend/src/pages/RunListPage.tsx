@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { EmptyState } from '../components/EmptyState'
@@ -8,7 +8,7 @@ import { Loading } from '../components/Loading'
 import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
-import type { Page, RunSummary } from '../lib/types'
+import type { Page, PromptDetail, RunSummary } from '../lib/types'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
@@ -25,6 +25,14 @@ const STATUS_OPTIONS = [
 export function RunListPage() {
   const { id = '', number: versionNumber } = useParams()
   const [status, setStatus] = useState('')
+  // Name for the header — reuses the prompt-detail query PromptTabs already
+  // issues on the whole-prompt runs view (shared cache, no extra request).
+  const prompt = useQuery({
+    queryKey: ['prompt', id],
+    queryFn: () => apiClient.get<PromptDetail>(`/api/prompts/${id}`),
+    enabled: !versionNumber,
+  })
+  const name = prompt.data?.versions.find((v) => v.current)?.name
   const endpoint = versionNumber
     ? `/api/prompts/${id}/versions/${versionNumber}/runs`
     : `/api/prompts/${id}/runs`
@@ -49,7 +57,11 @@ export function RunListPage() {
       <PromptTabs promptId={id} versionNumber={versionNumber} />
       <PageHeader
         title={
-          versionNumber ? `Run History — v${versionNumber}` : 'Run History'
+          versionNumber
+            ? `Runs (v${versionNumber})`
+            : name
+              ? `Runs: ${name}`
+              : 'Runs'
         }
       />
       <label>

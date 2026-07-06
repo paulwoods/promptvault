@@ -21,7 +21,7 @@ export function CreatePromptPage() {
   const mutation = useMutation({
     mutationFn: (body: VersionRequestBody) =>
       apiClient.post<VersionResponse>('/api/prompts', body),
-    onSuccess: (data) => navigate(`/prompts/${data.promptId}`),
+    onSuccess: (data) => navigate(`/prompts/${data.promptId}/version`),
   })
 
   if (models.isPending) {

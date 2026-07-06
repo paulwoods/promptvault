@@ -39,7 +39,7 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Version History' }),
+      await screen.findByRole('heading', { name: 'Versions: Greeting' }),
     ).toBeInTheDocument()
   })
 
@@ -148,7 +148,62 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Save new version' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Version History' }),
+      await screen.findByRole('heading', { name: 'Versions: Renamed' }),
+    ).toBeInTheDocument()
+  })
+
+  it('edits the current version at /prompts/:id/edit', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      http.get('/api/prompts/p1/versions/current', () =>
+        HttpResponse.json({
+          promptId: 'p1',
+          versionId: 'v2',
+          number: 2,
+          name: 'Current',
+          description: null,
+          promptText: 'Hello',
+          model: 'claude-opus-4-8',
+          systemPrompt: null,
+          maxTokens: 1000,
+          effort: 'medium',
+          thinking: 'off',
+          variables: [],
+          createdAt: 'x',
+        }),
+      ),
+      http.post('/api/prompts/p1/versions', () =>
+        HttpResponse.json(
+          { promptId: 'p1', versionId: 'v3', number: 3 },
+          { status: 201 },
+        ),
+      ),
+      http.get('/api/prompts/p1', () =>
+        HttpResponse.json({
+          promptId: 'p1',
+          versions: [
+            {
+              versionId: 'v3',
+              number: 3,
+              name: 'Renamed',
+              createdAt: 'x',
+              current: true,
+            },
+          ],
+        }),
+      ),
+    )
+
+    renderApp('/prompts/p1/edit')
+    const nameField = await screen.findByLabelText('Name')
+    expect(nameField).toHaveValue('Current')
+    await user.clear(nameField)
+    await user.type(nameField, 'Renamed')
+    await user.click(screen.getByRole('button', { name: 'Save new version' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Versions: Renamed' }),
     ).toBeInTheDocument()
   })
 })

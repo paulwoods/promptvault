@@ -11,10 +11,14 @@ import type { VersionResponse } from '../lib/types'
 
 export function VersionViewPage() {
   const { id = '', number = '' } = useParams()
+  // No number in the URL (/prompts/:id) means "show the current version",
+  // which the backend serves directly at /versions/current.
+  const isCurrentView = number === ''
+  const target = number || 'current'
   const { data, isPending, isError } = useQuery({
-    queryKey: ['version', id, number],
+    queryKey: ['version', id, target],
     queryFn: () =>
-      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${number}`),
+      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
   })
 
   if (isPending) {
@@ -26,7 +30,11 @@ export function VersionViewPage() {
 
   return (
     <>
-      <PromptTabs promptId={id} versionNumber={data.number} />
+      <PromptTabs
+        promptId={id}
+        versionNumber={data.number}
+        current={isCurrentView}
+      />
       <PageHeader title={`${data.name} (v${data.number})`} />
       {data.description && <p>{data.description}</p>}
       <dl>

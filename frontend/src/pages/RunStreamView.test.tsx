@@ -77,6 +77,34 @@ describe('streamed run view', () => {
     await screen.findByText('Status: completed')
   })
 
+  it('runs the current version at /prompts/:id/run against its concrete number', async () => {
+    setToken('t')
+    const { stream, push, close } = sseStream()
+    server.use(
+      http.get('/api/prompts/p1/versions/current', () =>
+        HttpResponse.json({ ...versionNoVars(), number: 2 }),
+      ),
+      http.post(
+        '/api/prompts/p1/versions/2/runs',
+        () =>
+          new HttpResponse(stream, {
+            headers: { 'Content-Type': 'text/event-stream' },
+          }),
+      ),
+    )
+
+    renderApp('/prompts/p1/run')
+
+    // No variables, so the run starts automatically against the resolved v2.
+    await screen.findByText('Status: running')
+    push(
+      'event:done\ndata:{"status":"completed","usage":{"inputTokens":1,"outputTokens":1}}\n\n',
+    )
+    close()
+
+    await screen.findByText('Status: completed')
+  })
+
   it('drives the failed state from an error frame', async () => {
     setToken('t')
     const { stream, push, close } = sseStream()

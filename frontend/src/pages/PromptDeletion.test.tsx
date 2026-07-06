@@ -25,18 +25,21 @@ describe('prompt deletion and trash', () => {
       http.get('/api/prompts', () =>
         HttpResponse.json({ items: prompts, hasMore: false }),
       ),
-      http.get('/api/prompts/p1', () =>
+      http.get('/api/prompts/p1/versions/current', () =>
         HttpResponse.json({
           promptId: 'p1',
-          versions: [
-            {
-              versionId: 'v1',
-              number: 1,
-              name: 'ToDelete',
-              createdAt: 'x',
-              current: true,
-            },
-          ],
+          versionId: 'v1',
+          number: 1,
+          name: 'ToDelete',
+          description: null,
+          promptText: 'Hello',
+          model: 'claude-opus-4-8',
+          systemPrompt: null,
+          maxTokens: 1000,
+          effort: 'medium',
+          thinking: 'off',
+          variables: [],
+          createdAt: 'x',
         }),
       ),
       http.get('/api/prompts/trash', () => HttpResponse.json(trash)),
@@ -53,8 +56,8 @@ describe('prompt deletion and trash', () => {
       }),
     )
 
-    renderApp('/prompts/p1')
-    await screen.findByRole('heading', { name: 'Version History' })
+    renderApp('/prompts/p1/edit')
+    await screen.findByRole('heading', { name: 'Edit: ToDelete' })
 
     // No confirmation dialog: a single click fires the delete immediately.
     await user.click(screen.getByRole('button', { name: 'Delete' }))

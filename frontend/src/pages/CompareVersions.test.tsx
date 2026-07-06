@@ -62,8 +62,8 @@ describe('version diff view', () => {
       ),
     )
 
-    renderApp('/prompts/p1')
-    await screen.findByRole('heading', { name: 'Version History' })
+    renderApp('/prompts/p1/version')
+    await screen.findByRole('heading', { name: 'Versions: Second' })
     await screen.findByLabelText('From version')
 
     await user.selectOptions(screen.getByLabelText('From version'), '1')

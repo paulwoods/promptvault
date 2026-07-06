@@ -91,6 +91,17 @@ class PromptReadTest extends IntegrationTest {
     }
 
     @Test
+    void currentVersionReturnsLatest() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "current@example.com", "password123");
+        String promptId = createPromptWithTwoVersions(token);
+
+        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/current").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.number").value(2))
+                .andExpect(jsonPath("$.name").value("Second"));
+    }
+
+    @Test
     void crossUserAccessReturns404AndIsolatesList() throws Exception {
         String ownerToken = "Bearer " + TestTokens.registerAndLogin(mockMvc, "owner-r@example.com", "password123");
         String promptId = createPromptWithTwoVersions(ownerToken);
@@ -99,6 +110,8 @@ class PromptReadTest extends IntegrationTest {
         mockMvc.perform(get("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1").header(HttpHeaders.AUTHORIZATION, otherToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/current").header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/prompts").header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isOk())

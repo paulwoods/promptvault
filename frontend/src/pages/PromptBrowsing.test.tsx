@@ -58,7 +58,7 @@ describe('prompt browsing', () => {
       ),
     )
 
-    renderApp('/prompts/p1')
+    renderApp('/prompts/p1/version')
 
     const items = await screen.findAllByRole('listitem')
     expect(items[0]).toHaveTextContent('Renamed (v2)')
@@ -115,7 +115,7 @@ describe('prompt browsing', () => {
           hasMore: false,
         }),
       ),
-      http.get('/api/prompts/p1/versions/1', () =>
+      http.get('/api/prompts/p1/versions/current', () =>
         HttpResponse.json({
           promptId: 'p1',
           versionId: 'v1',

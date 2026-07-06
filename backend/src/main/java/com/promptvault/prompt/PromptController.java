@@ -52,6 +52,11 @@ public class PromptController {
         return promptService.getPrompt(currentUser.userId(), promptId);
     }
 
+    @GetMapping("/{promptId}/versions/current")
+    public VersionResponse getCurrentVersion(@PathVariable UUID promptId) {
+        return VersionResponse.from(promptService.getCurrentVersion(currentUser.userId(), promptId));
+    }
+
     @GetMapping("/{promptId}/versions/{number}")
     public VersionResponse getVersion(@PathVariable UUID promptId, @PathVariable int number) {
         return VersionResponse.from(promptService.getVersion(currentUser.userId(), promptId, number));

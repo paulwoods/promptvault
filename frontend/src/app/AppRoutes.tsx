@@ -43,10 +43,18 @@ export function AppRoutes() {
             }
           />
           <Route
-            path="/prompts/:id"
+            path="/prompts/:id/version"
             element={
               <RequireAuth>
                 <PromptDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id"
+            element={
+              <RequireAuth>
+                <VersionViewPage />
               </RequireAuth>
             }
           />
@@ -83,6 +91,14 @@ export function AppRoutes() {
             }
           />
           <Route
+            path="/prompts/:id/edit"
+            element={
+              <RequireAuth>
+                <EditFromVersionPage />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/prompts/:id/versions/:number/edit"
             element={
               <RequireAuth>
@@ -91,10 +107,26 @@ export function AppRoutes() {
             }
           />
           <Route
+            path="/prompts/:id/run"
+            element={
+              <RequireAuth>
+                <RunPage />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/prompts/:id/versions/:number/run"
             element={
               <RequireAuth>
                 <RunPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id/duplicate"
+            element={
+              <RequireAuth>
+                <DuplicateFromVersionPage />
               </RequireAuth>
             }
           />

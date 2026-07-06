@@ -14,13 +14,20 @@ import type { VersionResponse } from '../lib/types'
 export function RunPage() {
   const { id = '', number = '' } = useParams()
 
+  // No number in the URL (/prompts/:id/run) means "run the current version",
+  // which the backend serves directly at /versions/current.
+  const isCurrentRun = number === ''
+  const target = number || 'current'
   const version = useQuery({
-    queryKey: ['version', id, number],
+    queryKey: ['version', id, target],
     queryFn: () =>
-      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${number}`),
+      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
   })
 
-  const { status, output, runId, failure, run } = useRunStream(id, number)
+  // Runs execute against a concrete version, so drive the stream off the
+  // resolved number rather than the (possibly absent) URL param.
+  const runNumber = String(version.data?.number ?? '')
+  const { status, output, runId, failure, run } = useRunStream(id, runNumber)
 
   // A prompt with no variables has nothing to fill in, so run it immediately.
   // Guarding on status (rather than a ref) both prevents re-triggering once
@@ -44,10 +51,12 @@ export function RunPage() {
 
   return (
     <>
-      <PromptTabs promptId={id} versionNumber={number} />
-      <PageHeader
-        title={`Run ${version.data.name} (v${version.data.number})`}
+      <PromptTabs
+        promptId={id}
+        versionNumber={version.data.number}
+        current={isCurrentRun}
       />
+      <PageHeader title={`Run: ${version.data.name}`} />
       {status === 'idle' ? (
         <RunForm variables={version.data.variables} onRun={run} />
       ) : (

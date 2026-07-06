@@ -16,16 +16,20 @@ export function DuplicateFromVersionPage() {
   const { id = '', number = '' } = useParams()
   const navigate = useNavigate()
 
+  // No number in the URL (/prompts/:id/duplicate) means "duplicate the current
+  // version", which the backend serves directly at /versions/current.
+  const isCurrentDuplicate = number === ''
+  const target = number || 'current'
   const version = useQuery({
-    queryKey: ['version', id, number],
+    queryKey: ['version', id, target],
     queryFn: () =>
-      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${number}`),
+      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
   })
 
   const mutation = useMutation({
     mutationFn: (body: VersionRequestBody) =>
       apiClient.post<VersionResponse>('/api/prompts', body),
-    onSuccess: (data) => navigate(`/prompts/${data.promptId}`),
+    onSuccess: (data) => navigate(`/prompts/${data.promptId}/version`),
   })
 
   if (version.isPending) {
@@ -37,8 +41,12 @@ export function DuplicateFromVersionPage() {
 
   return (
     <>
-      <PromptTabs promptId={id} versionNumber={number} />
-      <PageHeader title="Duplicate prompt" />
+      <PromptTabs
+        promptId={id}
+        versionNumber={version.data.number}
+        current={isCurrentDuplicate}
+      />
+      <PageHeader title={`Duplicate: ${version.data.name}`} />
       <VersionForm
         initial={toFormValues(version.data)}
         submitLabel="Duplicate"

@@ -76,28 +76,22 @@ export function HomePage() {
               aria-label={`Run ${prompt.name}`}
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest('a, button')) return
-                navigate(
-                  `/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`,
-                )
+                navigate(`/prompts/${prompt.promptId}/run`)
               }}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  navigate(
-                    `/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`,
-                  )
+                  navigate(`/prompts/${prompt.promptId}/run`)
                 }
               }}
             >
               <div className="prompt-card-header">
-                <Link
-                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`}
-                >
+                <Link to={`/prompts/${prompt.promptId}/run`}>
                   {prompt.name}
                 </Link>
                 <Link
-                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/run`}
+                  to={`/prompts/${prompt.promptId}/run`}
                   className="button-link button-link-sm"
                 >
                   Run
@@ -108,13 +102,13 @@ export function HomePage() {
               )}
               <span className="row-actions">
                 <Link
-                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}`}
+                  to={`/prompts/${prompt.promptId}`}
                   className="button-link button-link-sm button-link-outline"
                 >
                   View
                 </Link>
                 <Link
-                  to={`/prompts/${prompt.promptId}/versions/${prompt.currentVersionNumber}/edit`}
+                  to={`/prompts/${prompt.promptId}/edit`}
                   className="button-link button-link-sm button-link-outline"
                 >
                   Edit
