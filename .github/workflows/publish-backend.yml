@@ -3,6 +3,9 @@ name: Publish Backend
 on:
   push:
     branches: [ develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/publish-backend.yml'
 
 concurrency:
   group: publish-backend-${{ github.ref }}
@@ -13,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout
@@ -25,11 +31,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      # Set before the build, not after: the Dockerfile copies a prebuilt jar, so
-      # build-info.properties — and therefore the version the running app
-      # reports — is frozen at whatever the pom said when `verify` ran. Bumping
-      # afterwards tagged every image one version ahead of the jar inside it.
-      # Committed later, once the image is published.
+      # Set before the build, not after: the multi-stage Dockerfile COPYs
+      # pom.xml and rebuilds the jar inside the image, so the version baked
+      # into the image is whatever the pom says at docker-build time. Bumping
+      # afterwards would tag every image one version ahead of the jar inside
+      # it. Committed later, once the image is published.
       - name: Set version
         id: version
         run: |
@@ -48,8 +54,8 @@ jobs:
         with:
           name: backend-test-reports
           path: |
-            target/surefire-reports/**
-            target/failsafe-reports/**
+            backend/target/surefire-reports/**
+            backend/target/failsafe-reports/**
           if-no-files-found: ignore
 
       - name: Log in to Docker Hub
@@ -74,7 +80,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: backend
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
@@ -91,23 +97,26 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pom.xml
-          git commit -m "chore: bump version to ${VERSION} [skip ci]"
+          git commit -m "chore: bump backend version to ${VERSION} [skip ci]"
+          # The frontend workflow may push its own bump concurrently.
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
+      # Prefixed tag: backend and frontend version independently in this repo.
       - name: Tag release
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: backend-v${{ steps.version.outputs.version }}
         run: |
-          if git ls-remote --tags --exit-code origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists on remote; skipping."
+          if git ls-remote --tags --exit-code origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists on remote; skipping."
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "v${VERSION}"
-          if ! git push origin "v${VERSION}" 2>push.err; then
+          git tag "${TAG}"
+          if ! git push origin "${TAG}" 2>push.err; then
             if grep -q "already exists" push.err; then
-              echo "Tag v${VERSION} was created concurrently by another workflow; treating as success."
+              echo "Tag ${TAG} was created concurrently by another workflow; treating as success."
               exit 0
             fi
             cat push.err >&2
