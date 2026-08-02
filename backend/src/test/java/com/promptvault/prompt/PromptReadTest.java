@@ -111,7 +111,8 @@ class PromptReadTest extends IntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1").header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/current").header(HttpHeaders.AUTHORIZATION, otherToken))
+        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/current")
+                        .header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/prompts").header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isOk())

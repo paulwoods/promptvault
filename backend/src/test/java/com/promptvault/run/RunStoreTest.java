@@ -79,8 +79,7 @@ class RunStoreTest extends IntegrationTest {
                         new VariableDeclaration("topic", null, true, null),
                         new VariableDeclaration("tone", null, true, null)));
 
-        Run run = runStore.createInProgress(
-                userId, version, Map.of("topic", "rivers", "tone", "formal"), "rendered");
+        Run run = runStore.createInProgress(userId, version, Map.of("topic", "rivers", "tone", "formal"), "rendered");
         entityManager.flush();
 
         assertThat(jdbcTemplate.queryForObject(
