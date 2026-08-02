@@ -61,14 +61,123 @@ describe('create / edit prompt', () => {
 
     renderApp('/prompts/new')
     await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    await user.type(screen.getByLabelText('User Prompt'), 'Hello {{name}}')
+    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
+    // The envelope's details carry the reason -- "Validation failed" alone is useless.
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Validation failed',
+      'Validation failed: mismatch',
     )
     expect(
       screen.getByRole('heading', { name: 'New prompt' }),
+    ).toBeInTheDocument()
+  })
+
+  it('blocks submit when a declared variable is not used in the prompt', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+
+    renderApp('/prompts/new')
+    await user.type(await screen.findByLabelText('Name'), 'Greeting')
+    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
+    await user.click(screen.getByRole('button', { name: 'Add variable' }))
+    await user.type(screen.getByLabelText('Variable 1 name'), 'topic')
+    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Variable {{topic}} not used in the prompt',
+    )
+    expect(
+      screen.getByRole('heading', { name: 'New prompt' }),
+    ).toBeInTheDocument()
+  })
+
+  it('blocks submit when a placeholder has no declared variable', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+
+    renderApp('/prompts/new')
+    await user.type(await screen.findByLabelText('Name'), 'Greeting')
+    // paste, not type -- userEvent.type reads "{{" as an escape sequence.
+    await user.click(screen.getByLabelText('User Prompt'))
+    await user.paste('Hello {{topic}}')
+    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Variable {{topic}} used in the prompt but not declared',
+    )
+  })
+
+  it('names every unused variable, pluralized', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+
+    renderApp('/prompts/new')
+    await user.type(await screen.findByLabelText('Name'), 'Greeting')
+    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
+    await user.click(screen.getByRole('button', { name: 'Add variable' }))
+    await user.type(screen.getByLabelText('Variable 1 name'), 'topic')
+    await user.click(screen.getByRole('button', { name: 'Add variable' }))
+    await user.type(screen.getByLabelText('Variable 2 name'), 'tone')
+    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Variables {{topic}}, {{tone}} not used in the prompt',
+    )
+  })
+
+  it('blocks submit on an unnamed variable row', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+
+    renderApp('/prompts/new')
+    await user.type(await screen.findByLabelText('Name'), 'Greeting')
+    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
+    await user.click(screen.getByRole('button', { name: 'Add variable' }))
+    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Invalid variable name: (empty)',
+    )
+  })
+
+  it('saves once the variable and its placeholder match', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      http.post('/api/prompts', () =>
+        HttpResponse.json(
+          { promptId: 'p9', versionId: 'v1', number: 1 },
+          { status: 201 },
+        ),
+      ),
+      http.get('/api/prompts/p9', () =>
+        HttpResponse.json({
+          promptId: 'p9',
+          versions: [
+            {
+              versionId: 'v1',
+              number: 1,
+              name: 'Greeting',
+              createdAt: 'x',
+              current: true,
+            },
+          ],
+        }),
+      ),
+    )
+
+    renderApp('/prompts/new')
+    await user.type(await screen.findByLabelText('Name'), 'Greeting')
+    // paste, not type -- userEvent.type reads "{{" as an escape sequence.
+    await user.click(screen.getByLabelText('User Prompt'))
+    await user.paste('Hello {{topic}}')
+    await user.click(screen.getByRole('button', { name: 'Add variable' }))
+    await user.type(screen.getByLabelText('Variable 1 name'), 'topic')
+    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Versions: Greeting' }),
     ).toBeInTheDocument()
   })
 

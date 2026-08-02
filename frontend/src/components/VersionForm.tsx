@@ -5,6 +5,7 @@ import { Loading } from './Loading'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import type { ModelsResponse } from '../lib/types'
+import { variableMismatch } from './versionFormValues'
 import type {
   VariableRow,
   VersionFormValues,
@@ -35,6 +36,7 @@ export function VersionForm({
     queryFn: () => apiClient.get<ModelsResponse>('/api/models'),
   })
   const [values, setValues] = useState(initial)
+  const [mismatch, setMismatch] = useState<string | null>(null)
 
   const capability = models.data?.models.find(
     (model) => model.id === values.model,
@@ -62,6 +64,11 @@ export function VersionForm({
   }
 
   function submit() {
+    const problem = variableMismatch(values.promptText, values.variables)
+    setMismatch(problem)
+    if (problem !== null) {
+      return
+    }
     onSubmit({
       name: values.name,
       description: values.description.trim() === '' ? null : values.description,
@@ -84,6 +91,9 @@ export function VersionForm({
   if (models.isPending) {
     return <Loading />
   }
+
+  // A client-side mismatch means submit never fired, so any server error is stale.
+  const alertMessage = mismatch ?? (error != null ? errorMessage(error) : null)
 
   return (
     <form
@@ -274,7 +284,7 @@ export function VersionForm({
       <button type="submit" className={submitClassName} disabled={pending}>
         {submitLabel}
       </button>
-      {error != null && <ErrorAlert>{errorMessage(error)}</ErrorAlert>}
+      {alertMessage != null && <ErrorAlert>{alertMessage}</ErrorAlert>}
     </form>
   )
 }

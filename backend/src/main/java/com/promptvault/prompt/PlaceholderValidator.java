@@ -28,14 +28,21 @@ public class PlaceholderValidator {
         Set<String> undeclared = new LinkedHashSet<>(placeholders);
         undeclared.removeAll(declared);
         if (!undeclared.isEmpty()) {
-            throw new DomainValidationException("variables", "Placeholders without a declared Variable: " + undeclared);
+            throw new DomainValidationException("variables", describe(undeclared, "used in the prompt but not declared"));
         }
 
         Set<String> unused = new LinkedHashSet<>(declared);
         unused.removeAll(placeholders);
         if (!unused.isEmpty()) {
-            throw new DomainValidationException("variables", "Declared Variables not used in the prompt: " + unused);
+            throw new DomainValidationException("variables", describe(unused, "not used in the prompt"));
         }
+    }
+
+    /** "Variable {{a}} <problem>" for one name, "Variables {{a}}, {{b}} <problem>" for several. */
+    private static String describe(Set<String> names, String problem) {
+        String label = names.size() == 1 ? "Variable" : "Variables";
+        String list = names.stream().map(name -> "{{" + name + "}}").collect(Collectors.joining(", "));
+        return label + " " + list + " " + problem;
     }
 
     private Set<String> extractPlaceholders(String promptText) {
