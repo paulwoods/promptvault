@@ -131,18 +131,79 @@ dist
 
 ### 1.3 Create the database in the shared Postgres
 
-On the droplet, in the caddy-repo deploy directory (the `backup.sh` script
-assumes `~/postgres`):
+The caddy repo's `init-app-db.sh` creates each app's role and database
+(idempotent — safe to re-run; it re-asserts passwords and skips existing
+databases). Update it to init promptvault alongside equipment:
 
 ```bash
-docker compose exec postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
-CREATE ROLE promptvault LOGIN PASSWORD '<DATABASE_PASSWORD from promptvault.env>';
-CREATE DATABASE promptvault OWNER promptvault;
-SQL
+#!/bin/bash
+# Create each application's database role and database (idempotent).
+#
+# Runs automatically on a FRESH postgres volume via /docker-entrypoint-initdb.d.
+# For an EXISTING volume, run it manually inside the container:
+#   docker compose exec postgres bash /docker-entrypoint-initdb.d/init-app-db.sh
+#
+# Reads from the environment (provided by postgres.env via docker compose):
+#   SPRING_DATASOURCE_USERNAME  equipment role; also used as its database name
+#   SPRING_DATASOURCE_PASSWORD  equipment role password
+#   PROMPTVAULT_DB_USERNAME     promptvault role (default: promptvault); also its database name
+#   PROMPTVAULT_DB_PASSWORD     promptvault role password
+set -euo pipefail
+
+create_app_db() {
+  local app_user="$1"
+  local app_password="$2"
+  local app_db="$app_user"
+
+  psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-postgres}" -d postgres <<EOSQL
+DO \$\$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${app_user}') THEN
+        CREATE ROLE "${app_user}" LOGIN PASSWORD '${app_password}';
+    ELSE
+        ALTER ROLE "${app_user}" LOGIN PASSWORD '${app_password}';
+    END IF;
+END
+\$\$;
+
+SELECT 'CREATE DATABASE "${app_db}" OWNER "${app_user}"'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${app_db}')\gexec
+EOSQL
+
+  echo "Role '${app_user}' and database '${app_db}' are ready."
+}
+
+# equipment
+create_app_db \
+  "${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is not set}" \
+  "${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is not set}"
+
+# promptvault
+create_app_db \
+  "${PROMPTVAULT_DB_USERNAME:-promptvault}" \
+  "${PROMPTVAULT_DB_PASSWORD:?PROMPTVAULT_DB_PASSWORD is not set}"
 ```
 
-(Idempotent alternative: adapt `init-app-db.sh` from the caddy repo — it is
-currently wired to the equipment env vars.)
+The script runs **inside the postgres container**, which only loads
+`postgres.env` — it cannot see `promptvault.env`. Add the promptvault
+credentials to `postgres.env` on the droplet:
+
+```bash
+# postgres.env — add:
+PROMPTVAULT_DB_PASSWORD=<same value as DATABASE_PASSWORD in promptvault.env>
+```
+
+The password lives in two files and must stay in sync: the backend
+authenticates with the one in `promptvault.env`; the init script creates the
+role with the one in `postgres.env`.
+
+Then run it against the existing volume (on the droplet, in the caddy-repo
+deploy directory `~/caddy`):
+
+```bash
+cd ~/caddy
+docker compose exec postgres bash /docker-entrypoint-initdb.d/init-app-db.sh
+```
 
 No schema setup is needed; Flyway migrates on first backend start.
 
@@ -243,7 +304,7 @@ commit, and push.
 
 ```bash
 ssh <droplet>
-cd ~/postgres          # caddy-repo deploy directory
+cd ~/caddy             # caddy-repo deploy directory
 
 git pull               # picks up compose/Caddyfile/env-example changes
 docker compose pull promptvault-backend promptvault-frontend
@@ -279,7 +340,7 @@ appear all at once.
 Images are immutable and tag-pinned, so rollback is re-pointing the tags:
 
 ```bash
-cd ~/postgres
+cd ~/caddy
 # edit docker-compose.yml: set the promptvault image tags back to the previous version
 docker compose up -d
 ```
