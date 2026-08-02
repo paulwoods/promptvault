@@ -1,10 +1,5 @@
 package com.promptvault.security;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import com.promptvault.IntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -12,6 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class SecurityConfigTest extends IntegrationTest {
 
@@ -64,5 +64,15 @@ class SecurityConfigTest extends IntegrationTest {
     @Test
     void publicEndpointAccessibleWithoutToken() throws Exception {
         mockMvc.perform(get("/api/hello")).andExpect(status().isOk());
+    }
+
+    // The container's ERROR dispatch is permitted so that errors on a committed
+    // response (SSE) can reach the error page. That permit is dispatch-scoped: a
+    // client asking for /error directly is an ordinary REQUEST and stays protected.
+    @Test
+    void errorPathStillProtectedOnDirectRequest() throws Exception {
+        mockMvc.perform(get("/error"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("unauthorized"));
     }
 }

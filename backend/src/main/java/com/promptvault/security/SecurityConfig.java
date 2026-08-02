@@ -2,6 +2,7 @@ package com.promptvault.security;
 
 import com.promptvault.auth.JwtService;
 import com.promptvault.error.ApiError;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,7 +27,17 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
-                        auth -> auth.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
+                        // Container-initiated dispatches re-enter this chain carrying no
+                        // SecurityContext: JwtAuthenticationFilter is a OncePerRequestFilter, which
+                        // skips ASYNC and ERROR dispatches, and STATELESS leaves no session to
+                        // restore from. Every SSE run ends in an ASYNC dispatch, so without this
+                        // each one is denied — and because the stream already committed the
+                        // response, that denial surfaces as a ServletException rather than a 401.
+                        // Both are continuations of a request already authorized on its REQUEST
+                        // dispatch, and DispatcherType is set by the container, not the client.
+                        auth -> auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
+                                .permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
                                 .permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/hello")
                                 .permitAll()
