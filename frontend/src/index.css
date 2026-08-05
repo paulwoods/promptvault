@@ -147,6 +147,15 @@ nav > div {
   gap: var(--space-10);
 }
 
+/* Home-page prompt search, hosted in the title bar */
+.nav-search {
+  flex: 1;
+  min-width: 0;
+  max-width: 340px;
+  padding: var(--space-6) var(--space-12);
+  font-size: 14px;
+}
+
 .nav-links {
   display: flex;
   align-items: center;
@@ -893,12 +902,26 @@ ul.simple-list > li {
     padding: 0 var(--space-16);
   }
 
+  /* Wraps so the search box gets its own row instead of being squeezed to
+     nothing between the brand and the nav links. */
   nav > div {
-    height: 56px;
+    min-height: 56px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: var(--space-10);
+    padding: var(--space-8) 0;
   }
 
   .nav-brand {
     font-size: 18px;
+  }
+
+  .nav-search {
+    order: 1;
+    flex-basis: 100%;
+    max-width: none;
+    font-size: 13px;
+    padding: var(--space-6) var(--space-10);
   }
 
   .nav-links {

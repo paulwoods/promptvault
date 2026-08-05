@@ -1,6 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { AppIcon } from '../components/AppIcon'
 import { EmptyState } from '../components/EmptyState'
 import { LoadError } from '../components/LoadError'
@@ -13,8 +12,9 @@ import type { Page, PromptSummary } from '../lib/types'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const q = useDebouncedValue(search)
+  // The search box itself lives in the top nav; this page reads what it writes.
+  const [searchParams] = useSearchParams()
+  const q = useDebouncedValue(searchParams.get('q') ?? '')
   const {
     data,
     isPending,
@@ -50,13 +50,6 @@ export function HomePage() {
             New Prompt
           </Link>
         }
-      />
-      <input
-        type="search"
-        aria-label="Search prompts"
-        placeholder="Search prompts…"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
       />
       {isPending && <Loading />}
       {isError && <LoadError>Could not load prompts.</LoadError>}
