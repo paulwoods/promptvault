@@ -4,9 +4,9 @@ import { Fragment } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import { isRequired } from '../lib/types'
 import type { VariableDeclaration, VersionResponse } from '../lib/types'
 
@@ -76,6 +76,11 @@ export function CompareVersionsPage() {
       apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${toNumber}`),
     enabled: hasParams,
   })
+  usePageTitle(
+    fromVersion.data && toVersion.data
+      ? `Compare v${fromVersion.data.number} → v${toVersion.data.number}`
+      : 'Compare',
+  )
 
   if (!hasParams) {
     return <LoadError>Could not load these versions.</LoadError>
@@ -100,7 +105,6 @@ export function CompareVersionsPage() {
   return (
     <>
       <PromptTabs promptId={id} />
-      <PageHeader title={`Compare v${from.number} → v${to.number}`} />
       <section>
         <h2>Prompt text</h2>
         <pre>

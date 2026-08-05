@@ -20,7 +20,7 @@ describe('auth screens', () => {
     await user.type(screen.getByLabelText('Password'), 'password123')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
 
-    await screen.findByRole('heading', { name: 'Your Prompts' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Your Prompts' })
     expect(getToken()).toBe('fresh-token')
   })
 
@@ -43,7 +43,9 @@ describe('auth screens', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Invalid email or password',
     )
-    expect(screen.getByRole('heading', { name: 'Log in' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Prompt Vault - Log in' }),
+    ).toBeInTheDocument()
     expect(getToken()).toBeNull()
   })
 
@@ -54,7 +56,7 @@ describe('auth screens', () => {
     renderApp('/profile')
     await user.click(await screen.findByRole('button', { name: 'Log Out' }))
 
-    await screen.findByRole('heading', { name: 'Log in' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Log in' })
     expect(getToken()).toBeNull()
   })
 
@@ -74,6 +76,6 @@ describe('auth screens', () => {
     await user.type(screen.getByLabelText('Password'), 'password123')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
-    await screen.findByRole('heading', { name: 'Log in' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Log in' })
   })
 })

@@ -90,7 +90,7 @@ describe('prompt browsing', () => {
     renderApp('/prompts/p1/versions/1')
 
     expect(
-      await screen.findByRole('heading', { name: 'Original (v1)' }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Original (v1)' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Tell me about {{topic}}')).toBeInTheDocument()
     expect(screen.getByText('claude-opus-4-8')).toBeInTheDocument()
@@ -138,7 +138,7 @@ describe('prompt browsing', () => {
     await user.click(await screen.findByRole('link', { name: 'View' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Greeting (v1)' }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Greeting (v1)' }),
     ).toBeInTheDocument()
   })
 

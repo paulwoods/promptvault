@@ -2,11 +2,12 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
-import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
+import { usePageTitle } from '../lib/pageTitle'
 
 export function RegisterPage() {
+  usePageTitle('Create account')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
@@ -18,7 +19,6 @@ export function RegisterPage() {
 
   return (
     <>
-      <PageHeader title="Create account" />
       <form
         onSubmit={(event) => {
           event.preventDefault()

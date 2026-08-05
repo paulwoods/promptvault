@@ -2,7 +2,6 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { VersionForm } from '../components/VersionForm'
 import {
@@ -10,6 +9,7 @@ import {
   type VersionRequestBody,
 } from '../components/versionFormValues'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import type { VersionResponse } from '../lib/types'
 
 export function DuplicateFromVersionPage() {
@@ -25,6 +25,7 @@ export function DuplicateFromVersionPage() {
     queryFn: () =>
       apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
   })
+  usePageTitle(version.data ? `Duplicate: ${version.data.name}` : 'Duplicate')
 
   const mutation = useMutation({
     mutationFn: (body: VersionRequestBody) =>
@@ -46,7 +47,6 @@ export function DuplicateFromVersionPage() {
         versionNumber={version.data.number}
         current={isCurrentDuplicate}
       />
-      <PageHeader title={`Duplicate: ${version.data.name}`} />
       <VersionForm
         initial={toFormValues(version.data)}
         submitLabel="Duplicate"

@@ -2,19 +2,19 @@ import { ActivityFeed } from '../components/ActivityFeed'
 import { ApiKeyForm } from '../components/ApiKeyForm'
 import { LogoutButton } from '../components/LogoutButton'
 import { NameForm } from '../components/NameForm'
-import { PageHeader } from '../components/PageHeader'
 import { UsageSummary } from '../components/UsageSummary'
+import { usePageTitle } from '../lib/pageTitle'
 import { useMe } from '../lib/useMe'
 
 export function ProfilePage() {
+  usePageTitle('Profile')
   const me = useMe()
 
   return (
     <>
-      <PageHeader
-        title="Profile"
-        actions={<LogoutButton className="button-sm button-gold" />}
-      />
+      <div className="actions">
+        <LogoutButton className="button-sm button-gold" />
+      </div>
       <fieldset className="form-section">
         <legend>Profile</legend>
         <NameForm />

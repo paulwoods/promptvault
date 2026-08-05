@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { VersionForm } from '../components/VersionForm'
 import {
@@ -12,6 +11,7 @@ import {
 } from '../components/versionFormValues'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
+import { usePageTitle } from '../lib/pageTitle'
 import type { VersionResponse } from '../lib/types'
 
 export function EditFromVersionPage() {
@@ -28,6 +28,7 @@ export function EditFromVersionPage() {
     queryFn: () =>
       apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
   })
+  usePageTitle(version.data ? `Edit: ${version.data.name}` : 'Edit')
 
   const mutation = useMutation({
     mutationFn: (body: VersionRequestBody) =>
@@ -59,19 +60,16 @@ export function EditFromVersionPage() {
         versionNumber={version.data.number}
         current={isCurrentEdit}
       />
-      <PageHeader
-        title={`Edit: ${version.data.name}`}
-        actions={
-          <button
-            type="button"
-            className="button-sm"
-            disabled={deletePrompt.isPending}
-            onClick={() => deletePrompt.mutate()}
-          >
-            Delete
-          </button>
-        }
-      />
+      <div className="actions">
+        <button
+          type="button"
+          className="button-sm"
+          disabled={deletePrompt.isPending}
+          onClick={() => deletePrompt.mutate()}
+        >
+          Delete
+        </button>
+      </div>
       {deletePrompt.isError && (
         <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
       )}

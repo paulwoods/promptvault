@@ -39,7 +39,9 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Versions: Greeting' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Versions: Greeting',
+      }),
     ).toBeInTheDocument()
   })
 
@@ -69,7 +71,7 @@ describe('create / edit prompt', () => {
       'Validation failed: mismatch',
     )
     expect(
-      screen.getByRole('heading', { name: 'New prompt' }),
+      screen.getByRole('link', { name: 'Prompt Vault - New prompt' }),
     ).toBeInTheDocument()
   })
 
@@ -88,7 +90,7 @@ describe('create / edit prompt', () => {
       'Variable {{topic}} not used in the prompt',
     )
     expect(
-      screen.getByRole('heading', { name: 'New prompt' }),
+      screen.getByRole('link', { name: 'Prompt Vault - New prompt' }),
     ).toBeInTheDocument()
   })
 
@@ -177,7 +179,9 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Versions: Greeting' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Versions: Greeting',
+      }),
     ).toBeInTheDocument()
   })
 
@@ -257,7 +261,9 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Save new version' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Versions: Renamed' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Versions: Renamed',
+      }),
     ).toBeInTheDocument()
   })
 
@@ -312,7 +318,9 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Save new version' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Versions: Renamed' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Versions: Renamed',
+      }),
     ).toBeInTheDocument()
   })
 })

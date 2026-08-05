@@ -157,6 +157,6 @@ describe('streamed run view', () => {
     renderApp('/prompts/p1/versions/1/run')
 
     // No variables, so the run starts automatically and hits the missing key.
-    await screen.findByRole('heading', { name: 'API Key' })
+    await screen.findByRole('link', { name: 'Prompt Vault - API Key' })
   })
 })

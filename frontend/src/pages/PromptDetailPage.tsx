@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import type { PromptDetail } from '../lib/types'
 
 export function PromptDetailPage() {
@@ -26,11 +26,11 @@ export function PromptDetailPage() {
   const effectiveFrom = fromNumber || String(versions[0]?.number ?? '')
   const effectiveTo =
     toNumber || String(versions[versions.length - 1]?.number ?? '')
+  usePageTitle(name ? `Versions: ${name}` : 'Versions')
 
   return (
     <>
       <PromptTabs promptId={id} />
-      <PageHeader title={name ? `Versions: ${name}` : 'Versions'} />
       {prompt.isPending && <Loading />}
       {prompt.isError && <LoadError>Could not load this prompt.</LoadError>}
       {prompt.data && (

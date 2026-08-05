@@ -18,7 +18,7 @@ describe('app shell', () => {
 
     renderApp('/')
 
-    await screen.findByRole('heading', { name: 'Your Prompts' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Your Prompts' })
     expect(authHeader).toBe('Bearer test-token')
   })
 
@@ -35,13 +35,13 @@ describe('app shell', () => {
 
     renderApp('/')
 
-    await screen.findByRole('heading', { name: 'Log in' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Log in' })
     expect(getToken()).toBeNull()
   })
 
   it('redirects to login when there is no token', async () => {
     renderApp('/')
 
-    await screen.findByRole('heading', { name: 'Log in' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Log in' })
   })
 })

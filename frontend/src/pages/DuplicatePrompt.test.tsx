@@ -92,7 +92,9 @@ describe('duplicate prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Duplicate' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Versions: Original' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Versions: Original',
+      }),
     ).toBeInTheDocument()
   })
 

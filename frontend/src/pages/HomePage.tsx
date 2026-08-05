@@ -1,17 +1,17 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { AppIcon } from '../components/AppIcon'
 import { EmptyState } from '../components/EmptyState'
 import { LoadError } from '../components/LoadError'
 import { LoadMoreButton } from '../components/LoadMoreButton'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import type { Page, PromptSummary } from '../lib/types'
 
 export function HomePage() {
   const navigate = useNavigate()
+  usePageTitle('Your Prompts')
   // The search box itself lives in the top nav; this page reads what it writes.
   const [searchParams] = useSearchParams()
   const q = useDebouncedValue(searchParams.get('q') ?? '')
@@ -38,19 +38,11 @@ export function HomePage() {
 
   return (
     <>
-      <PageHeader
-        title={
-          <span className="title-with-icon">
-            <AppIcon className="app-icon" />
-            Your Prompts
-          </span>
-        }
-        actions={
-          <Link to="/prompts/new" className="button-link button-link-sm">
-            New Prompt
-          </Link>
-        }
-      />
+      <div className="actions">
+        <Link to="/prompts/new" className="button-link button-link-sm">
+          New Prompt
+        </Link>
+      </div>
       {isPending && <Loading />}
       {isError && <LoadError>Could not load prompts.</LoadError>}
       {prompts && prompts.length === 0 && (

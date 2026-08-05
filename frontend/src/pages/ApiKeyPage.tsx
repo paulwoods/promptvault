@@ -1,11 +1,7 @@
 import { ApiKeyForm } from '../components/ApiKeyForm'
-import { PageHeader } from '../components/PageHeader'
+import { usePageTitle } from '../lib/pageTitle'
 
 export function ApiKeyPage() {
-  return (
-    <>
-      <PageHeader title="API Key" />
-      <ApiKeyForm />
-    </>
-  )
+  usePageTitle('API Key')
+  return <ApiKeyForm />
 }

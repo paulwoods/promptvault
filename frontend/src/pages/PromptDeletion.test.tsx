@@ -57,14 +57,14 @@ describe('prompt deletion and trash', () => {
     )
 
     renderApp('/prompts/p1/edit')
-    await screen.findByRole('heading', { name: 'Edit: ToDelete' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Edit: ToDelete' })
 
     // No confirmation dialog: a single click fires the delete immediately.
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     // Deletion navigates away (the prompt's own page would now 404) and the
     // prompt list no longer shows it.
-    await screen.findByRole('heading', { name: 'Your Prompts' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Your Prompts' })
     expect(screen.queryByText('ToDelete')).not.toBeInTheDocument()
 
     renderApp('/trash')

@@ -4,10 +4,10 @@ import { Link, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { RunForm } from '../components/RunForm'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import { useRunStream } from '../lib/useRunStream'
 import type { VersionResponse } from '../lib/types'
 
@@ -23,6 +23,7 @@ export function RunPage() {
     queryFn: () =>
       apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
   })
+  usePageTitle(version.data ? `Run: ${version.data.name}` : 'Run')
 
   // Runs execute against a concrete version, so drive the stream off the
   // resolved number rather than the (possibly absent) URL param.
@@ -56,7 +57,6 @@ export function RunPage() {
         versionNumber={version.data.number}
         current={isCurrentRun}
       />
-      <PageHeader title={`Run: ${version.data.name}`} />
       {status === 'idle' ? (
         <RunForm variables={version.data.variables} onRun={run} />
       ) : (

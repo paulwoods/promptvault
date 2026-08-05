@@ -2,17 +2,18 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { VersionForm } from '../components/VersionForm'
 import {
   emptyVersionValues,
   type VersionRequestBody,
 } from '../components/versionFormValues'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import type { ModelsResponse, VersionResponse } from '../lib/types'
 
 export function CreatePromptPage() {
   const navigate = useNavigate()
+  usePageTitle('New prompt')
   const models = useQuery({
     queryKey: ['models'],
     queryFn: () => apiClient.get<ModelsResponse>('/api/models'),
@@ -32,15 +33,12 @@ export function CreatePromptPage() {
   }
 
   return (
-    <>
-      <PageHeader title="New prompt" />
-      <VersionForm
-        initial={emptyVersionValues(models.data.defaultModel)}
-        submitLabel="Create prompt"
-        pending={mutation.isPending}
-        error={mutation.error}
-        onSubmit={(body) => mutation.mutate(body)}
-      />
-    </>
+    <VersionForm
+      initial={emptyVersionValues(models.data.defaultModel)}
+      submitLabel="Create prompt"
+      pending={mutation.isPending}
+      error={mutation.error}
+      onSubmit={(body) => mutation.mutate(body)}
+    />
   )
 }

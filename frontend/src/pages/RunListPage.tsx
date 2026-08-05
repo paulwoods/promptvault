@@ -5,9 +5,9 @@ import { EmptyState } from '../components/EmptyState'
 import { LoadError } from '../components/LoadError'
 import { LoadMoreButton } from '../components/LoadMoreButton'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import type { Page, PromptDetail, RunSummary } from '../lib/types'
 
 const STATUS_OPTIONS = [
@@ -51,19 +51,17 @@ export function RunListPage() {
       lastPage.hasMore ? pages.length + 1 : undefined,
   })
   const runItems = runs.data?.pages.flatMap((page) => page.items)
+  usePageTitle(
+    versionNumber
+      ? `Runs (v${versionNumber})`
+      : name
+        ? `Runs: ${name}`
+        : 'Runs',
+  )
 
   return (
     <>
       <PromptTabs promptId={id} versionNumber={versionNumber} />
-      <PageHeader
-        title={
-          versionNumber
-            ? `Runs (v${versionNumber})`
-            : name
-              ? `Runs: ${name}`
-              : 'Runs'
-        }
-      />
       <label>
         Status
         <select

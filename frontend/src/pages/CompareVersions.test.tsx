@@ -63,7 +63,7 @@ describe('version diff view', () => {
     )
 
     renderApp('/prompts/p1/version')
-    await screen.findByRole('heading', { name: 'Versions: Second' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Versions: Second' })
     await screen.findByLabelText('From version')
 
     await user.selectOptions(screen.getByLabelText('From version'), '1')
@@ -71,7 +71,9 @@ describe('version diff view', () => {
     await user.click(screen.getByRole('link', { name: 'Compare' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Compare v1 → v2' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Compare v1 → v2',
+      }),
     ).toBeInTheDocument()
   })
 
@@ -97,7 +99,7 @@ describe('version diff view', () => {
 
     renderApp('/prompts/p1/compare?from=1&to=2')
 
-    await screen.findByRole('heading', { name: 'Compare v1 → v2' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Compare v1 → v2' })
     const pre = document.querySelector('pre')
     expect(pre).not.toBeNull()
     expect(pre?.querySelector('del.diff-removed')?.textContent).toBe('brave')
@@ -126,7 +128,7 @@ describe('version diff view', () => {
 
     renderApp('/prompts/p1/compare?from=1&to=2')
 
-    await screen.findByRole('heading', { name: 'Compare v1 → v2' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Compare v1 → v2' })
     expect(screen.getByText('Model')).toBeInTheDocument()
     expect(
       screen.getByText('claude-opus-4-8 → claude-haiku-4-5'),
@@ -154,7 +156,7 @@ describe('version diff view', () => {
 
     renderApp('/prompts/p1/compare?from=1&to=2')
 
-    await screen.findByRole('heading', { name: 'Compare v1 → v2' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Compare v1 → v2' })
     expect(screen.getByText('Model')).toBeInTheDocument()
     expect(screen.queryByText('Name')).not.toBeInTheDocument()
   })
@@ -170,7 +172,7 @@ describe('version diff view', () => {
 
     renderApp('/prompts/p1/compare?from=1&to=1')
 
-    await screen.findByRole('heading', { name: 'Compare v1 → v1' })
+    await screen.findByRole('link', { name: 'Prompt Vault - Compare v1 → v1' })
     expect(screen.getByText('No other differences.')).toBeInTheDocument()
     const pre = document.querySelector('pre')
     expect(pre?.querySelector('ins.diff-added')).toBeNull()

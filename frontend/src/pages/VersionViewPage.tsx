@@ -2,10 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { SimpleList } from '../components/SimpleList'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import { isRequired } from '../lib/types'
 import type { VersionResponse } from '../lib/types'
 
@@ -20,6 +20,7 @@ export function VersionViewPage() {
     queryFn: () =>
       apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
   })
+  usePageTitle(data ? `${data.name} (v${data.number})` : 'Version')
 
   if (isPending) {
     return <Loading />
@@ -35,7 +36,6 @@ export function VersionViewPage() {
         versionNumber={data.number}
         current={isCurrentView}
       />
-      <PageHeader title={`${data.name} (v${data.number})`} />
       {data.description && <p>{data.description}</p>}
       <dl>
         <dt>Model</dt>

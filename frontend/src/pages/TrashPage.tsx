@@ -3,12 +3,13 @@ import { EmptyState } from '../components/EmptyState'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
+import { usePageTitle } from '../lib/pageTitle'
 import type { TrashedPromptSummary } from '../lib/types'
 
 export function TrashPage() {
+  usePageTitle('Trash')
   const queryClient = useQueryClient()
   const trash = useQuery({
     queryKey: ['trash'],
@@ -26,7 +27,6 @@ export function TrashPage() {
 
   return (
     <>
-      <PageHeader title="Trash" />
       {trash.isPending && <Loading />}
       {trash.isError && <LoadError>Could not load trash.</LoadError>}
       {restore.isError && (

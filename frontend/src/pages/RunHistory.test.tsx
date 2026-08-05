@@ -132,7 +132,7 @@ describe('run history', () => {
     )
 
     expect(
-      await screen.findByRole('heading', { name: 'Run Detail' }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Run Detail' }),
     ).toBeInTheDocument()
   })
 

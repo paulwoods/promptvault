@@ -4,10 +4,10 @@ import { EmptyState } from '../components/EmptyState'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PageHeader } from '../components/PageHeader'
 import { PromptTabs } from '../components/PromptTabs'
 import { SimpleList } from '../components/SimpleList'
 import { apiClient } from '../lib/apiClient'
+import { usePageTitle } from '../lib/pageTitle'
 import type { RunDetail } from '../lib/types'
 
 export function RunDetailPage() {
@@ -16,6 +16,7 @@ export function RunDetailPage() {
     queryKey: ['run', runId],
     queryFn: () => apiClient.get<RunDetail>(`/api/runs/${runId}`),
   })
+  usePageTitle('Run Detail')
 
   if (isPending) {
     return <Loading />
@@ -27,7 +28,6 @@ export function RunDetailPage() {
   return (
     <>
       <PromptTabs promptId={id} versionNumber={data.versionNumber} />
-      <PageHeader title="Run Detail" />
       <dl>
         <dt>Version</dt>
         <dd>v{data.versionNumber}</dd>

@@ -2,16 +2,17 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
-import { PageHeader } from '../components/PageHeader'
 import { apiClient } from '../lib/apiClient'
 import { setToken } from '../lib/auth'
 import { errorMessage } from '../lib/errorMessage'
+import { usePageTitle } from '../lib/pageTitle'
 
 interface LoginResponse {
   token: string
 }
 
 export function LoginPage() {
+  usePageTitle('Log in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
@@ -27,7 +28,6 @@ export function LoginPage() {
 
   return (
     <>
-      <PageHeader title="Log in" />
       <form
         onSubmit={(event) => {
           event.preventDefault()

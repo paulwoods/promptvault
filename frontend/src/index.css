@@ -37,7 +37,6 @@
   --radius-pill: 999px;
 
   /* Sizing tokens */
-  --container: 1200px;
   --form-max: 760px;
   --nav-height: 64px;
   --textarea-min: 140px;
@@ -111,9 +110,7 @@ nav {
 }
 
 nav > div {
-  max-width: var(--container);
   height: var(--nav-height);
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -139,12 +136,6 @@ nav > div {
 .app-icon {
   color: var(--gold);
   flex-shrink: 0;
-}
-
-.title-with-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-10);
 }
 
 /* Home-page prompt search, hosted in the title bar */
@@ -282,8 +273,6 @@ nav > div {
 /* Main content column */
 main {
   width: 100%;
-  max-width: var(--container);
-  margin: 0 auto;
   padding: var(--space-24) var(--space-24) var(--space-48);
   flex: 1;
 }
@@ -812,26 +801,6 @@ pre code {
   color: var(--fog);
 }
 
-/* Page header */
-.page-header {
-  margin-bottom: var(--space-24);
-}
-
-.page-header-bar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-12);
-}
-
-.page-header .actions {
-  margin-bottom: 0;
-}
-
-.back-link {
-  margin-bottom: var(--space-16);
-}
-
 /* Page-level fetch failure (NOT role=alert — reserved for inline form/run errors) */
 .load-error {
   color: var(--error);
@@ -998,9 +967,8 @@ main {
   z-index: 1;
 }
 
-/* Frosted surfaces: the top nav, page headers, and card/list rows. */
+/* Frosted surfaces: the top nav and card/list rows. */
 nav,
-.page-header,
 li {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1014,11 +982,6 @@ nav {
   border-left: none;
   border-right: none;
   border-top: none;
-}
-
-.page-header {
-  padding: var(--space-18) var(--space-20);
-  border-radius: var(--radius-xl);
 }
 
 li:hover {
@@ -1035,7 +998,6 @@ ul.simple-list > li {
 
 /* Light theme: lighter, more opaque glass over the lighter backdrop. */
 :root[data-theme='light'] nav,
-:root[data-theme='light'] .page-header,
 :root[data-theme='light'] li {
   background: rgba(255, 255, 255, 0.55);
   border-color: rgba(255, 255, 255, 0.7);

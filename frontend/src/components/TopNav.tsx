@@ -1,4 +1,5 @@
 import { Link, NavLink, useLocation, useSearchParams } from 'react-router'
+import { useActivePageTitle } from '../lib/pageTitle'
 import { useAuth } from '../lib/useAuth'
 import { useMe } from '../lib/useMe'
 import { AppIcon } from './AppIcon'
@@ -9,13 +10,14 @@ export function TopNav() {
   const me = useMe(isAuthenticated)
   const isHome = useLocation().pathname === '/'
   const [searchParams, setSearchParams] = useSearchParams()
+  const pageTitle = useActivePageTitle()
 
   return (
     <nav aria-label="Main">
       <div>
         <Link to="/" className="nav-brand">
           <AppIcon className="app-icon" />
-          Prompt Vault
+          {pageTitle ? `Prompt Vault - ${pageTitle}` : 'Prompt Vault'}
         </Link>
 
         {/*
