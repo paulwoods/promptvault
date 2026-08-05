@@ -1,11 +1,17 @@
-import { Link, NavLink, useLocation, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { useActivePageTitle } from '../lib/pageTitle'
 import { useAuth } from '../lib/useAuth'
 import { useMe } from '../lib/useMe'
+import { AppDrawer } from './AppDrawer'
 import { AppIcon } from './AppIcon'
 import { ThemeToggle } from './ThemeToggle'
 
-export function TopNav() {
+interface TopNavProps {
+  drawerOpen: boolean
+  onDrawerOpenChange: (open: boolean) => void
+}
+
+export function TopNav({ drawerOpen, onDrawerOpenChange }: TopNavProps) {
   const isAuthenticated = useAuth()
   const me = useMe(isAuthenticated)
   const isHome = useLocation().pathname === '/'
@@ -15,6 +21,14 @@ export function TopNav() {
   return (
     <nav aria-label="Main">
       <div>
+        {isAuthenticated && me.data ? (
+          <AppDrawer
+            userName={me.data.name}
+            open={drawerOpen}
+            onOpenChange={onDrawerOpenChange}
+          />
+        ) : null}
+
         <Link to="/" className="nav-brand">
           <AppIcon className="app-icon" />
           {pageTitle ? `Prompt Vault - ${pageTitle}` : 'Prompt Vault'}
@@ -50,14 +64,6 @@ export function TopNav() {
         )}
 
         <div className="nav-right">
-          {isAuthenticated && me.data ? (
-            <div className="nav-links">
-              <NavLink to="/trash">Trash</NavLink>
-              <NavLink to="/profile" className="nav-user">
-                {me.data.name}
-              </NavLink>
-            </div>
-          ) : null}
           <ThemeToggle />
         </div>
       </div>

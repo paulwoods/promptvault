@@ -39,6 +39,7 @@
   /* Sizing tokens */
   --form-max: 760px;
   --nav-height: 64px;
+  --drawer-width: 280px;
   --textarea-min: 140px;
   --select-pad-right: 42px;
 
@@ -64,6 +65,10 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* The app drawer sits off-screen via `transform: translateX(100%)` when
+     closed; without this, browsers still count its box toward the page's
+     scrollable width and let it be scrolled into view horizontally. */
+  overflow-x: hidden;
 }
 
 body {
@@ -138,71 +143,34 @@ nav > div {
   flex-shrink: 0;
 }
 
-/* Home-page prompt search, hosted in the title bar */
+/* Home-page prompt search, hosted in the title bar. `margin-left: auto`
+   pushes it (and the theme toggle after it) flush to the right, leaving the
+   hamburger + brand flush left — the two clusters split the bar instead of
+   space-between spreading all four items out evenly. It only renders on
+   home, so on every other page `.nav-right` carries the same auto margin
+   instead (reset back to 0 here when the search box is the one doing it). */
 .nav-search {
-  flex: 1;
+  margin-left: auto;
+  width: 340px;
   min-width: 0;
-  max-width: 340px;
   padding: var(--space-6) var(--space-12);
   font-size: 14px;
 }
 
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-}
-
-.nav-links a,
-.nav-links button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  padding: var(--space-8) var(--space-14);
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  background: transparent;
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--fog);
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.nav-links a:hover,
-.nav-links button:hover {
-  color: var(--paper);
-  background: var(--graphite);
-  text-decoration: none;
-}
-
-.nav-links a[aria-current='page'] {
-  color: var(--gold);
-  background: var(--gold-dim);
-}
-
-.nav-user {
-  padding: var(--space-8) var(--space-14);
-  font-size: 14px;
-  color: var(--fog);
-}
-
-.nav-user:hover {
-  color: var(--gold);
-}
-
 .nav-right {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--space-8);
 }
 
-/* Icon-only theme toggle in the title bar */
-.theme-toggle {
+.nav-search ~ .nav-right {
+  margin-left: 0;
+}
+
+/* Icon-only buttons in the title bar: theme toggle, drawer menu toggle */
+.theme-toggle,
+.menu-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -219,10 +187,56 @@ nav > div {
     border-color 0.15s ease;
 }
 
-.theme-toggle:hover:not(:disabled) {
+.theme-toggle:hover:not(:disabled),
+.menu-toggle:hover {
   color: var(--paper);
   background: var(--graphite);
   border-color: transparent;
+}
+
+/* App drawer: hamburger-triggered slide-out panel with primary nav links.
+   Sits below the nav (rather than covering it) and pushes <main> aside
+   instead of overlaying it — see the `main[data-drawer-open]` rule below. */
+.app-drawer {
+  position: fixed;
+  top: var(--nav-height);
+  left: 0;
+  z-index: 200;
+  width: var(--drawer-width);
+  max-width: 80vw;
+  height: calc(100vh - var(--nav-height));
+  padding: var(--space-24) var(--space-16);
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+
+.app-drawer[data-open='true'] {
+  transform: translateX(0);
+}
+
+.app-drawer [role='navigation'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.app-drawer [role='navigation'] a {
+  padding: var(--space-10) var(--space-14);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--fog);
+}
+
+.app-drawer [role='navigation'] a:hover {
+  color: var(--paper);
+  background: var(--graphite);
+  text-decoration: none;
+}
+
+.app-drawer [role='navigation'] a[aria-current='page'] {
+  color: var(--gold);
+  background: var(--gold-dim);
 }
 
 /* Profile page */
@@ -275,6 +289,13 @@ main {
   width: 100%;
   padding: var(--space-24) var(--space-24) var(--space-48);
   flex: 1;
+  transition: margin-left 0.2s ease;
+}
+
+/* Pushed aside to make room for the open app drawer, rather than the drawer
+   overlaying it. */
+main[data-drawer-open='true'] {
+  margin-left: var(--drawer-width);
 }
 
 /* Typography */
@@ -888,19 +909,21 @@ ul.simple-list > li {
   .nav-search {
     order: 1;
     flex-basis: 100%;
-    max-width: none;
+    width: auto;
+    margin-left: 0;
     font-size: 13px;
     padding: var(--space-6) var(--space-10);
   }
 
-  .nav-links {
-    gap: var(--space-4);
+  /* On the wrapped mobile layout, the search box drops to its own row
+     below, so the desktop left/right cluster split doesn't apply — let
+     `nav > div`'s space-between handle the (single) remaining row. */
+  .nav-right {
+    margin-left: 0;
   }
 
-  .nav-links a,
-  .nav-links button {
-    padding: var(--space-6) var(--space-10);
-    font-size: 13px;
+  :root {
+    --drawer-width: 240px;
   }
 
   li {
@@ -967,9 +990,10 @@ main {
   z-index: 1;
 }
 
-/* Frosted surfaces: the top nav and card/list rows. */
+/* Frosted surfaces: the top nav, card/list rows, and the app drawer. */
 nav,
-li {
+li,
+.app-drawer {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
@@ -982,6 +1006,14 @@ nav {
   border-left: none;
   border-right: none;
   border-top: none;
+}
+
+/* The drawer slides in from the left edge, so it keeps square edges and
+   only a right rule. */
+.app-drawer {
+  border-top: none;
+  border-left: none;
+  border-bottom: none;
 }
 
 li:hover {
@@ -998,7 +1030,8 @@ ul.simple-list > li {
 
 /* Light theme: lighter, more opaque glass over the lighter backdrop. */
 :root[data-theme='light'] nav,
-:root[data-theme='light'] li {
+:root[data-theme='light'] li,
+:root[data-theme='light'] .app-drawer {
   background: rgba(255, 255, 255, 0.55);
   border-color: rgba(255, 255, 255, 0.7);
   box-shadow: 0 8px 32px rgba(20, 22, 28, 0.12);
