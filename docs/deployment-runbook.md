@@ -229,11 +229,12 @@ PROMPTVAULT_ENC_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
 PROMPTVAULT_JWT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-**`docker-compose.yml`** — add two services, matching the equipment style:
+**`docker-compose.yml`** — add two services, matching the equipment style. The
+two tags are pinned independently (Part 2) — they are not expected to match:
 
 ```yaml
   promptvault-backend:
-    image: paulwoods/promptvault-backend:0.1.0
+    image: paulwoods/promptvault-backend:0.1.5
     env_file:
       - promptvault.env
     restart: unless-stopped
@@ -244,7 +245,7 @@ PROMPTVAULT_JWT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
           memory: 1g
 
   promptvault-frontend:
-    image: paulwoods/promptvault-frontend:0.1.0
+    image: paulwoods/promptvault-frontend:0.0.4
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -277,28 +278,51 @@ promptvault.mrpaulwoods.com {
 
 ---
 
-## Part 2 — Build and push images (every release)
+## Part 2 — Publish images (every release)
 
-From the promptvault repo on the dev machine. Pick a version tag (the server
-pins exact tags, like equipment's `2.0.46` — never deploy `latest`):
+**Images are built and pushed by CI, not by hand.** Pushing to `develop`
+triggers the workflows in `.github/workflows/` (`publish-backend.yml`,
+`publish-frontend.yml`), which run the tests, bump the version, build for
+`linux/amd64`, and push to Docker Hub. Do not `docker build`/`docker push`
+manually — a hand-picked tag collides with CI's numbering and leaves the
+version in `pom.xml`/`package.json` disagreeing with the image it labels.
 
 ```bash
-TAG=0.1.0   # bump per release
-
-# Full test suite first — only ship green builds (see CLAUDE.md git workflow)
-(cd backend && ./mvnw test)
-(cd frontend && npm test -- --run && npm run build)
-
-docker build -t paulwoods/promptvault-backend:$TAG backend/
-docker build -t paulwoods/promptvault-frontend:$TAG frontend/
-
-docker login
-docker push paulwoods/promptvault-backend:$TAG
-docker push paulwoods/promptvault-frontend:$TAG
+# From the promptvault repo on the dev machine
+git push origin develop
 ```
 
-Then in the caddy repo, bump the two image tags in `docker-compose.yml`,
-commit, and push.
+**The two images version independently.** Each workflow is path-filtered, so a
+backend-only change publishes only a new backend image and the frontend tag
+stays where it is (hence `0.1.5` / `0.0.4` rather than one shared number):
+
+| Change under | Publishes | Version bumped by |
+|---|---|---|
+| `backend/**` | `paulwoods/promptvault-backend` | Maven, patch, before the build |
+| `frontend/**` | `paulwoods/promptvault-frontend` | `npm version patch` |
+
+Each successful run pushes back to `develop`: a `chore: bump … [skip ci]`
+commit and a `backend-v<version>` / `frontend-v<version>` git tag. **Your local
+`develop` is behind afterwards — `git pull` before doing more work**, or the
+next push conflicts with CI's bump commit.
+
+Read the version to deploy from that commit (or the tag):
+
+```bash
+git pull
+git tag --list 'backend-v*' 'frontend-v*' --sort=-creatordate | head -4
+```
+
+Every image is also tagged `latest` and `sha-<short>`, but **the server pins
+exact version tags** (like equipment's `2.0.46`) — never deploy `latest`.
+
+Then in the caddy repo, set the two image tags in `docker-compose.yml` to those
+versions, commit, and push.
+
+> CI is the gate that decides an image ships: the backend runs `./mvnw -B verify`
+> and the frontend `npm test -- --run` before either pushes. The CLAUDE.md rule
+> to run both suites locally before committing still stands — it just isn't what
+> guards the registry.
 
 ## Part 3 — Deploy on the droplet
 
