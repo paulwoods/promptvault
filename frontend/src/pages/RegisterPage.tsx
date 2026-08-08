@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { AuthHero } from '../components/AuthHero'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
@@ -18,7 +19,11 @@ export function RegisterPage() {
   })
 
   return (
-    <>
+    <div className="auth-page">
+      <AuthHero
+        title="Create your account"
+        subtitle="Store, version, and run your Claude prompts."
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -55,6 +60,6 @@ export function RegisterPage() {
       <p className="muted">
         Already have an account? <Link to="/login">Log in</Link>
       </p>
-    </>
+    </div>
   )
 }

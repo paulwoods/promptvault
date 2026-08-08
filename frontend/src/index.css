@@ -38,6 +38,7 @@
 
   /* Sizing tokens */
   --form-max: 760px;
+  --auth-form-max: 400px;
   --nav-height: 64px;
   --drawer-width: 280px;
   --textarea-min: 140px;
@@ -296,6 +297,50 @@ main {
    overlaying it. */
 main[data-drawer-open='true'] {
   margin-left: var(--drawer-width);
+}
+
+/* Auth pages (login, register): the form block is centered in the page rather
+   than sitting in the default top-left content column. The height subtracts
+   the nav and <main>'s own padding so "centered" means the middle of the
+   visible area. */
+.auth-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(
+    100svh - var(--nav-height) - var(--space-24) - var(--space-48)
+  );
+}
+
+/* Brand mark + heading above the auth form. */
+.auth-hero {
+  text-align: center;
+  margin-bottom: var(--space-28);
+}
+
+.auth-hero .app-icon {
+  display: block;
+  margin: 0 auto var(--space-12);
+  font-size: 44px;
+}
+
+.auth-hero h1 {
+  font-size: 30px;
+  margin: 0 0 var(--space-8);
+}
+
+.auth-hero p {
+  margin: 0;
+  color: var(--fog);
+  font-size: 15px;
+}
+
+/* Without an explicit width the flex centering would shrink the form to its
+   content, collapsing the inputs. */
+.auth-page > * {
+  width: 100%;
+  max-width: var(--auth-form-max);
 }
 
 /* Typography */
@@ -686,6 +731,11 @@ li {
 
 .prompt-card {
   cursor: pointer;
+  /* Cards are content-sized (~94px for a name plus a one-line description);
+     this floors them 50% taller. Content stays top-aligned rather than being
+     spread by the `justify-content: space-between` inherited from `li`. */
+  min-height: 140px;
+  justify-content: flex-start;
 }
 
 .prompt-card:focus-visible {
@@ -693,24 +743,10 @@ li {
   outline-offset: 2px;
 }
 
-.prompt-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-16);
-  width: 100%;
-}
-
 .prompt-card-description {
   margin: 0;
   color: var(--fog);
   font-size: 14px;
-}
-
-.prompt-grid > li > .row-actions {
-  margin-top: 2em;
-  width: 100%;
-  justify-content: space-between;
 }
 
 li > span {

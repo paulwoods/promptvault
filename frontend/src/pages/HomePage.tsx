@@ -58,47 +58,23 @@ export function HomePage() {
               className="prompt-card"
               role="button"
               tabIndex={0}
-              aria-label={`Run ${prompt.name}`}
+              aria-label={`View ${prompt.name}`}
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest('a, button')) return
-                navigate(`/prompts/${prompt.promptId}/run`)
+                navigate(`/prompts/${prompt.promptId}`)
               }}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  navigate(`/prompts/${prompt.promptId}/run`)
+                  navigate(`/prompts/${prompt.promptId}`)
                 }
               }}
             >
-              <div className="prompt-card-header">
-                <Link to={`/prompts/${prompt.promptId}/run`}>
-                  {prompt.name}
-                </Link>
-                <Link
-                  to={`/prompts/${prompt.promptId}/run`}
-                  className="button-link button-link-sm"
-                >
-                  Run
-                </Link>
-              </div>
+              <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link>
               {prompt.description && (
                 <p className="prompt-card-description">{prompt.description}</p>
               )}
-              <span className="row-actions">
-                <Link
-                  to={`/prompts/${prompt.promptId}`}
-                  className="button-link button-link-sm button-link-outline"
-                >
-                  View
-                </Link>
-                <Link
-                  to={`/prompts/${prompt.promptId}/edit`}
-                  className="button-link button-link-sm button-link-outline"
-                >
-                  Edit
-                </Link>
-              </span>
             </li>
           ))}
         </ul>

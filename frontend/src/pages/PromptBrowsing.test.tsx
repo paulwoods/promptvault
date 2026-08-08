@@ -135,7 +135,7 @@ describe('prompt browsing', () => {
     )
 
     renderApp('/')
-    await user.click(await screen.findByRole('link', { name: 'View' }))
+    await user.click(await screen.findByRole('link', { name: 'Greeting' }))
 
     expect(
       await screen.findByRole('link', { name: 'Prompt Vault - Greeting (v1)' }),
