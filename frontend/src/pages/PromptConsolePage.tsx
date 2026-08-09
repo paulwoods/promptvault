@@ -17,6 +17,7 @@ import { usePageTitle } from '../lib/pageTitle'
 import type { ModelsResponse, PromptResponse } from '../lib/types'
 
 const EFFORTS = ['low', 'medium', 'high']
+const THINKING = ['off', 'adaptive']
 
 export function PromptConsolePage() {
   const { id = '' } = useParams()
@@ -57,17 +58,24 @@ interface ConsoleFormProps {
  * not this: that hook PUTs a dedicated single-field endpoint, invalidates one
  * query key where this needs two of different prefixes, and gets Enter-to-commit
  * from each Profile field owning a <form> — which cannot nest inside ConsoleForm's.
+ *
+ * `patch` builds the request body from the draft, rather than the hook assuming
+ * `{field: draft}`: Max tokens is a number, and Model has to carry a Thinking
+ * correction when the model it moves to cannot do adaptive thinking.
  */
-function useInlineField(promptId: string, field: string, stored: string) {
+function useInlineField(
+  promptId: string,
+  stored: string,
+  patch: (draft: string) => Record<string, unknown>,
+  optional = false,
+) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState(false)
 
   const save = useMutation({
     mutationFn: () =>
-      apiClient.patch<PromptResponse>(`/api/prompts/${promptId}`, {
-        [field]: draft,
-      }),
+      apiClient.patch<PromptResponse>(`/api/prompts/${promptId}`, patch(draft)),
     onSuccess: (updated) => {
       // Written straight in rather than invalidated: the response is already the
       // authoritative new state, and an invalidate-only refetch would leave
@@ -80,9 +88,11 @@ function useInlineField(promptId: string, field: string, stored: string) {
   })
 
   // Blank matches @NotBlank exactly, so the server's rejection is unreachable
-  // from the UI; unchanged refuses a no-op write, which still costs a list
+  // from the UI; an optional field has no such rule, and its blank string is
+  // how a full save clears the column, so blank stays committable there.
+  // Unchanged refuses a no-op write either way, which still costs a list
   // invalidation (ADR-0008's "frequent and incidental writes" concern).
-  const committable = draft.trim() !== '' && draft !== stored
+  const committable = (optional || draft.trim() !== '') && draft !== stored
 
   function commit() {
     if (committable && !save.isPending) {
@@ -128,6 +138,182 @@ function CheckIcon() {
   )
 }
 
+function XIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  )
+}
+
+interface InlineFieldProps {
+  /** The Prompt's field name — the control's `name` and the prefix of the aria ids. */
+  name: string
+  /** Displayed beside the value, and the stem of every accessible name here. */
+  label: string
+  field: ReturnType<typeof useInlineField>
+  /** Read-mode stand-in for a blank value; only an optional field can need one. */
+  emptyLabel?: string
+  /** Present ⇒ the editor is a <select> over these; absent ⇒ a text input. */
+  options?: readonly string[]
+  /** A numeric field, so the editor gets the number keyboard and steppers. */
+  numeric?: boolean
+  /** Present ⇒ the editor is a <textarea> with this many rows, not an input. */
+  rows?: number
+  /** Present ⇒ the field fills most of the viewport height (prompt editors). */
+  fill?: boolean
+  /** No legal alternative to the stored value — reads as text, with no editor. */
+  fixed?: boolean
+}
+
+/**
+ * The read/edit pair for one inline-edited field: the stored value as text
+ * until clicked, then an editor with commit and cancel buttons.
+ */
+function InlineField({
+  name,
+  label,
+  field,
+  emptyLabel,
+  options,
+  numeric,
+  rows,
+  fill,
+  fixed,
+}: InlineFieldProps) {
+  const labelId = `${name}-label`
+  const valueId = `${name}-value`
+  const noun = label.toLowerCase()
+
+  // Shared by both editors: Enter commits, Escape reverts. Without the
+  // preventDefault the outer form submits and the PUT overwrites every other
+  // field from `values`.
+  function onKeyDown(event: { key: string; preventDefault: () => void }) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      field.commit()
+    } else if (event.key === 'Escape') {
+      field.cancel()
+    }
+  }
+
+  return (
+    <>
+      <div className={`inline-field${fill ? ' inline-field-fill' : ''}`}>
+        {/* No <label>: read mode has no form control to label, so the field
+            name is a span both modes point at with aria-labelledby. */}
+        <span className="inline-field-name" id={labelId}>
+          {label}
+        </span>
+        {field.editing ? (
+          // A text editor draws its own frame around the buttons; a <select>
+          // cannot, since the native dropdown arrow owns its right edge.
+          <div
+            className={
+              options ? 'inline-field-row' : 'inline-field-row inline-field-box'
+            }
+          >
+            {options ? (
+              <select
+                name={name}
+                aria-labelledby={labelId}
+                // The click that opened the editor landed on the text, not this
+                // control, so without it the user would have to click twice.
+                autoFocus
+                value={field.value}
+                onChange={(event) => field.setDraft(event.target.value)}
+                onKeyDown={onKeyDown}
+              >
+                {options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : rows ? (
+              <textarea
+                name={name}
+                aria-labelledby={labelId}
+                placeholder={label}
+                autoFocus
+                rows={rows}
+                value={field.value}
+                onChange={(event) => field.setDraft(event.target.value)}
+                onKeyDown={onKeyDown}
+              />
+            ) : (
+              <input
+                name={name}
+                type={numeric ? 'number' : 'text'}
+                aria-labelledby={labelId}
+                placeholder={label}
+                autoFocus
+                value={field.value}
+                onChange={(event) => field.setDraft(event.target.value)}
+                onKeyDown={onKeyDown}
+              />
+            )}
+            <button
+              type="button"
+              className="inline-save"
+              aria-label={`Save ${noun}`}
+              title={`Save ${noun}`}
+              disabled={!field.committable || field.save.isPending}
+              onClick={field.commit}
+            >
+              <CheckIcon />
+            </button>
+            <button
+              type="button"
+              className="inline-cancel"
+              aria-label={`Cancel ${noun} edit`}
+              title={`Cancel ${noun} edit`}
+              onClick={field.cancel}
+            >
+              <XIcon />
+            </button>
+          </div>
+        ) : fixed ? (
+          // Nothing to pick, so nothing to click: an editor here would open on
+          // a single option and dead-end at a disabled commit button.
+          <span className="inline-value inline-value-fixed">{field.value}</span>
+        ) : (
+          <button
+            type="button"
+            className="inline-value"
+            id={valueId}
+            // Names it "Name Greeting" rather than a bare "Greeting", keeping
+            // the field context the layout conveys visually.
+            aria-labelledby={`${labelId} ${valueId}`}
+            title={`Edit ${noun}`}
+            onClick={field.beginEditing}
+          >
+            {field.value === '' ? (
+              <span className="inline-value-empty">{emptyLabel}</span>
+            ) : (
+              field.value
+            )}
+          </button>
+        )}
+      </div>
+      {field.save.isError && (
+        <ErrorAlert>{errorMessage(field.save.error)}</ErrorAlert>
+      )}
+    </>
+  )
+}
+
 /**
  * The Console's own copy of the prompt form, inlined off the shared PromptForm
  * so it can diverge into inline-editable fields (Phase 13). PromptForm stays
@@ -147,10 +333,53 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   })
   const [values, setValues] = useState(() => toFormValues(prompt))
   const [mismatch, setMismatch] = useState<string | null>(null)
-  // Name is inline-edited, so it is no longer read from `values` — the field's
-  // value comes from the query and PATCH is its only writer. `values.name` is
-  // still populated by the shared toFormValues, but nothing here reads it.
-  const name = useInlineField(promptId, 'name', prompt.name)
+  const [tab, setTab] = useState<'details' | 'userPrompt' | 'systemPrompt'>(
+    'details',
+  )
+  // Every field below is inline-edited, so none is read from `values` — each
+  // one's value comes from the query and PATCH is its only writer. toFormValues
+  // still seeds `values` with all of them, but only the variables are read back
+  // from it. Description and System Prompt are optional: '' is a value they can
+  // hold, and the blank string is what clears the stored column.
+  const name = useInlineField(promptId, prompt.name, (draft) => ({
+    name: draft,
+  }))
+  const description = useInlineField(
+    promptId,
+    prompt.description ?? '',
+    (draft) => ({ description: draft }),
+    true,
+  )
+  const model = useInlineField(promptId, prompt.model, (draft) => {
+    // Adaptive thinking on a model that lacks it is the one combination the
+    // server rejects outright, so moving to such a model has to carry the
+    // correction in the same request — there is no order in which two separate
+    // patches are both valid.
+    const next = models.data?.models.find((entry) => entry.id === draft)
+    return next?.supportsAdaptiveThinking || prompt.thinking !== 'adaptive'
+      ? { model: draft }
+      : { model: draft, thinking: 'off' }
+  })
+  const maxTokens = useInlineField(
+    promptId,
+    String(prompt.maxTokens),
+    (draft) => ({ maxTokens: Number(draft) }),
+  )
+  const effort = useInlineField(promptId, prompt.effort, (draft) => ({
+    effort: draft,
+  }))
+  const thinking = useInlineField(promptId, prompt.thinking, (draft) => ({
+    thinking: draft,
+  }))
+  const promptText = useInlineField(promptId, prompt.promptText, (draft) => ({
+    promptText: draft,
+  }))
+  const systemPrompt = useInlineField(
+    promptId,
+    prompt.systemPrompt ?? '',
+    (draft) => ({ systemPrompt: draft }),
+    true,
+  )
 
   // Fires immediately on click — no confirmation dialog, matching the app's
   // existing convention (ADR-0004): safe because Trash + restore make it low-stakes.
@@ -173,21 +402,13 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
     },
   })
 
+  // Read off the stored model, not a Model draft: an uncommitted pick must not
+  // reshape the fields around it.
   const capability = models.data?.models.find(
-    (model) => model.id === values.model,
+    (entry) => entry.id === prompt.model,
   )
   const supportsEffort = capability?.supportsEffort ?? false
   const supportsAdaptive = capability?.supportsAdaptiveThinking ?? false
-
-  function selectModel(modelId: string) {
-    const next = models.data?.models.find((model) => model.id === modelId)
-    setValues((current) => ({
-      ...current,
-      model: modelId,
-      effort: next?.supportsEffort ? current.effort : 'medium',
-      thinking: next?.supportsAdaptiveThinking ? current.thinking : 'off',
-    }))
-  }
 
   function updateVariable(index: number, patch: Partial<VariableRow>) {
     setValues((current) => ({
@@ -199,23 +420,26 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   }
 
   function submit() {
-    const problem = variableMismatch(values.promptText, values.variables)
+    const problem = variableMismatch(prompt.promptText, values.variables)
     setMismatch(problem)
     if (problem !== null) {
       return
     }
     mutation.mutate({
-      // Not values.name: Name is inline-edited, so the query — not this form —
-      // holds its current value, and PromptRequest still requires the field.
+      // Only the variables still come from this form. Every other field is
+      // inline-edited, so the query — not `values` — holds its current value,
+      // and PromptRequest still carries them all.
       name: prompt.name,
-      description: values.description.trim() === '' ? null : values.description,
-      promptText: values.promptText,
+      description: prompt.description ?? null,
+      promptText: prompt.promptText,
       systemPrompt:
-        values.systemPrompt.trim() === '' ? null : values.systemPrompt,
-      model: values.model,
-      maxTokens: values.maxTokens,
-      effort: values.effort,
-      thinking: values.thinking,
+        prompt.systemPrompt && prompt.systemPrompt.trim() !== ''
+          ? prompt.systemPrompt
+          : null,
+      model: prompt.model,
+      maxTokens: prompt.maxTokens,
+      effort: prompt.effort,
+      thinking: prompt.thinking,
       variables: values.variables.map((row) => ({
         name: row.name,
         description: row.description === '' ? null : row.description,
@@ -234,252 +458,174 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
     mismatch ?? (mutation.error != null ? errorMessage(mutation.error) : null)
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault()
-        submit()
-      }}
-    >
-      <fieldset className="form-section">
-        <legend>Profile</legend>
-        <div className="inline-field">
-          {/* No <label>: read mode has no form control to label, so the field
-              name is a span both modes point at with aria-labelledby. */}
-          <span className="inline-field-name" id="name-label">
-            Name
-          </span>
-          {name.editing ? (
-            <div className="inline-field-row">
-              <input
-                name="name"
-                aria-labelledby="name-label"
-                placeholder="Name"
-                // The click that opened the editor landed on the text, not this
-                // input, so without it the user would have to click twice.
-                autoFocus
-                value={name.value}
-                onChange={(event) => name.setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    // Without this the outer form submits and the PUT overwrites
-                    // every other field from `values`.
-                    event.preventDefault()
-                    name.commit()
-                  } else if (event.key === 'Escape') {
-                    name.cancel()
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="inline-save"
-                aria-label="Save name"
-                title="Save name"
-                disabled={!name.committable || name.save.isPending}
-                onClick={name.commit}
-              >
-                <CheckIcon />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="inline-value"
-              id="name-value"
-              // Names it "Name Greeting" rather than a bare "Greeting", keeping
-              // the field context the layout conveys visually.
-              aria-labelledby="name-label name-value"
-              title="Edit name"
-              onClick={name.beginEditing}
-            >
-              {name.value}
-            </button>
-          )}
-        </div>
-        {name.save.isError && (
-          <ErrorAlert>{errorMessage(name.save.error)}</ErrorAlert>
-        )}
-        <label>
-          Description
-          <input
-            name="description"
-            placeholder="Description"
-            value={values.description}
-            onChange={(event) =>
-              setValues((c) => ({ ...c, description: event.target.value }))
-            }
-          />
-        </label>
-      </fieldset>
-      <fieldset className="form-section">
-        <legend>Prompt</legend>
-        <div className="prompt-columns">
-          <label>
-            User Prompt
-            <textarea
-              name="promptText"
-              placeholder="User Prompt"
-              value={values.promptText}
-              onChange={(event) =>
-                setValues((c) => ({ ...c, promptText: event.target.value }))
-              }
-              required
+    <>
+      <nav className="console-tabs" aria-label="Console sections">
+        <button
+          type="button"
+          aria-current={tab === 'details' ? 'true' : undefined}
+          onClick={() => setTab('details')}
+        >
+          Details
+        </button>
+        <button
+          type="button"
+          aria-current={tab === 'userPrompt' ? 'true' : undefined}
+          onClick={() => setTab('userPrompt')}
+        >
+          User Prompt
+        </button>
+        <button
+          type="button"
+          aria-current={tab === 'systemPrompt' ? 'true' : undefined}
+          onClick={() => setTab('systemPrompt')}
+        >
+          System Prompt
+        </button>
+      </nav>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          submit()
+        }}
+      >
+        {tab === 'details' && (
+          <>
+            <InlineField name="name" label="Name" field={name} />
+            <InlineField
+              name="description"
+              label="Description"
+              field={description}
+              emptyLabel="Add a description"
+              rows={3}
             />
-          </label>
-          <label>
-            System Prompt
-            <textarea
-              name="systemPrompt"
-              placeholder="System Prompt"
-              value={values.systemPrompt}
-              onChange={(event) =>
-                setValues((c) => ({ ...c, systemPrompt: event.target.value }))
-              }
+            <InlineField
+              name="model"
+              label="Model"
+              field={model}
+              options={models.data?.models.map((entry) => entry.id) ?? []}
             />
-          </label>
-        </div>
-      </fieldset>
-      <fieldset className="form-section">
-        <legend>Configuration</legend>
-        <div className="settings-columns">
-          <label>
-            Model
-            <select
-              value={values.model}
-              onChange={(event) => selectModel(event.target.value)}
-            >
-              {models.data?.models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.id}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Max tokens
-            <input
-              type="number"
+            <InlineField
               name="maxTokens"
-              placeholder="Max tokens"
-              value={values.maxTokens}
-              onChange={(event) =>
-                setValues((c) => ({
-                  ...c,
-                  maxTokens: Number(event.target.value),
-                }))
-              }
+              label="Max tokens"
+              field={maxTokens}
+              numeric
             />
-          </label>
-          {supportsEffort && (
-            <label>
-              Effort
-              <select
-                value={values.effort}
-                onChange={(event) =>
-                  setValues((c) => ({ ...c, effort: event.target.value }))
-                }
-              >
-                {EFFORTS.map((effort) => (
-                  <option key={effort} value={effort}>
-                    {effort}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label>
-            Thinking
-            <select
-              value={values.thinking}
-              disabled={!supportsAdaptive}
-              onChange={(event) =>
-                setValues((c) => ({ ...c, thinking: event.target.value }))
-              }
-            >
-              <option value="off">off</option>
-              {supportsAdaptive && <option value="adaptive">adaptive</option>}
-            </select>
-          </label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Variables</legend>
-        {values.variables.map((row, index) => (
-          <div key={index}>
-            <input
-              aria-label={`Variable ${index + 1} name`}
-              placeholder="Variable name"
-              value={row.name}
-              onChange={(event) =>
-                updateVariable(index, { name: event.target.value })
-              }
-            />
-            <label>
-              Required
-              <input
-                type="checkbox"
-                checked={row.required}
-                onChange={(event) =>
-                  updateVariable(index, { required: event.target.checked })
-                }
+            {supportsEffort && (
+              <InlineField
+                name="effort"
+                label="Effort"
+                field={effort}
+                options={EFFORTS}
               />
-            </label>
-            <input
-              aria-label={`Variable ${index + 1} default`}
-              placeholder="Default value"
-              value={row.defaultValue}
-              onChange={(event) =>
-                updateVariable(index, { defaultValue: event.target.value })
-              }
+            )}
+            <InlineField
+              name="thinking"
+              label="Thinking"
+              field={thinking}
+              options={THINKING}
+              // Off is the only legal value on a model without adaptive thinking,
+              // so the field reads as text there instead of offering the choice.
+              fixed={!supportsAdaptive}
             />
+            {values.variables.map((row, index) => (
+              <div key={index}>
+                <input
+                  aria-label={`Variable ${index + 1} name`}
+                  placeholder="Variable name"
+                  value={row.name}
+                  onChange={(event) =>
+                    updateVariable(index, { name: event.target.value })
+                  }
+                />
+                <label>
+                  Required
+                  <input
+                    type="checkbox"
+                    checked={row.required}
+                    onChange={(event) =>
+                      updateVariable(index, { required: event.target.checked })
+                    }
+                  />
+                </label>
+                <input
+                  aria-label={`Variable ${index + 1} default`}
+                  placeholder="Default value"
+                  value={row.defaultValue}
+                  onChange={(event) =>
+                    updateVariable(index, { defaultValue: event.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  className="variable-remove"
+                  onClick={() =>
+                    setValues((c) => ({
+                      ...c,
+                      variables: c.variables.filter((_, i) => i !== index),
+                    }))
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
             <button
               type="button"
-              className="variable-remove"
+              className="variable-add"
               onClick={() =>
                 setValues((c) => ({
                   ...c,
-                  variables: c.variables.filter((_, i) => i !== index),
+                  variables: [
+                    ...c.variables,
+                    {
+                      name: '',
+                      description: '',
+                      required: true,
+                      defaultValue: '',
+                    },
+                  ],
                 }))
               }
             >
-              Remove
+              Add variable
             </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="variable-add"
-          onClick={() =>
-            setValues((c) => ({
-              ...c,
-              variables: [
-                ...c.variables,
-                { name: '', description: '', required: true, defaultValue: '' },
-              ],
-            }))
-          }
-        >
-          Add variable
-        </button>
-      </fieldset>
 
-      <div className="actions">
-        <button
-          type="button"
-          disabled={deletePrompt.isPending}
-          onClick={() => deletePrompt.mutate()}
-        >
-          Delete
-        </button>
-        <button type="submit" disabled={mutation.isPending}>
-          Save
-        </button>
-      </div>
-      {deletePrompt.isError && (
-        <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
-      )}
-      {alertMessage != null && <ErrorAlert>{alertMessage}</ErrorAlert>}
-    </form>
+            <div className="actions">
+              <button
+                type="button"
+                disabled={deletePrompt.isPending}
+                onClick={() => deletePrompt.mutate()}
+              >
+                Delete
+              </button>
+              <button type="submit" disabled={mutation.isPending}>
+                Save
+              </button>
+            </div>
+            {deletePrompt.isError && (
+              <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
+            )}
+            {alertMessage != null && <ErrorAlert>{alertMessage}</ErrorAlert>}
+          </>
+        )}
+        {tab === 'userPrompt' && (
+          <InlineField
+            name="promptText"
+            label="User Prompt"
+            field={promptText}
+            fill
+          />
+        )}
+        {tab === 'systemPrompt' && (
+          <InlineField
+            name="systemPrompt"
+            label="System Prompt"
+            field={systemPrompt}
+            emptyLabel="Add a system prompt"
+            fill
+          />
+        )}
+      </form>
+    </>
   )
 }
