@@ -2,6 +2,7 @@ package com.promptvault.prompt;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,7 +34,8 @@ class PromptReadTest extends IntegrationTest {
                 """.formatted(name, name);
     }
 
-    private String createPromptWithTwoVersions(String token) throws Exception {
+    /** Creates a prompt then overwrites it, so the read must show only the newer content. */
+    private String createThenUpdate(String token) throws Exception {
         String response = mockMvc.perform(post("/api/prompts")
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -43,76 +45,72 @@ class PromptReadTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
         String promptId = JsonPath.read(response, "$.promptId");
-        mockMvc.perform(post("/api/prompts/" + promptId + "/versions")
+        mockMvc.perform(put("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("Second")))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
         return promptId;
     }
 
     @Test
-    void listShowsCurrentVersionName() throws Exception {
+    void listShowsTheCurrentName() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "reader@example.com", "password123");
-        String promptId = createPromptWithTwoVersions(token);
+        String promptId = createThenUpdate(token);
 
         mockMvc.perform(get("/api/prompts").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.promptId == '" + promptId + "')].name")
                         .value("Second"))
                 .andExpect(jsonPath("$.items[?(@.promptId == '" + promptId + "')].description")
-                        .value("Second desc"))
-                .andExpect(jsonPath("$.items[?(@.promptId == '" + promptId + "')].currentVersionNumber")
-                        .value(2));
+                        .value("Second desc"));
     }
 
     @Test
-    void detailHistoryIsDescendingWithCurrentFlagged() throws Exception {
-        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "history@example.com", "password123");
-        String promptId = createPromptWithTwoVersions(token);
+    void detailReturnsTheFullCurrentContent() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "detail@example.com", "password123");
+        String promptId = createThenUpdate(token);
 
         mockMvc.perform(get("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.versions[0].number").value(2))
-                .andExpect(jsonPath("$.versions[0].current").value(true))
-                .andExpect(jsonPath("$.versions[1].number").value(1))
-                .andExpect(jsonPath("$.versions[1].current").value(false));
+                .andExpect(jsonPath("$.name").value("Second"))
+                .andExpect(jsonPath("$.promptText").value("Hello"))
+                .andExpect(jsonPath("$.model").value("claude-opus-4-8"))
+                .andExpect(jsonPath("$.maxTokens").value(1000))
+                .andExpect(jsonPath("$.effort").value("medium"))
+                .andExpect(jsonPath("$.thinking").value("off"))
+                .andExpect(jsonPath("$.createdAt").exists())
+                .andExpect(jsonPath("$.updatedAt").exists());
     }
 
+    /** An overwritten Prompt keeps no trace of what it used to say (ADR-0007). */
     @Test
-    void historicalVersionReadable() throws Exception {
+    void thePreviousContentIsNotRetrievableAnywhere() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "old@example.com", "password123");
-        String promptId = createPromptWithTwoVersions(token);
+        String promptId = createThenUpdate(token);
 
-        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1").header(HttpHeaders.AUTHORIZATION, token))
+        mockMvc.perform(get("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.number").value(1))
-                .andExpect(jsonPath("$.name").value("First"));
-    }
-
-    @Test
-    void currentVersionReturnsLatest() throws Exception {
-        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "current@example.com", "password123");
-        String promptId = createPromptWithTwoVersions(token);
-
-        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/current").header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.number").value(2))
                 .andExpect(jsonPath("$.name").value("Second"));
+        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/current")
+                        .header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void crossUserAccessReturns404AndIsolatesList() throws Exception {
         String ownerToken = "Bearer " + TestTokens.registerAndLogin(mockMvc, "owner-r@example.com", "password123");
-        String promptId = createPromptWithTwoVersions(ownerToken);
+        String promptId = createThenUpdate(ownerToken);
         String otherToken = "Bearer " + TestTokens.registerAndLogin(mockMvc, "intruder@example.com", "password123");
 
         mockMvc.perform(get("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1").header(HttpHeaders.AUTHORIZATION, otherToken))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/current")
-                        .header(HttpHeaders.AUTHORIZATION, otherToken))
+        mockMvc.perform(put("/api/prompts/" + promptId)
+                        .header(HttpHeaders.AUTHORIZATION, otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("Hijacked")))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/prompts").header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isOk())

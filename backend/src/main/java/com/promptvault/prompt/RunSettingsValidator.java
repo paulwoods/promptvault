@@ -5,12 +5,12 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * The single seam that decides whether a Version's Run Settings are legal: the
- * model must be supported, effort/thinking must be valid enums, and a Version
+ * The single seam that decides whether a Prompt's Run Settings are legal: the
+ * model must be supported, effort/thinking must be valid enums, and a Prompt
  * may not select a capability its model lacks (adaptive thinking on e.g.
- * Haiku). Effort is stored on every Version regardless of model (only
+ * Haiku). Effort is stored on every Prompt regardless of model (only
  * forwarding is per-model, decided later by ClaudeRequestMapper). Once a
- * Version is saved, its settings are trusted as legal everywhere downstream.
+ * Prompt is saved, its settings are trusted as legal everywhere downstream.
  * The max_tokens range is enforced by Bean Validation on the request.
  */
 @Component
@@ -25,7 +25,7 @@ public class RunSettingsValidator {
         this.catalog = catalog;
     }
 
-    public void validate(VersionRequest request) {
+    public void validate(PromptRequest request) {
         ModelCapability capability = catalog.find(request.model())
                 .orElseThrow(() -> new DomainValidationException("model", "Unsupported model: " + request.model()));
         if (!EFFORT_VALUES.contains(request.effort())) {

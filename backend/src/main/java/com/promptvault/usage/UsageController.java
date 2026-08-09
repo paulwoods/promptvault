@@ -1,4 +1,4 @@
-package com.promptvault.run;
+package com.promptvault.usage;
 
 import com.promptvault.security.CurrentUser;
 import java.util.List;
@@ -14,17 +14,17 @@ public class UsageController {
 
     private static final Logger log = LoggerFactory.getLogger(UsageController.class);
 
-    private final RunQueryService runQueryService;
+    private final UsageQueryService usageQueryService;
     private final CurrentUser currentUser;
 
-    public UsageController(RunQueryService runQueryService, CurrentUser currentUser) {
-        this.runQueryService = runQueryService;
+    public UsageController(UsageQueryService usageQueryService, CurrentUser currentUser) {
+        this.usageQueryService = usageQueryService;
         this.currentUser = currentUser;
     }
 
     @GetMapping
     public List<ModelUsage> usage() {
         log.debug("usage(userId={})", currentUser.userId());
-        return runQueryService.usage(currentUser.userId());
+        return usageQueryService.usage(currentUser.userId());
     }
 }
