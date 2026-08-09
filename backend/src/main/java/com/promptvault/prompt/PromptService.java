@@ -3,8 +3,13 @@ package com.promptvault.prompt;
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.promptvault.common.Page;
 import com.promptvault.common.Pagination;
+import com.promptvault.error.DomainValidationException;
 import com.promptvault.error.ResourceNotFoundException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -18,16 +23,19 @@ public class PromptService {
     private final RunSettingsValidator runSettingsValidator;
     private final VariableValidator variableValidator;
     private final PlaceholderValidator placeholderValidator;
+    private final Validator validator;
 
     public PromptService(
             PromptRepository prompts,
             RunSettingsValidator runSettingsValidator,
             VariableValidator variableValidator,
-            PlaceholderValidator placeholderValidator) {
+            PlaceholderValidator placeholderValidator,
+            Validator validator) {
         this.prompts = prompts;
         this.runSettingsValidator = runSettingsValidator;
         this.variableValidator = variableValidator;
         this.placeholderValidator = placeholderValidator;
+        this.validator = validator;
     }
 
     /** Creates a Prompt from the full content. */
@@ -70,6 +78,51 @@ public class PromptService {
                 request.thinking(),
                 validated.variables());
         return prompt;
+    }
+
+    /**
+     * Applies a partial edit to the caller's prompt. Supplied fields are laid
+     * over the stored content and the merged result goes through exactly the
+     * same validation and overwrite as {@link #updatePrompt} — a patch cannot
+     * produce a Prompt a full save could not. Omitted fields are untouched;
+     * ADR-0007 still applies to whatever the patch does change. Cross-user or
+     * Trashed (ADR-0004) -> 404.
+     */
+    @Transactional
+    public Prompt patchPrompt(UUID userId, UUID promptId, PromptPatchRequest patch) {
+        Prompt prompt = prompts.findByIdAndUserIdAndDeletedAtIsNull(promptId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
+        PromptRequest merged = patch.applyTo(prompt);
+        requireMechanicallyValid(merged);
+        Validated validated = validate(merged);
+        prompt.update(
+                validated.name(),
+                validated.description(),
+                merged.promptText(),
+                merged.model(),
+                validated.systemPrompt(),
+                merged.maxTokens(),
+                merged.effort(),
+                merged.thinking(),
+                validated.variables());
+        return prompt;
+    }
+
+    /**
+     * The Bean Validation pass a full save gets from {@code @Valid} on the
+     * controller argument. A patch is validated only once merged, so it runs
+     * here instead, reported through the same envelope as the domain
+     * validators. Lowest property path first, so a request with several
+     * problems always reports the same one.
+     */
+    private void requireMechanicallyValid(PromptRequest merged) {
+        Optional<ConstraintViolation<PromptRequest>> violation = validator.validate(merged).stream()
+                .min(Comparator.comparing(v -> v.getPropertyPath().toString()));
+        if (violation.isPresent()) {
+            throw new DomainValidationException(
+                    violation.get().getPropertyPath().toString(),
+                    violation.get().getMessage());
+        }
     }
 
     /**
