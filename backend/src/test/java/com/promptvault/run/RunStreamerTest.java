@@ -9,129 +9,82 @@ import com.promptvault.claude.FakeClaudeClient;
 import com.promptvault.claude.Usage;
 import java.io.UncheckedIOException;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
 class RunStreamerTest {
 
-    private final FakeClaudeClient fake = new FakeClaudeClient();
-    private final RecordingRunStore store = new RecordingRunStore();
-    private final RunStreamer streamer = new RunStreamer(fake, store, new ObjectMapper());
+    private static final String MODEL = "claude-opus-4-8";
 
-    private static Run inProgressRun() {
-        return new Run(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                Map.of(),
-                "rendered prompt",
-                "claude-opus-4-8");
-    }
+    private final UUID userId = UUID.randomUUID();
+    private final FakeClaudeClient fake = new FakeClaudeClient();
+    private final RecordingTokenUsageRecorder recorder = new RecordingTokenUsageRecorder();
+    private final RunStreamer streamer = new RunStreamer(fake, recorder, new ObjectMapper());
 
     private static ClaudeRequest request() {
-        return new ClaudeRequest("claude-opus-4-8", null, "rendered prompt", 1000, "medium", "off");
+        return new ClaudeRequest(MODEL, null, "rendered prompt", 1000, "medium", "off");
     }
 
     @Test
-    void emitsMetaThenTokensThenFinalizesCompletedWithDone() {
+    void emitsTokensThenDoneAndRecordsTokenUsage() {
         fake.respondWith(List.of("Hello", " world"), new Usage(3, 5));
-        Run run = inProgressRun();
         RecordingRunStream out = new RecordingRunStream();
 
-        streamer.stream(out, run, 1, request(), "sk-ant-decrypted");
+        streamer.stream(out, userId, MODEL, request(), "sk-ant-decrypted");
 
-        assertThat(out.metaRunId).isEqualTo(run.getId());
-        assertThat(out.metaVersionNumber).isEqualTo(1);
         assertThat(out.tokens).containsExactly("Hello", " world");
-        assertThat(store.completedRunId).isEqualTo(run.getId());
-        assertThat(store.completedResponse).isEqualTo("Hello world");
-        assertThat(store.completedUsage).isEqualTo(new Usage(3, 5));
         assertThat(out.doneUsage).isEqualTo(new Usage(3, 5));
         assertThat(out.completed).isTrue();
+        assertThat(recorder.userId).isEqualTo(userId);
+        assertThat(recorder.model).isEqualTo(MODEL);
+        assertThat(recorder.usage).isEqualTo(new Usage(3, 5));
         assertThat(fake.capturedApiKey()).isEqualTo("sk-ant-decrypted");
     }
 
     @Test
-    void refusalFinalizesCompletedWithEmptyResponse() {
+    void refusalCompletesAndStillRecordsTheTokensItSpent() {
         fake.respondWith(List.of(), new Usage(2, 0));
-        Run run = inProgressRun();
         RecordingRunStream out = new RecordingRunStream();
 
-        streamer.stream(out, run, 1, request(), "sk-ant");
+        streamer.stream(out, userId, MODEL, request(), "sk-ant");
 
         assertThat(out.tokens).isEmpty();
-        assertThat(store.completedResponse).isEmpty();
         assertThat(out.doneUsage).isEqualTo(new Usage(2, 0));
         assertThat(out.completed).isTrue();
+        assertThat(recorder.usage).isEqualTo(new Usage(2, 0));
     }
 
     @Test
-    void seamErrorFinalizesFailedWithErrorFrame() {
+    void seamErrorEmitsErrorFrameAndRecordsNoUsage() {
         fake.failWith(new ClaudeException(ErrorCategory.AUTH, "Authentication with Claude failed"));
-        Run run = inProgressRun();
         RecordingRunStream out = new RecordingRunStream();
 
-        streamer.stream(out, run, 1, request(), "sk-ant");
+        streamer.stream(out, userId, MODEL, request(), "sk-ant");
 
-        assertThat(store.failedRunId).isEqualTo(run.getId());
-        assertThat(store.failedCategory).isEqualTo("AUTH");
-        assertThat(store.failedMessage).isEqualTo("Authentication with Claude failed");
         assertThat(out.errorCategory).isEqualTo("AUTH");
         assertThat(out.errorMessage).isEqualTo("Authentication with Claude failed");
+        assertThat(recorder.usage).isNull();
     }
 
     @Test
-    void finalizationFailureIsNotLabeledClientDisconnectAndStillClosesTheStream() {
+    void aFailedUsageWriteDoesNotFailAGenerationTheUserAlreadyReceived() {
         fake.respondWith(List.of("Hello"), new Usage(1, 1));
-        // The completed write fails (DB hiccup) after a fully successful generation.
-        RecordingRunStore failingStore = new RecordingRunStore() {
-            @Override
-            public void finalizeCompleted(UUID runId, String response, Usage usage) {
-                throw new IllegalStateException("db down");
-            }
-        };
-        RunStreamer failingStreamer = new RunStreamer(fake, failingStore, new ObjectMapper());
-        Run run = inProgressRun();
+        TokenUsageRecorderStub failing = new TokenUsageRecorderStub();
+        RunStreamer failingStreamer = new RunStreamer(fake, failing, new ObjectMapper());
         RecordingRunStream out = new RecordingRunStream();
 
-        failingStreamer.stream(out, run, 1, request(), "sk-ant");
+        failingStreamer.stream(out, userId, MODEL, request(), "sk-ant");
 
-        assertThat(failingStore.failedCategory).isEqualTo("OTHER");
-        assertThat(failingStore.failedPartialResponse).isEqualTo("Hello");
-        assertThat(out.failedWith).isNotNull(); // stream closed, client not left hanging
+        assertThat(out.tokens).containsExactly("Hello");
+        assertThat(out.doneUsage).isEqualTo(new Usage(1, 1));
+        assertThat(out.completed).isTrue();
+        assertThat(out.failedWith).isNull();
     }
 
     @Test
-    void streamStillClosesWhenFinalizationKeepsFailing() {
-        fake.respondWith(List.of("Hello"), new Usage(1, 1));
-        // Both finalization writes fail — the stream must still be closed.
-        RecordingRunStore brokenStore = new RecordingRunStore() {
-            @Override
-            public void finalizeCompleted(UUID runId, String response, Usage usage) {
-                throw new IllegalStateException("db down");
-            }
-
-            @Override
-            public void finalizeFailed(UUID runId, String errorCategory, String errorMessage, String partial) {
-                throw new IllegalStateException("db still down");
-            }
-        };
-        RunStreamer brokenStreamer = new RunStreamer(fake, brokenStore, new ObjectMapper());
-        Run run = inProgressRun();
-        RecordingRunStream out = new RecordingRunStream();
-
-        brokenStreamer.stream(out, run, 1, request(), "sk-ant");
-
-        assertThat(out.failedWith).isNotNull();
-    }
-
-    @Test
-    void clientDisconnectAbortsAndFinalizesClientDisconnect() {
+    void clientDisconnectAbortsWithoutConsumingFurtherTokens() {
         fake.respondWith(List.of("Hello", " world"), new Usage(3, 5));
-        Run run = inProgressRun();
-        // A stream that fails on the first token send, as if the client had gone.
         int[] tokenAttempts = {0};
         RunStream disconnected = new RecordingRunStream() {
             @Override
@@ -141,10 +94,17 @@ class RunStreamerTest {
             }
         };
 
-        streamer.stream(disconnected, run, 1, request(), "sk-ant");
+        streamer.stream(disconnected, userId, MODEL, request(), "sk-ant");
 
         assertThat(tokenAttempts[0]).isEqualTo(1); // no further tokens consumed after the failure
-        assertThat(store.failedCategory).isEqualTo("CLIENT_DISCONNECT");
-        assertThat(store.completedResponse).isNull(); // not finalized completed
+        assertThat(recorder.usage).isNull(); // an aborted run spends nothing it can account for
+    }
+
+    /** A recorder whose write always fails. */
+    private static class TokenUsageRecorderStub extends RecordingTokenUsageRecorder {
+        @Override
+        public void record(UUID userId, String model, Usage usage) {
+            throw new IllegalStateException("db down");
+        }
     }
 }

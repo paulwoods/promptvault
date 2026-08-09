@@ -3,6 +3,7 @@ package com.promptvault.prompt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -118,7 +119,7 @@ class PromptSearchTest extends IntegrationTest {
     }
 
     @Test
-    void onlyMatchesTheCurrentVersionNotHistoricalOnesOrPromptText() throws Exception {
+    void matchesTheCurrentNameNotTheOverwrittenOneOrPromptText() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "searcher-hist@example.com", "password123");
         String response = mockMvc.perform(post("/api/prompts")
                         .header(HttpHeaders.AUTHORIZATION, token)
@@ -129,18 +130,18 @@ class PromptSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
         String promptId = JsonPath.read(response, "$.promptId");
-        mockMvc.perform(post("/api/prompts/" + promptId + "/versions")
+        mockMvc.perform(put("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("NewName", "new desc")))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
 
-        // The old name is no longer the current Version's name — no match.
+        // The old name was overwritten — no match.
         mockMvc.perform(get("/api/prompts").param("q", "OldName").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(0));
 
-        // The current Version's name matches.
+        // The current name matches.
         mockMvc.perform(get("/api/prompts").param("q", "NewName").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1));

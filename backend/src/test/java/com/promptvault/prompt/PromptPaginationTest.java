@@ -29,17 +29,15 @@ class PromptPaginationTest extends IntegrationTest {
         return jdbcTemplate.queryForObject("select id from users where email = ?", UUID.class, email);
     }
 
-    /** Inserts a Prompt + current Version directly (bypassing HTTP) so timestamps are controllable. */
+    /** Inserts a Prompt directly (bypassing HTTP) so updated_at is controllable. */
     private void insertPrompt(UUID userId, String name, String description, int minutesAgo) {
-        UUID promptId = UUID.randomUUID();
-        jdbcTemplate.update("insert into prompt (id, user_id) values (?, ?)", promptId, userId);
         jdbcTemplate.update(
-                "insert into version (id, prompt_id, number, name, description, prompt_text, model, max_tokens,"
-                        + " effort, thinking, created_at)"
-                        + " values (?, ?, 1, ?, ?, 'hi', 'claude-opus-4-8', 1000, 'medium', 'off',"
+                "insert into prompt (id, user_id, name, description, prompt_text, model, max_tokens,"
+                        + " effort, thinking, updated_at)"
+                        + " values (?, ?, ?, ?, 'hi', 'claude-opus-4-8', 1000, 'medium', 'off',"
                         + " now() - make_interval(mins => ?))",
                 UUID.randomUUID(),
-                promptId,
+                userId,
                 name,
                 description,
                 minutesAgo);

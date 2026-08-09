@@ -31,7 +31,7 @@ class DurabilityTest extends AbstractDatabaseTest {
 
     @AfterEach
     void cleanup() {
-        jdbcTemplate.execute("truncate table run, version, prompt, api_key, users cascade");
+        jdbcTemplate.execute("truncate table token_usage, prompt, api_key, users cascade");
     }
 
     @Test
