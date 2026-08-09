@@ -1,6 +1,16 @@
 # User-facing activity feed recorded in the same transaction
 
-Each [User](../../CONTEXT.md#user) gets an [Activity](../../CONTEXT.md#activity) feed — their own account history, shown newest-first on the Profile page. Events are rows in one append-only `activity_event` table (type, timestamp, optional refs to Prompt/Version/Run, and a **denormalized display label** such as the Prompt's name at event time), written **synchronously in the same transaction** as the mutation they describe. The taxonomy is nine types — `registered`, `logged_in`, `api_key_set`, `name_changed`, `prompt_created`, `version_saved`, `prompt_deleted`, `prompt_restored`, `run_started` — i.e. every mutation plus login. This is deliberately *not* operator analytics (the app has no admin concept) and *not* a security-audit log: no failed logins, and events carry only type + time + label — **no IP, user-agent, or device data**, so indefinite retention never accumulates PII. Logout is not recorded because a stateless-JWT server cannot observe it truthfully.
+> **Superseded by [ADR-0007](0007-mutable-prompts-no-version-or-run-history.md).** The Activity feed and its `activity_event` table were removed entirely. This ADR is kept as the record of the taxonomy and the privacy stance that were chosen, and of the options rejected.
+
+Each [User](../CONTEXT.md#user) gets an [Activity](../CONTEXT.md#activity) feed — their own account history, shown
+newest-first on the Profile page. Events are rows in one append-only `activity_event` table (type, timestamp, optional
+refs to Prompt/Version/Run, and a **denormalized display label** such as the Prompt's name at event time), written
+**synchronously in the same transaction** as the mutation they describe. The taxonomy is nine types — `registered`,
+`logged_in`, `api_key_set`, `name_changed`, `prompt_created`, `version_saved`, `prompt_deleted`, `prompt_restored`,
+`run_started` — i.e. every mutation plus login. This is deliberately *not* operator analytics (the app has no admin
+concept) and *not* a security-audit log: no failed logins, and events carry only type + time + label — **no IP,
+user-agent, or device data**, so indefinite retention never accumulates PII. Logout is not recorded because a
+stateless-JWT server cannot observe it truthfully.
 
 ## Considered options
 

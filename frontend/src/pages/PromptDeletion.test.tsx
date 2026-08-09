@@ -15,8 +15,8 @@ describe('prompt deletion and trash', () => {
       {
         promptId: 'p1',
         name: 'ToDelete',
-        currentVersionNumber: 1,
         createdAt: 'x',
+        updatedAt: 'x',
       },
     ]
     let trash: { promptId: string; name: string; deletedAt: string }[] = []
@@ -25,11 +25,9 @@ describe('prompt deletion and trash', () => {
       http.get('/api/prompts', () =>
         HttpResponse.json({ items: prompts, hasMore: false }),
       ),
-      http.get('/api/prompts/p1/versions/current', () =>
+      http.get('/api/prompts/p1', () =>
         HttpResponse.json({
           promptId: 'p1',
-          versionId: 'v1',
-          number: 1,
           name: 'ToDelete',
           description: null,
           promptText: 'Hello',
@@ -40,6 +38,7 @@ describe('prompt deletion and trash', () => {
           thinking: 'off',
           variables: [],
           createdAt: 'x',
+          updatedAt: 'x',
         }),
       ),
       http.get('/api/prompts/trash', () => HttpResponse.json(trash)),
@@ -111,8 +110,8 @@ describe('prompt deletion and trash', () => {
     let prompts: {
       promptId: string
       name: string
-      currentVersionNumber: number
       createdAt: string
+      updatedAt: string
     }[] = []
 
     server.use(
@@ -126,8 +125,8 @@ describe('prompt deletion and trash', () => {
           {
             promptId: 'p1',
             name: 'Restorable',
-            currentVersionNumber: 1,
             createdAt: 'x',
+            updatedAt: 'x',
           },
         ]
         return new HttpResponse(null, { status: 204 })

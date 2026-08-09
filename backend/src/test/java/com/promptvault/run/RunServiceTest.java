@@ -6,10 +6,13 @@ import com.promptvault.AbstractDatabaseTest;
 import com.promptvault.apikey.ApiKeyService;
 import com.promptvault.claude.FakeClaudeClient;
 import com.promptvault.claude.Usage;
+import com.promptvault.prompt.Prompt;
+import com.promptvault.prompt.PromptRequest;
 import com.promptvault.prompt.PromptService;
 import com.promptvault.prompt.VariableDeclaration;
-import com.promptvault.prompt.Version;
-import com.promptvault.prompt.VersionRequest;
+import com.promptvault.usage.ModelUsage;
+import com.promptvault.usage.TokenUsageRecorder;
+import com.promptvault.usage.UsageQueryService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -23,15 +26,17 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Exercises the real, fully-wired {@link RunService#run} end to end — guard,
- * owner-scoped resolution, preparation, persistence, and streaming together —
- * the one path no other test reaches (RunEndpointTest stops before streaming
- * starts; RunStreamerTest calls RunStreamer directly, bypassing RunService).
- * Only the Claude client is faked; everything else is the real, DB-backed bean.
+ * owner-scoped resolution, preparation, streaming, and token accounting
+ * together — the one path no other test reaches (RunEndpointTest stops before
+ * streaming starts; RunStreamerTest calls RunStreamer directly, bypassing
+ * RunService). Only the Claude client is faked; everything else is the real,
+ * DB-backed bean.
  *
- * <p>Not transactional: the streaming half genuinely runs on its own virtual
- * thread with its own connection, so a per-test rollback on the calling thread
- * (as {@code IntegrationTest} provides) would hide the just-created Run row from
- * that thread and the finalize step would never find it. Truncates instead.
+ * <p>Since ADR-0007 the run itself leaves no row, so the observable end state is
+ * the User's token totals. Not transactional: the streaming half genuinely runs
+ * on its own virtual thread with its own connection, so a per-test rollback on
+ * the calling thread (as {@code IntegrationTest} provides) would hide that
+ * thread's writes. Truncates instead.
  */
 class RunServiceTest extends AbstractDatabaseTest {
 
@@ -45,10 +50,10 @@ class RunServiceTest extends AbstractDatabaseTest {
     private RunPreparer runPreparer;
 
     @Autowired
-    private RunStore runStore;
+    private TokenUsageRecorder tokenUsageRecorder;
 
     @Autowired
-    private RunRepository runRepository;
+    private UsageQueryService usageQueryService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -58,11 +63,11 @@ class RunServiceTest extends AbstractDatabaseTest {
 
     @AfterEach
     void cleanup() {
-        jdbcTemplate.execute("truncate table run, version, prompt, api_key, users cascade");
+        jdbcTemplate.execute("truncate table token_usage, prompt, api_key, users cascade");
     }
 
     @Test
-    void happyPathRunsEndToEndAndPersistsCompleted() throws InterruptedException {
+    void happyPathRunsEndToEndAndRecordsTokenUsage() throws InterruptedException {
         UUID userId = UUID.randomUUID();
         jdbcTemplate.update(
                 "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
@@ -72,7 +77,7 @@ class RunServiceTest extends AbstractDatabaseTest {
                 "Run Service Test");
         apiKeyService.save(userId, "sk-ant-test-key");
 
-        VersionRequest versionRequest = new VersionRequest(
+        PromptRequest request = new PromptRequest(
                 "P",
                 null,
                 "Say hi to {{name}}",
@@ -82,38 +87,33 @@ class RunServiceTest extends AbstractDatabaseTest {
                 "medium",
                 "off",
                 List.of(new VariableDeclaration("name", null, true, null)));
-        Version version = promptService.createPrompt(userId, versionRequest);
+        Prompt prompt = promptService.createPrompt(userId, request);
 
         FakeClaudeClient fake = new FakeClaudeClient();
         fake.respondWith(List.of("Hello", " there"), new Usage(4, 6));
-        RunStreamer streamer = new RunStreamer(fake, runStore, objectMapper);
-        RunService runService = new RunService(apiKeyService, promptService, runPreparer, runStore, streamer);
+        RunStreamer streamer = new RunStreamer(fake, tokenUsageRecorder, objectMapper);
+        RunService runService = new RunService(apiKeyService, promptService, runPreparer, streamer);
 
-        runService.run(userId, version.getPromptId(), version.getNumber(), Map.of("name", "Ada"));
+        runService.run(userId, prompt.getId(), Map.of("name", "Ada"));
 
-        Run run = awaitTerminalRun(userId, version.getId());
-        assertThat(run.getStatus()).isEqualTo(Run.COMPLETED);
-        assertThat(run.getResponse()).isEqualTo("Hello there");
-        assertThat(run.getInputTokens()).isEqualTo(4);
-        assertThat(run.getOutputTokens()).isEqualTo(6);
-        assertThat(run.getRenderedPrompt()).isEqualTo("Say hi to Ada");
+        ModelUsage usage = awaitUsage(userId);
+        assertThat(usage.model()).isEqualTo("claude-opus-4-8");
+        assertThat(usage.inputTokens()).isEqualTo(4);
+        assertThat(usage.outputTokens()).isEqualTo(6);
+        // The seam received the substituted prompt, proving preparation ran in this path.
+        assertThat(fake.capturedRequest().userMessage()).isEqualTo("Say hi to Ada");
     }
 
-    /**
-     * Polls rather than using SseEmitter#onCompletion: that callback is only
-     * ever invoked by Spring MVC's async request machinery, which doesn't exist
-     * here since this test calls RunService directly instead of going through
-     * an HTTP request.
-     */
-    private Run awaitTerminalRun(UUID userId, UUID versionId) throws InterruptedException {
+    /** Polls because the streaming half settles on its own virtual thread. */
+    private ModelUsage awaitUsage(UUID userId) throws InterruptedException {
         Instant deadline = Instant.now().plus(Duration.ofSeconds(5));
         while (Instant.now().isBefore(deadline)) {
-            List<Run> runs = runRepository.findByUserIdAndVersionIdOrderByCreatedAtDesc(userId, versionId);
-            if (!runs.isEmpty() && !Run.IN_PROGRESS.equals(runs.getFirst().getStatus())) {
-                return runs.getFirst();
+            List<ModelUsage> usage = usageQueryService.usage(userId);
+            if (!usage.isEmpty()) {
+                return usage.getFirst();
             }
             Thread.sleep(50);
         }
-        throw new AssertionError("Run did not reach a terminal status within 5s");
+        throw new AssertionError("Token usage was not recorded within 5s");
     }
 }

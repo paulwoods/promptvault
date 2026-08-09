@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,16 +66,10 @@ class PromptDeletionTest extends IntegrationTest {
 
     private Instant deletedAtOf(String promptId) {
         // Delete/restore mutate a managed entity via dirty checking (no explicit save());
-        // flush so the raw JDBC read below sees it, mirroring RunStoreTest's pattern.
+        // flush so the raw JDBC read below sees it.
         entityManager.flush();
         return jdbcTemplate.queryForObject(
                 "select deleted_at from prompt where id = ?", Instant.class, UUID.fromString(promptId));
-    }
-
-    private UUID versionIdOf(String promptId) {
-        entityManager.flush();
-        return jdbcTemplate.queryForObject(
-                "select id from version where prompt_id = ?", UUID.class, UUID.fromString(promptId));
     }
 
     @Test
@@ -101,25 +96,6 @@ class PromptDeletionTest extends IntegrationTest {
         mockMvc.perform(delete("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isNotFound());
         assertThat(deletedAtOf(promptId)).isNull();
-    }
-
-    @Test
-    void deletingPromptWithInProgressRunIsUnconditional() throws Exception {
-        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "inprog@example.com", "password123");
-        UUID userId =
-                jdbcTemplate.queryForObject("select id from users where email = ?", UUID.class, "inprog@example.com");
-        String promptId = createPrompt(token, "HasRun");
-        UUID versionId = versionIdOf(promptId);
-        jdbcTemplate.update(
-                "insert into run (id, user_id, version_id, rendered_prompt, model, status)"
-                        + " values (?, ?, ?, 'rendered', 'claude-opus-4-8', 'in_progress')",
-                UUID.randomUUID(),
-                userId,
-                versionId);
-
-        mockMvc.perform(delete("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(status().isNoContent());
-        assertThat(deletedAtOf(promptId)).isNotNull();
     }
 
     @Test
@@ -204,97 +180,60 @@ class PromptDeletionTest extends IntegrationTest {
     }
 
     @Test
-    void trashToleratesAPromptWithNoVersions() throws Exception {
-        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "trash-empty@example.com", "password123");
-        UUID userId = jdbcTemplate.queryForObject(
-                "select id from users where email = ?", UUID.class, "trash-empty@example.com");
-        // Unreachable via the API (create is transactional with Version 1), but the
-        // Trash listing must not 500 if such a row ever exists.
-        UUID promptId = UUID.randomUUID();
-        jdbcTemplate.update("insert into prompt (id, user_id, deleted_at) values (?, ?, now())", promptId, userId);
-
-        mockMvc.perform(get("/api/prompts/trash").header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].promptId").value(promptId.toString()))
-                .andExpect(jsonPath("$[0].name").isEmpty());
-    }
-
-    @Test
-    void addVersionToATrashedPromptReturns404AndResumesAfterRestore() throws Exception {
+    void updatingATrashedPromptReturns404AndResumesAfterRestore() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "trash-editor@example.com", "password123");
         String promptId = createPrompt(token, "TrashEdit");
 
         mockMvc.perform(delete("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isNoContent());
 
-        // While deleted: appending a Version is cascade-filtered (ADR-0004), like every read.
-        mockMvc.perform(post("/api/prompts/" + promptId + "/versions")
+        // While deleted: updating is cascade-filtered (ADR-0004), like every read.
+        mockMvc.perform(put("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body("TrashEdit v2")))
+                        .content(body("TrashEdit edited")))
                 .andExpect(status().isNotFound());
         entityManager.flush();
-        Integer versionCount = jdbcTemplate.queryForObject(
-                "select count(*) from version where prompt_id = ?", Integer.class, UUID.fromString(promptId));
-        assertThat(versionCount).isEqualTo(1);
+        String nameWhileTrashed = jdbcTemplate.queryForObject(
+                "select name from prompt where id = ?", String.class, UUID.fromString(promptId));
+        assertThat(nameWhileTrashed).isEqualTo("TrashEdit");
 
         mockMvc.perform(post("/api/prompts/" + promptId + "/restore").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isNoContent());
 
-        // After restore: appending resolves again and numbering continues from 1.
-        mockMvc.perform(post("/api/prompts/" + promptId + "/versions")
+        // After restore: updating resolves again.
+        mockMvc.perform(put("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body("TrashEdit v2")))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.number").value(2));
+                        .content(body("TrashEdit edited")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("TrashEdit edited"));
     }
 
     @Test
-    void cascadeFiltersAllReadsForADeletedPromptAndResumesAfterRestore() throws Exception {
+    void cascadeFiltersEveryReadForADeletedPromptAndResumesAfterRestore() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "cascade@example.com", "password123");
-        UUID userId =
-                jdbcTemplate.queryForObject("select id from users where email = ?", UUID.class, "cascade@example.com");
         String promptId = createPrompt(token, "Cascaded");
-        UUID versionId = versionIdOf(promptId);
-        UUID runId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "insert into run (id, user_id, version_id, rendered_prompt, model, status)"
-                        + " values (?, ?, ?, 'rendered', 'claude-opus-4-8', 'completed')",
-                runId,
-                userId,
-                versionId);
 
         // Before delete: everything resolves.
-        assertAllReachable(token, promptId, runId, true);
+        assertReachable(token, promptId, true);
 
         mockMvc.perform(delete("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isNoContent());
 
-        // While deleted: everything 404s / is excluded.
-        assertAllReachable(token, promptId, runId, false);
+        // While deleted: everything 404s / is excluded, including running it.
+        assertReachable(token, promptId, false);
 
         mockMvc.perform(post("/api/prompts/" + promptId + "/restore").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isNoContent());
 
         // After restore: everything resolves again.
-        assertAllReachable(token, promptId, runId, true);
+        assertReachable(token, promptId, true);
     }
 
-    private void assertAllReachable(String token, String promptId, UUID runId, boolean reachable) throws Exception {
-        var expected = reachable ? status().isOk() : status().isNotFound();
-
+    private void assertReachable(String token, String promptId, boolean reachable) throws Exception {
         mockMvc.perform(get("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(expected);
-        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1").header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(expected);
-        mockMvc.perform(get("/api/prompts/" + promptId + "/runs").header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(expected);
-        mockMvc.perform(get("/api/prompts/" + promptId + "/versions/1/runs").header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(expected);
-        mockMvc.perform(get("/api/runs/" + runId).header(HttpHeaders.AUTHORIZATION, token))
-                .andExpect(expected);
+                .andExpect(reachable ? status().isOk() : status().isNotFound());
 
         var listExpectation = reachable
                 ? jsonPath("$.items[?(@.promptId == '" + promptId + "')]").isNotEmpty()

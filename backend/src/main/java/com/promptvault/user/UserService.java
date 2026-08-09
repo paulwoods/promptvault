@@ -1,7 +1,5 @@
 package com.promptvault.user;
 
-import com.promptvault.activity.ActivityEvent;
-import com.promptvault.activity.ActivityRecorder;
 import com.promptvault.error.ResourceNotFoundException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -11,11 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository users;
-    private final ActivityRecorder activityRecorder;
 
-    public UserService(UserRepository users, ActivityRecorder activityRecorder) {
+    public UserService(UserRepository users) {
         this.users = users;
-        this.activityRecorder = activityRecorder;
     }
 
     @Transactional(readOnly = true)
@@ -29,7 +25,6 @@ public class UserService {
     public void updateName(UUID userId, String name) {
         String trimmed = name.trim();
         require(userId).setName(trimmed);
-        activityRecorder.record(userId, ActivityEvent.NAME_CHANGED, trimmed);
     }
 
     private User require(UUID userId) {

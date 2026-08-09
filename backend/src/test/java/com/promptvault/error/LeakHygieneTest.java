@@ -12,11 +12,9 @@ import com.promptvault.claude.ClaudeException;
 import com.promptvault.claude.ClaudeRequest;
 import com.promptvault.claude.ErrorCategory;
 import com.promptvault.claude.FakeClaudeClient;
-import com.promptvault.run.RecordingRunStore;
 import com.promptvault.run.RecordingRunStream;
-import com.promptvault.run.Run;
+import com.promptvault.run.RecordingTokenUsageRecorder;
 import com.promptvault.run.RunStreamer;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -56,29 +54,20 @@ class LeakHygieneTest {
         try {
             FakeClaudeClient fake = new FakeClaudeClient();
             fake.failWith(new ClaudeException(ErrorCategory.AUTH, "Authentication with Claude failed"));
-            RecordingRunStore store = new RecordingRunStore();
-            RunStreamer streamer = new RunStreamer(fake, store, new ObjectMapper());
+            RunStreamer streamer = new RunStreamer(fake, new RecordingTokenUsageRecorder(), new ObjectMapper());
             RecordingRunStream out = new RecordingRunStream();
-            Run run = new Run(
-                    UUID.randomUUID(),
-                    UUID.randomUUID(),
-                    UUID.randomUUID(),
-                    Map.of(),
-                    "rendered prompt",
-                    "claude-opus-4-8");
 
             streamer.stream(
                     out,
-                    run,
-                    1,
+                    UUID.randomUUID(),
+                    "claude-opus-4-8",
                     new ClaudeRequest("claude-opus-4-8", null, "rendered prompt", 1000, "medium", "off"),
                     CANARY_KEY);
 
             // The key was genuinely in scope (the client received it)...
             assertThat(fake.capturedApiKey()).isEqualTo(CANARY_KEY);
-            // ...but it must not appear in the error frame, the stored failure, or the logs.
+            // ...but it must not appear in the error frame or the logs.
             assertThat(out.failedMessageOrEmpty()).doesNotContain(CANARY_KEY);
-            assertThat(store.failedMessageOrEmpty()).doesNotContain(CANARY_KEY);
             assertThat(capturedLogs(appender)).doesNotContain(CANARY_KEY);
         } finally {
             root.detachAppender(appender);

@@ -1,7 +1,7 @@
 # Prompt Vault — frontend
 
 React + Vite SPA for Prompt Vault. See the root [`README.md`](../README.md)
-and [`CONTEXT.md`](../CONTEXT.md) for the project vocabulary and quickstart.
+and [`../docs/CONTEXT.md`](../docs/CONTEXT.md) for the project vocabulary and quickstart.
 
 ## Scripts
 

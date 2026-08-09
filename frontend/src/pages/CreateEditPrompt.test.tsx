@@ -6,31 +6,33 @@ import { setToken } from '../lib/auth'
 import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
+function promptResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    promptId: 'p9',
+    name: 'Greeting',
+    description: null,
+    promptText: 'Hello there',
+    model: 'claude-opus-4-8',
+    systemPrompt: null,
+    maxTokens: 1000,
+    effort: 'medium',
+    thinking: 'off',
+    variables: [],
+    createdAt: 'x',
+    updatedAt: 'x',
+    ...overrides,
+  }
+}
+
 describe('create / edit prompt', () => {
-  it('saving a prompt produces a new version and navigates to it', async () => {
+  it('saving a new prompt navigates to it', async () => {
     const user = userEvent.setup()
     setToken('t')
     server.use(
       http.post('/api/prompts', () =>
-        HttpResponse.json(
-          { promptId: 'p9', versionId: 'v1', number: 1 },
-          { status: 201 },
-        ),
+        HttpResponse.json(promptResponse(), { status: 201 }),
       ),
-      http.get('/api/prompts/p9', () =>
-        HttpResponse.json({
-          promptId: 'p9',
-          versions: [
-            {
-              versionId: 'v1',
-              number: 1,
-              name: 'Greeting',
-              createdAt: 'x',
-              current: true,
-            },
-          ],
-        }),
-      ),
+      http.get('/api/prompts/p9', () => HttpResponse.json(promptResponse())),
     )
 
     renderApp('/prompts/new')
@@ -39,9 +41,7 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(
-      await screen.findByRole('link', {
-        name: 'Prompt Vault - Versions: Greeting',
-      }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
     ).toBeInTheDocument()
   })
 
@@ -148,25 +148,9 @@ describe('create / edit prompt', () => {
     setToken('t')
     server.use(
       http.post('/api/prompts', () =>
-        HttpResponse.json(
-          { promptId: 'p9', versionId: 'v1', number: 1 },
-          { status: 201 },
-        ),
+        HttpResponse.json(promptResponse(), { status: 201 }),
       ),
-      http.get('/api/prompts/p9', () =>
-        HttpResponse.json({
-          promptId: 'p9',
-          versions: [
-            {
-              versionId: 'v1',
-              number: 1,
-              name: 'Greeting',
-              createdAt: 'x',
-              current: true,
-            },
-          ],
-        }),
-      ),
+      http.get('/api/prompts/p9', () => HttpResponse.json(promptResponse())),
     )
 
     renderApp('/prompts/new')
@@ -179,9 +163,7 @@ describe('create / edit prompt', () => {
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
 
     expect(
-      await screen.findByRole('link', {
-        name: 'Prompt Vault - Versions: Greeting',
-      }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
     ).toBeInTheDocument()
   })
 
@@ -203,111 +185,21 @@ describe('create / edit prompt', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('edits from a version, seeding the form and appending a new version', async () => {
+  it('editing overwrites the prompt and navigates back to it', async () => {
     const user = userEvent.setup()
     setToken('t')
+    let submitted: unknown
     server.use(
-      http.get('/api/prompts/p1/versions/1', () =>
-        HttpResponse.json({
-          promptId: 'p1',
-          versionId: 'v1',
-          number: 1,
-          name: 'Original',
-          description: null,
-          promptText: 'Hello',
-          model: 'claude-opus-4-8',
-          systemPrompt: null,
-          maxTokens: 1000,
-          effort: 'medium',
-          thinking: 'off',
-          variables: [],
-          createdAt: 'x',
-        }),
-      ),
-      http.post('/api/prompts/p1/versions', () =>
-        HttpResponse.json(
-          { promptId: 'p1', versionId: 'v2', number: 2 },
-          { status: 201 },
-        ),
-      ),
       http.get('/api/prompts/p1', () =>
-        HttpResponse.json({
-          promptId: 'p1',
-          versions: [
-            {
-              versionId: 'v2',
-              number: 2,
-              name: 'Renamed',
-              createdAt: 'x',
-              current: true,
-            },
-            {
-              versionId: 'v1',
-              number: 1,
-              name: 'Original',
-              createdAt: 'x',
-              current: false,
-            },
-          ],
-        }),
+        HttpResponse.json(promptResponse({ promptId: 'p1', name: 'Current' })),
       ),
-    )
-
-    renderApp('/prompts/p1/versions/1/edit')
-    const nameField = await screen.findByLabelText('Name')
-    expect(nameField).toHaveValue('Original')
-    await user.clear(nameField)
-    await user.type(nameField, 'Renamed')
-    await user.click(screen.getByRole('button', { name: 'Save new version' }))
-
-    expect(
-      await screen.findByRole('link', {
-        name: 'Prompt Vault - Versions: Renamed',
+      // A save is a PUT over the prompt, never a POST that would append.
+      http.put('/api/prompts/p1', async ({ request }) => {
+        submitted = await request.json()
+        return HttpResponse.json(
+          promptResponse({ promptId: 'p1', name: 'Renamed' }),
+        )
       }),
-    ).toBeInTheDocument()
-  })
-
-  it('edits the current version at /prompts/:id/edit', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    server.use(
-      http.get('/api/prompts/p1/versions/current', () =>
-        HttpResponse.json({
-          promptId: 'p1',
-          versionId: 'v2',
-          number: 2,
-          name: 'Current',
-          description: null,
-          promptText: 'Hello',
-          model: 'claude-opus-4-8',
-          systemPrompt: null,
-          maxTokens: 1000,
-          effort: 'medium',
-          thinking: 'off',
-          variables: [],
-          createdAt: 'x',
-        }),
-      ),
-      http.post('/api/prompts/p1/versions', () =>
-        HttpResponse.json(
-          { promptId: 'p1', versionId: 'v3', number: 3 },
-          { status: 201 },
-        ),
-      ),
-      http.get('/api/prompts/p1', () =>
-        HttpResponse.json({
-          promptId: 'p1',
-          versions: [
-            {
-              versionId: 'v3',
-              number: 3,
-              name: 'Renamed',
-              createdAt: 'x',
-              current: true,
-            },
-          ],
-        }),
-      ),
     )
 
     renderApp('/prompts/p1/edit')
@@ -315,12 +207,11 @@ describe('create / edit prompt', () => {
     expect(nameField).toHaveValue('Current')
     await user.clear(nameField)
     await user.type(nameField, 'Renamed')
-    await user.click(screen.getByRole('button', { name: 'Save new version' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(
-      await screen.findByRole('link', {
-        name: 'Prompt Vault - Versions: Renamed',
-      }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Current' }),
     ).toBeInTheDocument()
+    expect(submitted).toMatchObject({ name: 'Renamed' })
   })
 })

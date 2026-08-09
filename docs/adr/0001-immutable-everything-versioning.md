@@ -1,6 +1,13 @@
 # Fully-immutable, everything-versioned Prompts
 
-A [Prompt](../../CONTEXT.md#prompt) carries no editable fields of its own — it is pure identity plus an append-only history of immutable [Versions](../../CONTEXT.md#version). Each Version freezes *everything* (name, description, prompt text, declared Variables, and Run Settings) under an integer that starts at 1; any edit, including a rename, appends a new Version rather than mutating an existing one. We chose this for maximum reproducibility: any historical Version can be viewed and run exactly as it was, and a stored [Run](../../CONTEXT.md#run) always points at the precise inputs that produced it.
+> **Superseded by [ADR-0007](0007-mutable-prompts-no-version-or-run-history.md).** Versions were removed; a Prompt is now a single mutable row. This ADR is kept as the record of why the app was built this way and of the alternatives weighed at the time.
+
+A [Prompt](../CONTEXT.md#prompt) carries no editable fields of its own — it is pure identity plus an append-only history
+of immutable [Versions](../CONTEXT.md#version). Each Version freezes *everything* (name, description, prompt text,
+declared Variables, and Run Settings) under an integer that starts at 1; any edit, including a rename, appends a new
+Version rather than mutating an existing one. We chose this for maximum reproducibility: any historical Version can be
+viewed and run exactly as it was, and a stored [Run](../CONTEXT.md#run) always points at the precise inputs that
+produced it.
 
 ## Considered options
 

@@ -1,20 +1,17 @@
 import { Route, Routes } from 'react-router'
 import { Layout } from '../components/Layout'
 import { ApiKeyPage } from '../pages/ApiKeyPage'
-import { CompareVersionsPage } from '../pages/CompareVersionsPage'
 import { CreatePromptPage } from '../pages/CreatePromptPage'
-import { DuplicateFromVersionPage } from '../pages/DuplicateFromVersionPage'
-import { EditFromVersionPage } from '../pages/EditFromVersionPage'
+import { DuplicatePromptPage } from '../pages/DuplicatePromptPage'
+import { EditPromptPage } from '../pages/EditPromptPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { ProfilePage } from '../pages/ProfilePage'
-import { PromptDetailPage } from '../pages/PromptDetailPage'
+import { PromptConsolePage } from '../pages/PromptConsolePage'
+import { PromptViewPage } from '../pages/PromptViewPage'
 import { RegisterPage } from '../pages/RegisterPage'
-import { RunDetailPage } from '../pages/RunDetailPage'
-import { RunListPage } from '../pages/RunListPage'
 import { RunPage } from '../pages/RunPage'
 import { TrashPage } from '../pages/TrashPage'
-import { VersionViewPage } from '../pages/VersionViewPage'
 import { AuthListener } from './AuthListener'
 import { RequireAuth } from './RequireAuth'
 
@@ -43,50 +40,10 @@ export function AppRoutes() {
             }
           />
           <Route
-            path="/prompts/:id/version"
-            element={
-              <RequireAuth>
-                <PromptDetailPage />
-              </RequireAuth>
-            }
-          />
-          <Route
             path="/prompts/:id"
             element={
               <RequireAuth>
-                <VersionViewPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/runs"
-            element={
-              <RequireAuth>
-                <RunListPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/versions/:number"
-            element={
-              <RequireAuth>
-                <VersionViewPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/versions/:number/runs"
-            element={
-              <RequireAuth>
-                <RunListPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/compare"
-            element={
-              <RequireAuth>
-                <CompareVersionsPage />
+                <PromptViewPage />
               </RequireAuth>
             }
           />
@@ -94,15 +51,7 @@ export function AppRoutes() {
             path="/prompts/:id/edit"
             element={
               <RequireAuth>
-                <EditFromVersionPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/versions/:number/edit"
-            element={
-              <RequireAuth>
-                <EditFromVersionPage />
+                <EditPromptPage />
               </RequireAuth>
             }
           />
@@ -115,10 +64,10 @@ export function AppRoutes() {
             }
           />
           <Route
-            path="/prompts/:id/versions/:number/run"
+            path="/prompts/:id/console"
             element={
               <RequireAuth>
-                <RunPage />
+                <PromptConsolePage />
               </RequireAuth>
             }
           />
@@ -126,23 +75,7 @@ export function AppRoutes() {
             path="/prompts/:id/duplicate"
             element={
               <RequireAuth>
-                <DuplicateFromVersionPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/versions/:number/duplicate"
-            element={
-              <RequireAuth>
-                <DuplicateFromVersionPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/runs/:runId"
-            element={
-              <RequireAuth>
-                <RunDetailPage />
+                <DuplicatePromptPage />
               </RequireAuth>
             }
           />

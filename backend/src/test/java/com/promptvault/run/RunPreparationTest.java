@@ -8,8 +8,8 @@ import com.promptvault.claude.FakeClaudeClient;
 import com.promptvault.claude.TokenSink;
 import com.promptvault.claude.Usage;
 import com.promptvault.error.DomainValidationException;
+import com.promptvault.prompt.Prompt;
 import com.promptvault.prompt.VariableDeclaration;
-import com.promptvault.prompt.Version;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,11 +19,10 @@ class RunPreparationTest {
 
     private final RunPreparer preparer = new RunPreparer();
 
-    private static Version version(String promptText, String systemPrompt, List<VariableDeclaration> variables) {
-        return new Version(
+    private static Prompt prompt(String promptText, String systemPrompt, List<VariableDeclaration> variables) {
+        return new Prompt(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
-                1,
                 "Name",
                 null,
                 promptText,
@@ -37,10 +36,10 @@ class RunPreparationTest {
 
     @Test
     void substitutesValuesAndKeepsSystemPromptSeparate() {
-        Version version =
-                version("Hello {{name}}", "Be nice", List.of(new VariableDeclaration("name", null, true, null)));
+        Prompt prompt =
+                prompt("Hello {{name}}", "Be nice", List.of(new VariableDeclaration("name", null, true, null)));
 
-        ClaudeRequest request = preparer.prepare(version, Map.of("name", "World"));
+        ClaudeRequest request = preparer.prepare(prompt, Map.of("name", "World"));
 
         assertThat(request.userMessage()).isEqualTo("Hello World");
         assertThat(request.systemPrompt()).isEqualTo("Be nice");
@@ -55,33 +54,33 @@ class RunPreparationTest {
 
     @Test
     void missingRequiredValueRejectedPreCall() {
-        Version version = version("Hello {{name}}", null, List.of(new VariableDeclaration("name", null, true, null)));
+        Prompt prompt = prompt("Hello {{name}}", null, List.of(new VariableDeclaration("name", null, true, null)));
 
-        assertThatThrownBy(() -> preparer.prepare(version, Map.of())).isInstanceOf(DomainValidationException.class);
+        assertThatThrownBy(() -> preparer.prepare(prompt, Map.of())).isInstanceOf(DomainValidationException.class);
     }
 
     @Test
     void blankRequiredValueRejected() {
-        Version version = version("Hello {{name}}", null, List.of(new VariableDeclaration("name", null, true, null)));
+        Prompt prompt = prompt("Hello {{name}}", null, List.of(new VariableDeclaration("name", null, true, null)));
 
-        assertThatThrownBy(() -> preparer.prepare(version, Map.of("name", "   ")))
+        assertThatThrownBy(() -> preparer.prepare(prompt, Map.of("name", "   ")))
                 .isInstanceOf(DomainValidationException.class);
     }
 
     @Test
     void optionalAbsentValueUsesDefaultElseEmpty() {
-        Version withDefault = version("{{topic}}", null, List.of(new VariableDeclaration("topic", null, false, "AI")));
+        Prompt withDefault = prompt("{{topic}}", null, List.of(new VariableDeclaration("topic", null, false, "AI")));
         assertThat(preparer.prepare(withDefault, Map.of()).userMessage()).isEqualTo("AI");
 
-        Version noDefault = version("[{{topic}}]", null, List.of(new VariableDeclaration("topic", null, false, null)));
+        Prompt noDefault = prompt("[{{topic}}]", null, List.of(new VariableDeclaration("topic", null, false, null)));
         assertThat(preparer.prepare(noDefault, Map.of()).userMessage()).isEqualTo("[]");
     }
 
     @Test
     void unknownSuppliedKeyRejected() {
-        Version version = version("hello", null, List.of());
+        Prompt prompt = prompt("hello", null, List.of());
 
-        assertThatThrownBy(() -> preparer.prepare(version, Map.of("bogus", "x")))
+        assertThatThrownBy(() -> preparer.prepare(prompt, Map.of("bogus", "x")))
                 .isInstanceOf(DomainValidationException.class);
     }
 

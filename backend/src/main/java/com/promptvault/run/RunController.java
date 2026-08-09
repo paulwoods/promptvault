@@ -12,8 +12,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+/**
+ * Running a Prompt is an action, not a resource (ADR-0007): nothing is created,
+ * so there is nothing to GET afterwards and no id to hand back.
+ */
 @RestController
-@RequestMapping("/api/prompts/{promptId}/versions/{number}/runs")
+@RequestMapping("/api/prompts/{promptId}/run")
 public class RunController {
 
     private static final Logger log = LoggerFactory.getLogger(RunController.class);
@@ -27,15 +31,9 @@ public class RunController {
     }
 
     @PostMapping
-    public SseEmitter run(
-            @PathVariable UUID promptId, @PathVariable int number, @RequestBody(required = false) RunRequest request) {
+    public SseEmitter run(@PathVariable UUID promptId, @RequestBody(required = false) RunRequest request) {
         Map<String, String> values = request == null ? Map.of() : request.valuesOrEmpty();
-        log.debug(
-                "run(userId={}, promptId={}, number={}, values.keys={})",
-                currentUser.userId(),
-                promptId,
-                number,
-                values.keySet());
-        return runService.run(currentUser.userId(), promptId, number, values);
+        log.debug("run(userId={}, promptId={}, values.keys={})", currentUser.userId(), promptId, values.keySet());
+        return runService.run(currentUser.userId(), promptId, values);
     }
 }

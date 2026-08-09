@@ -29,10 +29,7 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <AuthHero
-        title="Welcome back"
-        subtitle="Log in to your prompts, versions, and runs."
-      />
+      <AuthHero title="Welcome back" subtitle="Log in to your prompts." />
       <form
         onSubmit={(event) => {
           event.preventDefault()

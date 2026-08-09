@@ -1,7 +1,7 @@
 # Prompt Vault
 
-Store, version, and run Claude prompts with per-user encrypted API keys.
-See [`CONTEXT.md`](CONTEXT.md) for the vocabulary and [`docs/`](docs/) for the
+Store and run Claude prompts with per-user encrypted API keys. See [`docs/CONTEXT.md`](docs/CONTEXT.md) for the
+vocabulary and [`docs/`](docs/) for the
 PRD, ADRs, and the build plan ([`docs/TASKS.md`](docs/TASKS.md)).
 
 Monorepo layout:

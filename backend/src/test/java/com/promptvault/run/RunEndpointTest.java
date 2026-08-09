@@ -49,7 +49,7 @@ class RunEndpointTest extends IntegrationTest {
 
     private org.springframework.test.web.servlet.ResultActions run(String token, String promptId, String valuesJson)
             throws Exception {
-        return mockMvc.perform(post("/api/prompts/" + promptId + "/versions/1/runs")
+        return mockMvc.perform(post("/api/prompts/" + promptId + "/run")
                 .header(HttpHeaders.AUTHORIZATION, token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"values\":" + valuesJson + "}"));

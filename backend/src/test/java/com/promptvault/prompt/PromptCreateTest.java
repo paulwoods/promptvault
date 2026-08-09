@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import com.promptvault.IntegrationTest;
 import com.promptvault.support.TestTokens;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +39,11 @@ class PromptCreateTest extends IntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Test
-    void createsPromptWithVersionOneOwnedByCaller() throws Exception {
+    void createsPromptOwnedByCaller() throws Exception {
         String email = "creator@example.com";
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, email, "password123");
         UUID userId = jdbcTemplate.queryForObject("select id from users where email = ?", UUID.class, email);
@@ -48,14 +53,16 @@ class PromptCreateTest extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(BODY))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.number").value(1))
                 .andExpect(jsonPath("$.name").value("Greeting"))
+                .andExpect(jsonPath("$.promptText").value("Hello there"))
                 .andExpect(jsonPath("$.model").value("claude-opus-4-8"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         UUID promptId = UUID.fromString(JsonPath.read(response, "$.promptId"));
+        // The insert is still pending in the persistence context; flush so raw JDBC sees it.
+        entityManager.flush();
         UUID ownerId = jdbcTemplate.queryForObject("select user_id from prompt where id = ?", UUID.class, promptId);
         assertThat(ownerId).isEqualTo(userId);
     }

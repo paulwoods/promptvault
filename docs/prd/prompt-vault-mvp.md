@@ -1,6 +1,10 @@
 # PRD: Prompt Vault (MVP)
 
-> Vocabulary in this document — **User, Prompt, Version, Variable, Run Settings, Run** — is defined in [`CONTEXT.md`](../../CONTEXT.md). Load-bearing decisions are recorded in [`docs/adr/`](../adr/README.md) and are treated as fixed constraints here.
+> **Historical document — describes the MVP as shipped.** Versions, Run history, and the Activity feed were removed afterwards; see [ADR-0007](../adr/0007-mutable-prompts-no-version-or-run-history.md). Stories below that depend on Versions, stored Runs, or Activity no longer describe the product, and the Out of Scope fence's references to Versions and Runs are correspondingly stale. Nothing here has been rewritten — this is the record of what was specified and built.
+
+> Vocabulary in this document — **User, Prompt, Version, Variable, Run Settings, Run** — is defined in [
+`../CONTEXT.md`](../CONTEXT.md). Load-bearing decisions are recorded in [`docs/adr/`](../adr/README.md) and are treated
+> as fixed constraints here.
 
 ## Problem Statement
 
