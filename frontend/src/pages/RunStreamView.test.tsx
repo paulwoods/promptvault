@@ -5,13 +5,11 @@ import { setToken } from '../lib/auth'
 import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
-const RUN_URL = '/api/prompts/p1/versions/1/runs'
+const RUN_URL = '/api/prompts/p1/run'
 
-function versionNoVars() {
+function promptNoVars() {
   return {
     promptId: 'p1',
-    versionId: 'v1',
-    number: 1,
     name: 'P',
     description: null,
     promptText: 'hi',
@@ -22,6 +20,7 @@ function versionNoVars() {
     thinking: 'off',
     variables: [],
     createdAt: 'x',
+    updatedAt: 'x',
   }
 }
 
@@ -43,9 +42,7 @@ describe('streamed run view', () => {
     setToken('t')
     const { stream, push, close } = sseStream()
     server.use(
-      http.get('/api/prompts/p1/versions/1', () =>
-        HttpResponse.json(versionNoVars()),
-      ),
+      http.get('/api/prompts/p1', () => HttpResponse.json(promptNoVars())),
       http.post(
         RUN_URL,
         () =>
@@ -55,11 +52,10 @@ describe('streamed run view', () => {
       ),
     )
 
-    renderApp('/prompts/p1/versions/1/run')
+    renderApp('/prompts/p1/run')
 
     // No variables, so the run starts automatically.
     await screen.findByText('Status: running')
-    push('event:meta\ndata:{"runId":"r1","versionNumber":1}\n\n')
     push('event:token\ndata:{"text":"Hello"}\n\n')
     push('event:token\ndata:{"text":" world"}\n\n')
 
@@ -77,41 +73,11 @@ describe('streamed run view', () => {
     await screen.findByText('Status: completed')
   })
 
-  it('runs the current version at /prompts/:id/run against its concrete number', async () => {
-    setToken('t')
-    const { stream, push, close } = sseStream()
-    server.use(
-      http.get('/api/prompts/p1/versions/current', () =>
-        HttpResponse.json({ ...versionNoVars(), number: 2 }),
-      ),
-      http.post(
-        '/api/prompts/p1/versions/2/runs',
-        () =>
-          new HttpResponse(stream, {
-            headers: { 'Content-Type': 'text/event-stream' },
-          }),
-      ),
-    )
-
-    renderApp('/prompts/p1/run')
-
-    // No variables, so the run starts automatically against the resolved v2.
-    await screen.findByText('Status: running')
-    push(
-      'event:done\ndata:{"status":"completed","usage":{"inputTokens":1,"outputTokens":1}}\n\n',
-    )
-    close()
-
-    await screen.findByText('Status: completed')
-  })
-
   it('drives the failed state from an error frame', async () => {
     setToken('t')
     const { stream, push, close } = sseStream()
     server.use(
-      http.get('/api/prompts/p1/versions/1', () =>
-        HttpResponse.json(versionNoVars()),
-      ),
+      http.get('/api/prompts/p1', () => HttpResponse.json(promptNoVars())),
       http.post(
         RUN_URL,
         () =>
@@ -121,11 +87,10 @@ describe('streamed run view', () => {
       ),
     )
 
-    renderApp('/prompts/p1/versions/1/run')
+    renderApp('/prompts/p1/run')
 
     // No variables, so the run starts automatically.
     await screen.findByText('Status: running')
-    push('event:meta\ndata:{"runId":"r1","versionNumber":1}\n\n')
     push(
       'event:error\ndata:{"status":"failed","category":"AUTH","message":"Authentication with Claude failed"}\n\n',
     )
@@ -140,9 +105,7 @@ describe('streamed run view', () => {
   it('routes to the api-key screen on no_api_key', async () => {
     setToken('t')
     server.use(
-      http.get('/api/prompts/p1/versions/1', () =>
-        HttpResponse.json(versionNoVars()),
-      ),
+      http.get('/api/prompts/p1', () => HttpResponse.json(promptNoVars())),
       http.get('/api/me/api-key', () =>
         HttpResponse.json({ hasKey: false, updatedAt: null }),
       ),
@@ -154,7 +117,7 @@ describe('streamed run view', () => {
       ),
     )
 
-    renderApp('/prompts/p1/versions/1/run')
+    renderApp('/prompts/p1/run')
 
     // No variables, so the run starts automatically and hits the missing key.
     await screen.findByRole('link', { name: 'Prompt Vault - API Key' })

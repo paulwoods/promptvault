@@ -3,37 +3,37 @@ import { useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PromptTabs } from '../components/PromptTabs'
-import { VersionForm } from '../components/VersionForm'
+import { PromptForm } from '../components/PromptForm'
 import {
   toFormValues,
-  type VersionRequestBody,
-} from '../components/versionFormValues'
+  type PromptRequestBody,
+} from '../components/promptFormValues'
+import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
-import type { VersionResponse } from '../lib/types'
+import type { PromptResponse } from '../lib/types'
 
-export function EditFromVersionPage() {
-  const { id = '', number = '' } = useParams()
+export function EditPromptPage() {
+  const { id = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  // No number in the URL (/prompts/:id/edit) means "edit the current version",
-  // which the backend serves directly at /versions/current.
-  const isCurrentEdit = number === ''
-  const target = number || 'current'
-  const version = useQuery({
-    queryKey: ['version', id, target],
-    queryFn: () =>
-      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
+  const prompt = useQuery({
+    queryKey: ['prompt', id],
+    queryFn: () => apiClient.get<PromptResponse>(`/api/prompts/${id}`),
   })
-  usePageTitle(version.data ? `Edit: ${version.data.name}` : 'Edit')
+  usePageTitle(prompt.data ? `Edit: ${prompt.data.name}` : 'Edit')
 
+  // Saving overwrites the prompt; the previous content is not recoverable (ADR-0007).
   const mutation = useMutation({
-    mutationFn: (body: VersionRequestBody) =>
-      apiClient.post<VersionResponse>(`/api/prompts/${id}/versions`, body),
-    onSuccess: () => navigate(`/prompts/${id}/version`),
+    mutationFn: (body: PromptRequestBody) =>
+      apiClient.put<PromptResponse>(`/api/prompts/${id}`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prompt', id] })
+      queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      navigate(`/prompts/${id}`)
+    },
   })
 
   // Fires immediately on click — no confirmation dialog, matching the app's
@@ -46,20 +46,16 @@ export function EditFromVersionPage() {
     },
   })
 
-  if (version.isPending) {
+  if (prompt.isPending) {
     return <Loading />
   }
-  if (version.isError || !version.data) {
-    return <LoadError>Could not load this version.</LoadError>
+  if (prompt.isError || !prompt.data) {
+    return <LoadError>Could not load this prompt.</LoadError>
   }
 
   return (
     <>
-      <PromptTabs
-        promptId={id}
-        versionNumber={version.data.number}
-        current={isCurrentEdit}
-      />
+      <PromptTabs promptId={id} />
       <div className="actions">
         <button
           type="button"
@@ -73,9 +69,9 @@ export function EditFromVersionPage() {
       {deletePrompt.isError && (
         <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
       )}
-      <VersionForm
-        initial={toFormValues(version.data)}
-        submitLabel="Save new version"
+      <PromptForm
+        initial={toFormValues(prompt.data)}
+        submitLabel="Save"
         pending={mutation.isPending}
         error={mutation.error}
         onSubmit={(body) => mutation.mutate(body)}

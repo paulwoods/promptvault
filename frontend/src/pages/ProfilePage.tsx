@@ -1,4 +1,3 @@
-import { ActivityFeed } from '../components/ActivityFeed'
 import { ApiKeyForm } from '../components/ApiKeyForm'
 import { LogoutButton } from '../components/LogoutButton'
 import { NameForm } from '../components/NameForm'
@@ -30,10 +29,6 @@ export function ProfilePage() {
       <fieldset className="form-section">
         <legend>Usage</legend>
         <UsageSummary />
-      </fieldset>
-      <fieldset className="form-section">
-        <legend>Recent activity</legend>
-        <ActivityFeed />
       </fieldset>
     </>
   )

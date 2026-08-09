@@ -5,15 +5,13 @@ import { setToken } from '../lib/auth'
 import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
-describe('VersionViewPage', () => {
+describe('PromptViewPage', () => {
   it('labels a variable with omitted required as required', async () => {
     setToken('t')
     server.use(
-      http.get('/api/prompts/p1/versions/1', () =>
+      http.get('/api/prompts/p1', () =>
         HttpResponse.json({
           promptId: 'p1',
-          versionId: 'v1',
-          number: 1,
           name: 'Greeting',
           description: null,
           promptText: 'Hello {{topic}}',
@@ -24,11 +22,12 @@ describe('VersionViewPage', () => {
           thinking: 'off',
           variables: [{ name: 'topic', defaultValue: null }],
           createdAt: 'x',
+          updatedAt: 'x',
         }),
       ),
     )
 
-    renderApp('/prompts/p1/versions/1')
+    renderApp('/prompts/p1')
 
     expect(await screen.findByText('topic (required)')).toBeInTheDocument()
   })

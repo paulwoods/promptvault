@@ -7,35 +7,26 @@ import { SimpleList } from '../components/SimpleList'
 import { apiClient } from '../lib/apiClient'
 import { usePageTitle } from '../lib/pageTitle'
 import { isRequired } from '../lib/types'
-import type { VersionResponse } from '../lib/types'
+import type { PromptResponse } from '../lib/types'
 
-export function VersionViewPage() {
-  const { id = '', number = '' } = useParams()
-  // No number in the URL (/prompts/:id) means "show the current version",
-  // which the backend serves directly at /versions/current.
-  const isCurrentView = number === ''
-  const target = number || 'current'
+export function PromptViewPage() {
+  const { id = '' } = useParams()
   const { data, isPending, isError } = useQuery({
-    queryKey: ['version', id, target],
-    queryFn: () =>
-      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
+    queryKey: ['prompt', id],
+    queryFn: () => apiClient.get<PromptResponse>(`/api/prompts/${id}`),
   })
-  usePageTitle(data ? `${data.name} (v${data.number})` : 'Version')
+  usePageTitle(data ? data.name : 'Prompt')
 
   if (isPending) {
     return <Loading />
   }
   if (isError || !data) {
-    return <LoadError>Could not load this version.</LoadError>
+    return <LoadError>Could not load this prompt.</LoadError>
   }
 
   return (
     <>
-      <PromptTabs
-        promptId={id}
-        versionNumber={data.number}
-        current={isCurrentView}
-      />
+      <PromptTabs promptId={id} />
       {data.description && <p>{data.description}</p>}
       <dl>
         <dt>Model</dt>

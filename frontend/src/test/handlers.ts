@@ -5,9 +5,6 @@ export const handlers = [
   http.get('/api/prompts', () =>
     HttpResponse.json({ items: [], hasMore: false }),
   ),
-  http.get('/api/prompts/:id/runs', () =>
-    HttpResponse.json({ items: [], hasMore: false }),
-  ),
   http.get('/api/models', () =>
     HttpResponse.json({
       models: [

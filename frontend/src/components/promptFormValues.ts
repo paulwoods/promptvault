@@ -1,5 +1,5 @@
 import { isRequired } from '../lib/types'
-import type { VariableDeclaration, VersionResponse } from '../lib/types'
+import type { PromptResponse, VariableDeclaration } from '../lib/types'
 
 export interface VariableRow {
   name: string
@@ -8,7 +8,7 @@ export interface VariableRow {
   defaultValue: string
 }
 
-export interface VersionFormValues {
+export interface PromptFormValues {
   name: string
   description: string
   promptText: string
@@ -20,7 +20,7 @@ export interface VersionFormValues {
   variables: VariableRow[]
 }
 
-export interface VersionRequestBody {
+export interface PromptRequestBody {
   name: string
   description: string | null
   promptText: string
@@ -85,7 +85,7 @@ function describe(names: string[], problem: string): string {
   return `${label} ${list} ${problem}`
 }
 
-export function emptyVersionValues(defaultModel: string): VersionFormValues {
+export function emptyPromptValues(defaultModel: string): PromptFormValues {
   return {
     name: '',
     description: '',
@@ -99,18 +99,18 @@ export function emptyVersionValues(defaultModel: string): VersionFormValues {
   }
 }
 
-/** Seeds form values from an existing Version -- used to edit-from or duplicate-from it. */
-export function toFormValues(version: VersionResponse): VersionFormValues {
+/** Seeds form values from an existing Prompt -- used to edit or duplicate it. */
+export function toFormValues(prompt: PromptResponse): PromptFormValues {
   return {
-    name: version.name,
-    description: version.description ?? '',
-    promptText: version.promptText,
-    systemPrompt: version.systemPrompt ?? '',
-    model: version.model,
-    maxTokens: version.maxTokens,
-    effort: version.effort,
-    thinking: version.thinking,
-    variables: version.variables.map((variable) => ({
+    name: prompt.name,
+    description: prompt.description ?? '',
+    promptText: prompt.promptText,
+    systemPrompt: prompt.systemPrompt ?? '',
+    model: prompt.model,
+    maxTokens: prompt.maxTokens,
+    effort: prompt.effort,
+    thinking: prompt.thinking,
+    variables: prompt.variables.map((variable) => ({
       name: variable.name,
       description: variable.description ?? '',
       required: isRequired(variable),

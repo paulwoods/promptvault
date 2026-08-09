@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
@@ -9,26 +9,18 @@ import { RunForm } from '../components/RunForm'
 import { apiClient } from '../lib/apiClient'
 import { usePageTitle } from '../lib/pageTitle'
 import { useRunStream } from '../lib/useRunStream'
-import type { VersionResponse } from '../lib/types'
+import type { PromptResponse } from '../lib/types'
 
 export function RunPage() {
-  const { id = '', number = '' } = useParams()
+  const { id = '' } = useParams()
 
-  // No number in the URL (/prompts/:id/run) means "run the current version",
-  // which the backend serves directly at /versions/current.
-  const isCurrentRun = number === ''
-  const target = number || 'current'
-  const version = useQuery({
-    queryKey: ['version', id, target],
-    queryFn: () =>
-      apiClient.get<VersionResponse>(`/api/prompts/${id}/versions/${target}`),
+  const prompt = useQuery({
+    queryKey: ['prompt', id],
+    queryFn: () => apiClient.get<PromptResponse>(`/api/prompts/${id}`),
   })
-  usePageTitle(version.data ? `Run: ${version.data.name}` : 'Run')
+  usePageTitle(prompt.data ? `Run: ${prompt.data.name}` : 'Run')
 
-  // Runs execute against a concrete version, so drive the stream off the
-  // resolved number rather than the (possibly absent) URL param.
-  const runNumber = String(version.data?.number ?? '')
-  const { status, output, runId, failure, run } = useRunStream(id, runNumber)
+  const { status, output, failure, run } = useRunStream(id)
 
   // A prompt with no variables has nothing to fill in, so run it immediately.
   // Guarding on status (rather than a ref) both prevents re-triggering once
@@ -37,38 +29,29 @@ export function RunPage() {
   // here: run() flips status to 'running', and setState inside an effect
   // body would trigger a cascading render (react-hooks/set-state-in-effect).
   useEffect(() => {
-    if (status !== 'idle' || !version.data) return
-    if (version.data.variables.length === 0) {
+    if (status !== 'idle' || !prompt.data) return
+    if (prompt.data.variables.length === 0) {
       queueMicrotask(() => run({}))
     }
-  }, [version.data, run, status])
+  }, [prompt.data, run, status])
 
-  if (version.isPending) {
+  if (prompt.isPending) {
     return <Loading />
   }
-  if (version.isError || !version.data) {
-    return <LoadError>Could not load this version.</LoadError>
+  if (prompt.isError || !prompt.data) {
+    return <LoadError>Could not load this prompt.</LoadError>
   }
 
   return (
     <>
-      <PromptTabs
-        promptId={id}
-        versionNumber={version.data.number}
-        current={isCurrentRun}
-      />
+      <PromptTabs promptId={id} />
       {status === 'idle' ? (
-        <RunForm variables={version.data.variables} onRun={run} />
+        <RunForm variables={prompt.data.variables} onRun={run} />
       ) : (
         <section>
           <p>Status: {status}</p>
           <pre aria-label="response">{output}</pre>
           {status === 'failed' && failure && <ErrorAlert>{failure}</ErrorAlert>}
-          {runId && (
-            <p>
-              <Link to={`/prompts/${id}/runs/${runId}`}>Open this run</Link>
-            </p>
-          )}
         </section>
       )}
     </>

@@ -5,32 +5,32 @@ import { Loading } from './Loading'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import type { ModelsResponse } from '../lib/types'
-import { variableMismatch } from './versionFormValues'
+import { variableMismatch } from './promptFormValues'
 import type {
   VariableRow,
-  VersionFormValues,
-  VersionRequestBody,
-} from './versionFormValues'
+  PromptFormValues,
+  PromptRequestBody,
+} from './promptFormValues'
 
 const EFFORTS = ['low', 'medium', 'high']
 
-interface VersionFormProps {
-  initial: VersionFormValues
+interface PromptFormProps {
+  initial: PromptFormValues
   submitLabel: string
   submitClassName?: string
   pending: boolean
   error: unknown
-  onSubmit: (body: VersionRequestBody) => void
+  onSubmit: (body: PromptRequestBody) => void
 }
 
-export function VersionForm({
+export function PromptForm({
   initial,
   submitLabel,
   submitClassName,
   pending,
   error,
   onSubmit,
-}: VersionFormProps) {
+}: PromptFormProps) {
   const models = useQuery({
     queryKey: ['models'],
     queryFn: () => apiClient.get<ModelsResponse>('/api/models'),

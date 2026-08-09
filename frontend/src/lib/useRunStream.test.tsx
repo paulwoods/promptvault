@@ -3,12 +3,12 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { useEffect, type ReactNode } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { setToken } from './auth'
 import { server } from '../test/server'
 import { useRunStream } from './useRunStream'
 
-const RUN_URL = '/api/prompts/p1/versions/1/runs'
+const RUN_URL = '/api/prompts/p1/run'
 
 function sseStream() {
   let controller!: ReadableStreamDefaultController<Uint8Array>
@@ -37,7 +37,7 @@ function makeWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/prompts/p1/versions/1/run']}>
+        <MemoryRouter initialEntries={['/prompts/p1/run']}>
           <LocationProbe />
           {children}
         </MemoryRouter>
@@ -48,11 +48,11 @@ function makeWrapper(queryClient: QueryClient) {
 
 beforeEach(() => {
   setToken('t')
-  currentPath = '/prompts/p1/versions/1/run'
+  currentPath = '/prompts/p1/run'
 })
 
 describe('useRunStream', () => {
-  it('streams tokens to completion and invalidates the run list', async () => {
+  it('streams tokens to completion', async () => {
     const { stream, push, close } = sseStream()
     server.use(
       http.post(
@@ -64,21 +64,16 @@ describe('useRunStream', () => {
       ),
     )
     const queryClient = new QueryClient()
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
 
-    const { result } = renderHook(() => useRunStream('p1', '1'), {
+    const { result } = renderHook(() => useRunStream('p1'), {
       wrapper: makeWrapper(queryClient),
     })
 
     act(() => result.current.run({}))
     await waitFor(() => expect(result.current.status).toBe('running'))
 
-    act(() => {
-      push('event:meta\ndata:{"runId":"r1","versionNumber":1}\n\n')
-      push('event:token\ndata:{"text":"Hello"}\n\n')
-    })
+    act(() => push('event:token\ndata:{"text":"Hello"}\n\n'))
     await waitFor(() => expect(result.current.output).toBe('Hello'))
-    expect(result.current.runId).toBe('r1')
 
     act(() => {
       push(
@@ -88,7 +83,6 @@ describe('useRunStream', () => {
     })
 
     await waitFor(() => expect(result.current.status).toBe('completed'))
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['runs'] })
   })
 
   it('sets failed status with the message from an error frame', async () => {
@@ -103,9 +97,8 @@ describe('useRunStream', () => {
       ),
     )
     const queryClient = new QueryClient()
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
 
-    const { result } = renderHook(() => useRunStream('p1', '1'), {
+    const { result } = renderHook(() => useRunStream('p1'), {
       wrapper: makeWrapper(queryClient),
     })
 
@@ -119,7 +112,6 @@ describe('useRunStream', () => {
 
     await waitFor(() => expect(result.current.status).toBe('failed'))
     expect(result.current.failure).toBe('Authentication with Claude failed')
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['runs'] })
   })
 
   it('redirects to the API key settings page on no_api_key instead of failing', async () => {
@@ -133,7 +125,7 @@ describe('useRunStream', () => {
     )
     const queryClient = new QueryClient()
 
-    const { result } = renderHook(() => useRunStream('p1', '1'), {
+    const { result } = renderHook(() => useRunStream('p1'), {
       wrapper: makeWrapper(queryClient),
     })
 
@@ -143,7 +135,7 @@ describe('useRunStream', () => {
     expect(result.current.status).toBe('running')
   })
 
-  it('resets to idle when promptId/versionNumber changes mid-run', async () => {
+  it('resets to idle when the prompt changes mid-run', async () => {
     const { stream, push } = sseStream()
     server.use(
       http.post(
@@ -157,10 +149,10 @@ describe('useRunStream', () => {
     const queryClient = new QueryClient()
 
     const { result, rerender } = renderHook(
-      ({ promptId, versionNumber }) => useRunStream(promptId, versionNumber),
+      ({ promptId }) => useRunStream(promptId),
       {
         wrapper: makeWrapper(queryClient),
-        initialProps: { promptId: 'p1', versionNumber: '1' },
+        initialProps: { promptId: 'p1' },
       },
     )
 
@@ -168,10 +160,9 @@ describe('useRunStream', () => {
     act(() => push('event:token\ndata:{"text":"Hello"}\n\n'))
     await waitFor(() => expect(result.current.output).toBe('Hello'))
 
-    rerender({ promptId: 'p1', versionNumber: '2' })
+    rerender({ promptId: 'p2' })
 
     expect(result.current.status).toBe('idle')
     expect(result.current.output).toBe('')
-    expect(result.current.runId).toBeNull()
   })
 })
