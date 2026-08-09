@@ -14,6 +14,7 @@ import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
+import { useRunStream } from '../lib/useRunStream'
 import type { ModelsResponse, PromptResponse } from '../lib/types'
 
 const EFFORTS = ['low', 'medium', 'high']
@@ -38,8 +39,64 @@ export function PromptConsolePage() {
   return (
     <>
       <PromptTabs promptId={id} />
-      <ConsoleForm promptId={id} prompt={prompt.data} />
+      <div className="console-layout">
+        <ConsoleForm promptId={id} prompt={prompt.data} />
+        <RunPane promptId={id} prompt={prompt.data} />
+      </div>
     </>
+  )
+}
+
+/**
+ * The right half of the Console: a Run button that fires the prompt at its
+ * current stored values, and a tall read-only textarea beneath it that fills
+ * with the run's output as it streams. Reuses the same plumbing the dedicated
+ * Run page does (useRunStream) so the prompt stays editable on the left while
+ * the result accumulates here. Variables are sent at their declared default
+ * values — the Console is for shaping the prompt, and a variable that needs a
+ * fresh value each run belongs on the Run page.
+ */
+function RunPane({
+  promptId,
+  prompt,
+}: {
+  promptId: string
+  prompt: PromptResponse
+}) {
+  const { status, output, failure, run } = useRunStream(promptId)
+
+  function handleRun() {
+    const values = Object.fromEntries(
+      prompt.variables.map((variable) => [
+        variable.name,
+        variable.defaultValue ?? '',
+      ]),
+    )
+    run(values)
+  }
+
+  return (
+    <section className="run-pane" aria-label="Run">
+      <div className="run-output-wrap">
+        <textarea
+          className="run-output"
+          aria-label="Run output"
+          readOnly
+          value={output}
+        />
+        <button
+          type="button"
+          className="run-button button-gold"
+          onClick={handleRun}
+          disabled={status === 'running'}
+          aria-label={status === 'running' ? 'Running…' : 'Run prompt'}
+          title={status === 'running' ? 'Running…' : 'Run prompt'}
+        >
+          <PlayIcon />
+        </button>
+      </div>
+      {failure && <ErrorAlert>{failure}</ErrorAlert>}
+    </section>
   )
 }
 
@@ -138,6 +195,22 @@ function CheckIcon() {
   )
 }
 
+function PlayIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M7 5l13 7-13 7z" />
+    </svg>
+  )
+}
+
 function XIcon() {
   return (
     <svg
@@ -175,6 +248,10 @@ interface InlineFieldProps {
   fill?: boolean
   /** No legal alternative to the stored value — reads as text, with no editor. */
   fixed?: boolean
+  /** Hide the visible name — the surrounding context (e.g. the tab) already
+   * labels the field, so the name is redundant visually but kept for screen
+   * readers via aria-labelledby. */
+  hideLabel?: boolean
 }
 
 /**
@@ -191,6 +268,7 @@ function InlineField({
   rows,
   fill,
   fixed,
+  hideLabel,
 }: InlineFieldProps) {
   const labelId = `${name}-label`
   const valueId = `${name}-value`
@@ -212,8 +290,12 @@ function InlineField({
     <>
       <div className={`inline-field${fill ? ' inline-field-fill' : ''}`}>
         {/* No <label>: read mode has no form control to label, so the field
-            name is a span both modes point at with aria-labelledby. */}
-        <span className="inline-field-name" id={labelId}>
+            name is a span both modes point at with aria-labelledby. Hidden
+            when the surrounding context already names the field. */}
+        <span
+          className={`inline-field-name${hideLabel ? ' visually-hidden' : ''}`}
+          id={labelId}
+        >
           {label}
         </span>
         {field.editing ? (
@@ -458,7 +540,7 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
     mismatch ?? (mutation.error != null ? errorMessage(mutation.error) : null)
 
   return (
-    <>
+    <section className="console-form">
       <nav className="console-tabs" aria-label="Console sections">
         <button
           type="button"
@@ -614,6 +696,7 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
             label="User Prompt"
             field={promptText}
             fill
+            hideLabel
           />
         )}
         {tab === 'systemPrompt' && (
@@ -623,9 +706,10 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
             field={systemPrompt}
             emptyLabel="Add a system prompt"
             fill
+            hideLabel
           />
         )}
       </form>
-    </>
+    </section>
   )
 }

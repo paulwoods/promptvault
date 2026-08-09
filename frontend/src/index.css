@@ -485,6 +485,19 @@ select {
   cursor: pointer;
 }
 
+/* Removed from layout but still announced by screen readers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Buttons */
 button {
   font-family: var(--font-body);
@@ -810,7 +823,7 @@ fieldset > div:last-child {
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-8);
-  height: calc(100svh - 240px);
+  height: calc((100svh - 240px) * 0.9);
   min-height: 240px;
 }
 
@@ -845,6 +858,11 @@ fieldset > div:last-child {
   align-self: stretch;
   overflow: auto;
   white-space: pre-wrap;
+  /* A <button> centers its content vertically; in fill mode that parks the
+     prompt in the middle of a tall box, so anchor it to the top. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .inline-save,
@@ -862,6 +880,66 @@ fieldset > div:last-child {
 
 .inline-cancel {
   color: var(--error);
+}
+
+/* The Console's two-column layout: the inline-edit form on the left, the Run
+   pane on the right. align-items: start lets each column keep its own height —
+   the form is short on the Details tab while the Run pane stays tall. */
+.console-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-20);
+  align-items: start;
+}
+
+/* The left column: the section tabs above the form. The wrapper exists so
+   the grid sees one cell here — without it the tabs and form are separate
+   grid children and the form wraps to a second row under the Run pane. */
+.console-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The form's global max-width caps it on full-width pages; in the half-column
+   it should fill the column beside the Run pane. */
+.console-form > form {
+  max-width: none;
+}
+
+/* The right half: a tall, read-only results area that fills whatever height
+   the left column reaches, with the Run button floating at its bottom-right
+   corner. */
+.run-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-height: calc(100svh - 240px);
+}
+
+/* Positioning context for the floating Run button over the output. */
+.run-output-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 240px;
+}
+
+.run-output {
+  flex: 1;
+  resize: none;
+}
+
+.run-button {
+  position: absolute;
+  right: var(--space-8);
+  bottom: var(--space-8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 14px;
 }
 
 .button-gold {
