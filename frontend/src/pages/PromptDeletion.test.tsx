@@ -54,8 +54,10 @@ describe('prompt deletion and trash', () => {
       }),
     )
 
-    renderApp('/prompts/p1/edit')
-    await screen.findByRole('link', { name: 'Prompt Vault - Edit: ToDelete' })
+    renderApp('/prompts/p1/console')
+    await screen.findByRole('link', {
+      name: 'Prompt Vault - Console: ToDelete',
+    })
 
     // No confirmation dialog: a single click fires the delete immediately.
     await user.click(screen.getByRole('button', { name: 'Delete' }))

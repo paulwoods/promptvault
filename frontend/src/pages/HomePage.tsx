@@ -100,17 +100,19 @@ export function HomePage() {
               aria-label={`View ${prompt.name}`}
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest('a, button')) return
-                navigate(`/prompts/${prompt.promptId}`)
+                navigate(`/prompts/${prompt.promptId}/console`)
               }}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  navigate(`/prompts/${prompt.promptId}`)
+                  navigate(`/prompts/${prompt.promptId}/console`)
                 }
               }}
             >
-              <Link to={`/prompts/${prompt.promptId}`}>{prompt.name}</Link>
+              <Link to={`/prompts/${prompt.promptId}/console`}>
+                {prompt.name}
+              </Link>
               {prompt.description && (
                 <p className="prompt-card-description">{prompt.description}</p>
               )}

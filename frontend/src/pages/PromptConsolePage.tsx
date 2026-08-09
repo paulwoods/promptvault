@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { PromptTabs } from '../components/PromptTabs'
+import type { PromptRequestBody } from '../components/promptFormValues'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
@@ -13,6 +13,12 @@ import type { ModelsResponse, PromptResponse } from '../lib/types'
 
 const EFFORTS = ['low', 'medium', 'high']
 const THINKING = ['off', 'adaptive']
+
+// Appended to a prompt's name when duplicating it. The source name is
+// truncated first so the result stays under the backend's @Size(max = 200)
+// cap on PromptRequest.name -- otherwise duplicating a near-ceiling name 400s.
+const COPY_SUFFIX = ' copy'
+const NAME_MAX_LENGTH = 200
 
 export function PromptConsolePage() {
   const { id = '' } = useParams()
@@ -31,13 +37,10 @@ export function PromptConsolePage() {
   }
 
   return (
-    <>
-      <PromptTabs promptId={id} />
-      <div className="console-layout">
-        <ConsoleForm promptId={id} prompt={prompt.data} />
-        <RunPane promptId={id} />
-      </div>
-    </>
+    <div className="console-layout">
+      <ConsoleForm promptId={id} prompt={prompt.data} />
+      <RunPane promptId={id} />
+    </div>
   )
 }
 
@@ -57,24 +60,22 @@ function RunPane({ promptId }: { promptId: string }) {
 
   return (
     <section className="run-pane" aria-label="Run">
-      <div className="run-output-wrap">
-        <textarea
-          className="run-output"
-          aria-label="Run output"
-          readOnly
-          value={output}
-        />
-        <button
-          type="button"
-          className="run-button button-gold"
-          onClick={handleRun}
-          disabled={status === 'running'}
-          aria-label={status === 'running' ? 'Running…' : 'Run prompt'}
-          title={status === 'running' ? 'Running…' : 'Run prompt'}
-        >
-          <PlayIcon />
-        </button>
-      </div>
+      <button
+        type="button"
+        className="run-button button-gold"
+        onClick={handleRun}
+        disabled={status === 'running'}
+        aria-label={status === 'running' ? 'Running…' : 'Run prompt'}
+        title={status === 'running' ? 'Running…' : 'Run prompt'}
+      >
+        <PlayIcon />
+      </button>
+      <textarea
+        className="run-output"
+        aria-label="Run output"
+        readOnly
+        value={output}
+      />
       {failure && <ErrorAlert>{failure}</ErrorAlert>}
     </section>
   )
@@ -206,6 +207,48 @@ function XIcon() {
       focusable="false"
     >
       <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  )
+}
+
+function CopyIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="8" y="8" width="14" height="14" rx="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M10 11v6M14 11v6" />
     </svg>
   )
 }
@@ -377,9 +420,9 @@ function InlineField({
 }
 
 /**
- * The Console's own copy of the prompt form, inlined off the shared PromptForm
- * so it can diverge into inline-editable fields (Phase 13). PromptForm stays
- * where it is, serving Create and Duplicate.
+ * The Console's inline-editable prompt form. Each field reads from the
+ * ['prompt', id] query and PATCH is its only in-page writer; Create (from
+ * Home) and Duplicate (the action below) are the other writers of a prompt.
  *
  * Kept a separate component rather than folded into the page: it must not
  * mount until the prompt has loaded, because its state is seeded once from
@@ -449,6 +492,33 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
       navigate('/')
     },
   })
+
+  // Duplicates the prompt as stored: POSTs a new prompt with the current
+  // content and a "copy"-suffixed name, then lands on the copy's Console.
+  // No confirmation, matching Delete (ADR-0004): the copy is trivial to remove.
+  const duplicatePrompt = useMutation({
+    mutationFn: () =>
+      apiClient.post<PromptResponse>('/api/prompts', {
+        name:
+          prompt.name.slice(0, NAME_MAX_LENGTH - COPY_SUFFIX.length) +
+          COPY_SUFFIX,
+        description: prompt.description ?? null,
+        promptText: prompt.promptText,
+        systemPrompt: prompt.systemPrompt ?? null,
+        model: prompt.model,
+        maxTokens: prompt.maxTokens,
+        effort: prompt.effort,
+        thinking: prompt.thinking,
+      } satisfies PromptRequestBody),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      navigate(`/prompts/${data.promptId}/console`)
+    },
+  })
+
+  // The two actions sit side by side and both fire immediately; disable both
+  // while either is in flight so their competing onSuccess navigations can't race.
+  const actionPending = deletePrompt.isPending || duplicatePrompt.isPending
 
   // Read off the stored model, not a Model draft: an uncommitted pick must not
   // reshape the fields around it.
@@ -535,14 +605,30 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
             <div className="actions">
               <button
                 type="button"
-                disabled={deletePrompt.isPending}
-                onClick={() => deletePrompt.mutate()}
+                className="action-icon"
+                disabled={actionPending}
+                onClick={() => duplicatePrompt.mutate()}
+                aria-label="Duplicate"
+                title="Duplicate"
               >
-                Delete
+                <CopyIcon />
+              </button>
+              <button
+                type="button"
+                className="action-icon"
+                disabled={actionPending}
+                onClick={() => deletePrompt.mutate()}
+                aria-label="Delete"
+                title="Delete"
+              >
+                <TrashIcon />
               </button>
             </div>
             {deletePrompt.isError && (
               <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
+            )}
+            {duplicatePrompt.isError && (
+              <ErrorAlert>{errorMessage(duplicatePrompt.error)}</ErrorAlert>
             )}
           </>
         )}

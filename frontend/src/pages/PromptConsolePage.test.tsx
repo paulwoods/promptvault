@@ -45,8 +45,8 @@ async function editDescription(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
- * Pins the Console's behavior mechanism-by-mechanism so the form can be inlined
- * off PromptForm and proven faithful by an unchanged suite (Phase 13.3/13.4).
+ * Pins the Console's behavior mechanism-by-mechanism: each inline-edited field,
+ * the run pane, and the prompt-level actions (Delete, Duplicate).
  */
 describe('prompt console', () => {
   it('seeds every field from the loaded prompt', async () => {
@@ -390,7 +390,84 @@ describe('prompt console', () => {
     expect(deleted).toBe(true)
   })
 
-  it('shows the tabs while the models query is still pending', async () => {
+  it('duplicates the prompt with a "copy" name and opens the copy Console', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let posted: unknown
+    server.use(
+      getPrompt({ name: 'Greeting' }),
+      // A duplicate POSTs to /api/prompts (create), never PUTs to
+      // /api/prompts/p1 (overwrite the source) -- no PUT handler is registered,
+      // so hitting it would fail the test via onUnhandledRequest: 'error'.
+      http.post('/api/prompts', async ({ request }) => {
+        posted = await request.json()
+        return HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: 'Greeting copy' }),
+          { status: 201 },
+        )
+      }),
+      http.get('/api/prompts/p2', () =>
+        HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: 'Greeting copy' }),
+        ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Duplicate' }))
+
+    // A new prompt is created from the stored content with a "copy" suffix on
+    // the name; the source is left untouched.
+    await waitFor(() =>
+      expect(posted).toMatchObject({
+        name: 'Greeting copy',
+        promptText: 'Hello {{topic}}',
+        model: 'claude-opus-4-8',
+        systemPrompt: 'Be brief',
+      }),
+    )
+    // The copy opens on its own Console.
+    expect(
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Console: Greeting copy',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('truncates a near-ceiling name so the copy stays under the 200-char cap', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    // 200 chars -- the backend's @Size(max = 200) ceiling. Appending " copy"
+    // would make 205 and the create would 400; the source is truncated first.
+    const longName = 'a'.repeat(200)
+    const expectedName = 'a'.repeat(195) + ' copy'
+    let posted: unknown
+    server.use(
+      getPrompt({ name: longName }),
+      http.post('/api/prompts', async ({ request }) => {
+        posted = await request.json()
+        return HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: expectedName }),
+          { status: 201 },
+        )
+      }),
+      http.get('/api/prompts/p2', () =>
+        HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: expectedName }),
+        ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Duplicate' }))
+
+    await waitFor(() =>
+      expect((posted as { name: string }).name).toBe(expectedName),
+    )
+    expect((posted as { name: string }).name).toHaveLength(200)
+  })
+
+  it('waits on the models query before rendering the form and its actions', async () => {
     setToken('t')
     server.use(
       getPrompt(),
@@ -402,17 +479,17 @@ describe('prompt console', () => {
 
     renderApp('/prompts/p1/console')
 
-    // The prompt has loaded, so the tabs render; the form and its actions --
-    // Delete included -- wait on the models query.
-    expect(
-      await screen.findByRole('link', { name: 'View' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    // The prompt has loaded, but the form -- and its Delete/Duplicate actions --
+    // wait on the models query, so only the form's loading state shows.
+    expect(await screen.findByText('Loading…')).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /^Name / }),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Delete' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Duplicate' }),
     ).not.toBeInTheDocument()
   })
 })
