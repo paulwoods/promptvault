@@ -33,6 +33,15 @@ function getPrompt(overrides: Record<string, unknown> = {}) {
 }
 
 /**
+ * Name reads as plain text until clicked, so there is no form control to query
+ * in read mode. Clicks the value to swap in the editor and returns the input.
+ */
+async function editName(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: /^Name / }))
+  return screen.getByRole('textbox', { name: 'Name' })
+}
+
+/**
  * Pins the Console's behavior mechanism-by-mechanism so the form can be inlined
  * off PromptForm and proven faithful by an unchanged suite (Phase 13.3/13.4).
  * The five placeholder/variable cases live in CreateEditPrompt.test.tsx: they
@@ -46,7 +55,10 @@ describe('prompt console', () => {
 
     renderApp('/prompts/p1/console')
 
-    expect(await screen.findByLabelText('Name')).toHaveValue('Greeting')
+    // Name reads as text, not a field, until it is clicked.
+    expect(
+      await screen.findByRole('button', { name: 'Name Greeting' }),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText('Description')).toHaveValue('A greeting')
     expect(screen.getByLabelText('User Prompt')).toHaveValue('Hello {{topic}}')
     expect(screen.getByLabelText('System Prompt')).toHaveValue('Be brief')
@@ -116,7 +128,7 @@ describe('prompt console', () => {
     renderApp('/prompts/p1/console')
     // Name is inline-edited, so an uncommitted draft must not ride along on the
     // PUT -- the body carries the name the query holds.
-    const nameField = await screen.findByLabelText('Name')
+    const nameField = await editName(user)
     await user.clear(nameField)
     await user.type(nameField, 'Uncommitted')
     const tokens = screen.getByLabelText('Max tokens')
@@ -152,18 +164,15 @@ describe('prompt console', () => {
     )
 
     renderApp('/prompts/p1/console')
-    const nameField = await screen.findByLabelText('Name')
+    const nameField = await editName(user)
     await user.clear(nameField)
     await user.type(nameField, 'Renamed')
     await user.click(screen.getByRole('button', { name: 'Save name' }))
 
     // Back in read mode, showing the value the PATCH itself returned.
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: 'Save name' }),
-      ).not.toBeInTheDocument(),
-    )
-    expect(nameField).toHaveValue('Renamed')
+    expect(
+      await screen.findByRole('button', { name: 'Name Renamed' }),
+    ).toBeInTheDocument()
     expect(patched).toEqual({ name: 'Renamed' })
     // setQueryData, not invalidate: the detail query is never refetched.
     expect(gets).toBe(1)
@@ -175,12 +184,16 @@ describe('prompt console', () => {
     server.use(getPrompt())
 
     renderApp('/prompts/p1/console')
-    const nameField = await screen.findByLabelText('Name')
+    await screen.findByRole('button', { name: 'Name Greeting' })
+    // Read mode is text: no field, and nothing to commit.
+    expect(
+      screen.queryByRole('textbox', { name: 'Name' }),
+    ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Save name' }),
     ).not.toBeInTheDocument()
 
-    await user.click(nameField)
+    const nameField = await editName(user)
     expect(screen.getByRole('button', { name: 'Save name' })).toBeDisabled()
 
     await user.type(nameField, '!')
@@ -209,7 +222,7 @@ describe('prompt console', () => {
     )
 
     renderApp('/prompts/p1/console')
-    const nameField = await screen.findByLabelText('Name')
+    const nameField = await editName(user)
     await user.clear(nameField)
     await user.type(nameField, 'Renamed{Enter}')
 
@@ -224,16 +237,19 @@ describe('prompt console', () => {
     server.use(getPrompt())
 
     renderApp('/prompts/p1/console')
-    const nameField = await screen.findByLabelText('Name')
+    const nameField = await editName(user)
     await user.clear(nameField)
     await user.type(nameField, 'Discarded')
     expect(nameField).toHaveValue('Discarded')
 
     await user.type(nameField, '{Escape}')
 
-    expect(nameField).toHaveValue('Greeting')
+    // Back to read mode showing the stored name; the draft is gone with it.
     expect(
-      screen.queryByRole('button', { name: 'Save name' }),
+      screen.getByRole('button', { name: 'Name Greeting' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('textbox', { name: 'Name' }),
     ).not.toBeInTheDocument()
   })
 
@@ -255,7 +271,7 @@ describe('prompt console', () => {
     )
 
     renderApp('/prompts/p1/console')
-    const nameField = await screen.findByLabelText('Name')
+    const nameField = await editName(user)
     await user.clear(nameField)
     await user.type(nameField, 'Rejected')
     await user.click(screen.getByRole('button', { name: 'Save name' }))
@@ -344,7 +360,9 @@ describe('prompt console', () => {
       await screen.findByRole('link', { name: 'View' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Loading…')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /^Name / }),
+    ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Delete' }),
     ).not.toBeInTheDocument()

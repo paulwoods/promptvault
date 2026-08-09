@@ -98,11 +98,11 @@ function useInlineField(promptId: string, field: string, stored: string) {
     committable,
     save,
     commit,
+    // Only reachable from read mode — the editor replaces the trigger that
+    // calls it — so it needs no already-editing guard.
     beginEditing: () => {
-      if (!editing) {
-        setDraft(stored)
-        setEditing(true)
-      }
+      setDraft(stored)
+      setEditing(true)
     },
     setDraft,
     cancel: () => setEditing(false),
@@ -242,27 +242,34 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
     >
       <fieldset className="form-section">
         <legend>Profile</legend>
-        <label>
-          Name
-          <div className="inline-field-row">
-            <input
-              name="name"
-              placeholder="Name"
-              value={name.value}
-              onFocus={name.beginEditing}
-              onChange={(event) => name.setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  // Without this the outer form submits and the PUT overwrites
-                  // every other field from `values`.
-                  event.preventDefault()
-                  name.commit()
-                } else if (event.key === 'Escape') {
-                  name.cancel()
-                }
-              }}
-            />
-            {name.editing && (
+        <div className="inline-field">
+          {/* No <label>: read mode has no form control to label, so the field
+              name is a span both modes point at with aria-labelledby. */}
+          <span className="inline-field-name" id="name-label">
+            Name
+          </span>
+          {name.editing ? (
+            <div className="inline-field-row">
+              <input
+                name="name"
+                aria-labelledby="name-label"
+                placeholder="Name"
+                // The click that opened the editor landed on the text, not this
+                // input, so without it the user would have to click twice.
+                autoFocus
+                value={name.value}
+                onChange={(event) => name.setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    // Without this the outer form submits and the PUT overwrites
+                    // every other field from `values`.
+                    event.preventDefault()
+                    name.commit()
+                  } else if (event.key === 'Escape') {
+                    name.cancel()
+                  }
+                }}
+              />
               <button
                 type="button"
                 className="inline-save"
@@ -273,9 +280,22 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
               >
                 <CheckIcon />
               </button>
-            )}
-          </div>
-        </label>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="inline-value"
+              id="name-value"
+              // Names it "Name Greeting" rather than a bare "Greeting", keeping
+              // the field context the layout conveys visually.
+              aria-labelledby="name-label name-value"
+              title="Edit name"
+              onClick={name.beginEditing}
+            >
+              {name.value}
+            </button>
+          )}
+        </div>
         {name.save.isError && (
           <ErrorAlert>{errorMessage(name.save.error)}</ErrorAlert>
         )}
