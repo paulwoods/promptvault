@@ -927,6 +927,7 @@ fieldset > div:last-child {
 .run-output {
   flex: 1;
   resize: none;
+  background: transparent;
 }
 
 .run-button {
