@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -46,6 +47,13 @@ public class PromptController {
         return PromptResponse.from(promptService.updatePrompt(currentUser.userId(), promptId, request));
     }
 
+    /** Partial edit: only the fields present in the body change. Validated once merged, in the service. */
+    @PatchMapping("/{promptId}")
+    public PromptResponse patchPrompt(@PathVariable UUID promptId, @RequestBody PromptPatchRequest patch) {
+        logPatch(promptId, patch);
+        return PromptResponse.from(promptService.patchPrompt(currentUser.userId(), promptId, patch));
+    }
+
     @GetMapping
     public Page<PromptSummary> listPrompts(
             @RequestParam(required = false) String q, @RequestParam(required = false) Integer page) {
@@ -77,6 +85,23 @@ public class PromptController {
         log.debug("restorePrompt(userId={}, promptId={})", currentUser.userId(), promptId);
         promptService.restorePrompt(currentUser.userId(), promptId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Which fields the patch carries, plus the same shapes and lengths logRequest allows (leak hygiene). */
+    private void logPatch(UUID promptId, PromptPatchRequest patch) {
+        log.debug(
+                "patchPrompt(userId={}, promptId={}, name={}, model={}, maxTokens={}, effort={}, thinking={},"
+                        + " promptText.len={}, systemPrompt.len={}, variables.count={})",
+                currentUser.userId(),
+                promptId,
+                patch.name(),
+                patch.model(),
+                patch.maxTokens(),
+                patch.effort(),
+                patch.thinking(),
+                patch.promptText() == null ? "absent" : patch.promptText().length(),
+                patch.systemPrompt() == null ? "absent" : patch.systemPrompt().length(),
+                patch.variables() == null ? "absent" : patch.variables().size());
     }
 
     /** Shapes and lengths only — never the prompt text or system prompt themselves (leak hygiene). */
