@@ -18,6 +18,6 @@ EXPOSE 8080
 # 127.0.0.1, not localhost: that also resolves to ::1, and the JVM listens on
 # IPv4 only. start-period covers a ~45s cold boot on a 1-vCPU host.
 HEALTHCHECK --interval=2m --timeout=5s --start-period=60s --retries=3 \
-  CMD curl -f http://127.0.0.1:8080/actuator/health || exit 1
+  CMD curl -f http://127.0.0.1:8080/api/hello || exit 1
 
 ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-jar", "app.jar"]

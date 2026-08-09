@@ -73,12 +73,15 @@ Ordering rule: each phase depends on the ones before it. Tests are written at th
 - **GCM parameters & layout:** fresh random 96-bit (12-byte) IV per encryption (never reused), 128-bit auth tag, stored as three `bytea` columns (`iv`, `ciphertext`, `auth_tag`). **AAD = the user's UUID** (binds each ciphertext to its owner; a copied row fails to decrypt).
 - **Save validation:** store after a minimal non-blank/trimmed check only — **no live Anthropic call**, **no format/prefix assumption**. Invalid keys surface as a failed Run (Phase 6).
 - **Status response:** `{ "hasKey": boolean, "updatedAt"? }` — no key fragment, no last-4.
+  *(Amended by PRD story 54 / Phase 15.1: `GET /api/me/api-key` also returns `lastSix` — the last
+  six characters of the stored key — so a user can tell which key is saved. The full key is never
+  returned. See migration V6 and `ApiKeyStatus.lastSix`.)*
 - **Endpoints:** `PUT /api/me/api-key` (idempotent upsert — first set *and* replace, body `{ "apiKey": "..." }`) and `GET /api/me/api-key` (status). **No `DELETE`** (no story asks to clear a key).
 - **Rotation readiness:** an `enc_key_version` marker column on `api_key` (default `1`), read on decrypt — satisfies ADR-0002's "plan a path" without building rotation tooling (which stays out of scope per the PRD).
 
 - [x] **3.1 AES-256-GCM encryption service** keyed from `PROMPTVAULT_ENC_KEY` (base64 32-byte, fail-fast startup validation). Encrypt → fresh 12-byte IV, 128-bit tag, AAD = user UUID. → *verify: round-trip encrypt/decrypt; missing/malformed env key prevents boot with a clear error; decrypt under a different UUID (AAD mismatch) fails.*
 - [x] **3.2 Migration: `api_key` table** — UUIDv7 PK, unique `user_id` FK, `iv`/`ciphertext`/`auth_tag` (`bytea`), `enc_key_version` (default 1), `created_at`/`updated_at`. → *verify: migration applies; one row per user enforced.*
-- [x] **3.3 `PUT` (upsert) + `GET` (status) `/api/me/api-key`.** → *verify (HTTP): `PUT` stores the first key and replaces an existing one; `GET` returns `{ hasKey, updatedAt }`; blank/whitespace key rejected with structured error.*
+- [x] **3.3 `PUT` (upsert) + `GET` (status) `/api/me/api-key`.** → *verify (HTTP): `PUT` stores the first key and replaces an existing one; `GET` returns `{ hasKey, updatedAt, lastSix }`; blank/whitespace key rejected with structured error.*
 - [x] **3.4 Phase-3 acceptance tests (HTTP front door).** → *verify:* (1) a submitted key round-trips **decrypted** to the fake Claude client on a Run *(cross-phase, with Phase 5)*; (2) plaintext is **never** returned by any response (`PUT` echo or `GET`); (3) reading the `api_key` row directly shows stored bytes **differ from plaintext** and IV/tag are present; (4) AAD binding holds — a row decrypted under another user's UUID fails.
 
 ## Phase 4 — Domain model: Prompts & immutable Versions *(stories 12–25, ADR-0001)*
@@ -259,6 +262,9 @@ Gaps surfaced during a post-MVP project review (2026-07-01): real product gaps, 
 - [x] **9.6.2 Frontend: version pickers on `PromptDetailPage`** — two selects (`from`/`to`) plus a "Compare" link to `/prompts/:id/compare?from=N&to=M`. → *verify (RTL): selecting two versions and clicking Compare navigates to the right URL.*
 - [x] **9.6.3 Frontend: `CompareVersionsPage`** — fetches both Versions (existing endpoint), renders a word-level diff of `prompt_text` and an "old → new" list of every other field that differs (name, description, model, system_prompt, max_tokens, effort, thinking, variables); fields with no change are omitted. → *verify (RTL + MSW): a text change renders as a word-level diff; a Run Settings change (e.g. model) renders as old → new; unchanged fields don't appear; comparing a Version to itself shows no differences.*
 
+> *Removed in Phase 12.7 (ADR-0007): Versions, the version-diff view, `CompareVersionsPage`, and the `diff` dependency were deleted when Prompts became mutable and Version history was dropped. Kept above as the historical record of what was built.*
+
+
 ## Phase 10 — Frontend check-hook hardening *(code review findings, 2026-07-04)*
 
 Findings from a high-effort review of commit `5e4730e` (the PostToolUse typecheck/lint hook in
@@ -373,7 +379,7 @@ end at View / Console / Duplicate.
 - **Destination:** the Console **replaces** Edit and Run — not an additional power-user surface. Tabs go five → three.
 - **Save model:** `PUT` for the Console's first iteration; `PATCH /api/prompts/{id}` gains its consumer when the fields convert to inline-editable. `PATCH` is committed with tests before that consumer exists. *(The 13.5 grilling revised this: the fields use a Console-local `useInlineField`, **not** the shared `useEditableField` — see the 13.5 decision block for why the shared hook could not be reused.)*
 - **Why `PATCH` at all:** ADR-0007 accepts last-write-wins. `PATCH` narrows each clobber from *every field* to *only the fields that tab touched* — the honest justification for the endpoint, and the mitigation that keeps incremental saving from escalating to optimistic locking.
-- **Blocking constraint, recorded now and solved when autosave lands:** `patchPrompt` validates the *merged* result, including `placeholderValidator.validateSetEquality`. Prompt text and Variables are an **atomic pair** — adding `{{topic}}` fails until `topic` is declared, and declaring `topic` fails until it is used; **no ordering makes each step individually valid.** Field-at-a-time autosave of either is not implementable. They commit together, or the save is held until consistent. `variableMismatch()` already computes exactly that predicate client-side.
+- **Blocking constraint, recorded now and solved when autosave lands:** `patchPrompt` validates the *merged* result, including `placeholderValidator.validateSetEquality`. Prompt text and Variables are an **atomic pair** — adding `{{topic}}` fails until `topic` is declared, and declaring `topic` fails until it is used; **no ordering makes each step individually valid.** Field-at-a-time autosave of either is not implementable. They commit together, or the save is held until consistent. `variableMismatch()` already computes exactly that predicate client-side. *(Amended by ADR-0009: Variables and `variableMismatch()` were removed; prompt text is run verbatim and there is no set-equality gate.)*
 - **First change is a pure refactor:** inline only. Identical behavior, identical DOM, no run panel, no layout work. The run panel and inline-editing land as separate commits.
 - **Structure:** two components in one file — `PromptConsolePage` (prompt query, load gates, tabs, Delete) and a private `ConsoleForm` (models query, `values` state, markup). **Not** one flat function: hoisting `useState(toFormValues(prompt.data))` above the load gate throws on first render, and hoisting the models query silently inverts the fetch waterfall from sequential to parallel. `promptFormValues.ts` stays shared and untouched — `variableMismatch` is a pure function and Create/Duplicate still need `emptyPromptValues`/`toFormValues`.
 - **Tests precede the inline.** The Console has zero coverage today, so the suite would stay green even if the inlined copy dropped the mismatch gate entirely. Pin behavior first against the `PromptForm`-based page, then inline with the tests unchanged — that is what makes "pure refactor" verifiable in review rather than asserted.
@@ -417,6 +423,23 @@ page, the shared `PromptForm`, and the `PromptTabs` nav are deleted in the same 
 
 - [x] **14.1 Docs first: ADR-0010, banner, this phase.** Write `docs/adr/0010-…` amending ADR-0008's three-tab end-state and voiding its "PromptForm survives serving Create and Duplicate" consequence; add the amendment banner to 0008; list it in `docs/adr/README.md`. → *verify: ADR listed in the index with its amend status; no earlier ADR body rewritten.*
 - [x] **14.2 Collapse routes and delete the page components.** `RedirectToConsole` covers `/prompts/:id`, `/prompts/:id/edit`, and `/prompts/:id/duplicate`; delete `PromptViewPage`, `EditPromptPage`, `DuplicatePromptPage`, `PromptForm`, `PromptTabs`, and their tests; Duplicate becomes a button in the Console's Details section. → *verify (RTL + MSW): the three old paths redirect to `/prompts/:id/console`; Create and Duplicate still work as one-click actions into the Console; `npm run lint`, `typecheck`, `test`, and `build` clean.*
+
+---
+
+## Phase 15 — API-key status detail & theme toggle *(stories 54–55)*
+
+Two small post-MVP profile/UI features added to the PRD after the original scope (stories 54 and 55).
+Both are built; recorded here so every PRD story has a TASKS home.
+
+- [x] **15.1 API-key status shows a last-six fragment (story 54).** `GET /api/me/api-key` returns `lastSix`
+  (the last six characters of the stored key) alongside `hasKey`/`updatedAt`, so a user can tell *which*
+  key is saved without the full key ever being returned. Migration V6 adds the `last_six` column;
+  `ApiKeyStatus.lastSix` carries it; the frontend `ApiKeyStatus` type mirrors it. This amends Phase 3's
+  original "no key fragment" locked decision. → *verify (HTTP): `GET` returns `lastSix` for a stored key;
+  the full key is never present in any response.*
+- [x] **15.2 Light/dark theme toggle with remembered preference (story 55).** `useTheme` persists the choice
+  and `ThemeToggle` switches it; the app restores the saved theme on every visit. → *verify (RTL): toggling
+  changes the theme and the choice survives a reload.*
 
 ---
 

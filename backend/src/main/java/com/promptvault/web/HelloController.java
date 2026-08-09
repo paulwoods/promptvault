@@ -11,6 +11,7 @@ public class HelloController {
 
     private static final Logger log = LoggerFactory.getLogger(HelloController.class);
 
+    /** Public smoke/health endpoint (permitAll in the security config); also the Docker healthcheck target. */
     @GetMapping("/api/hello")
     public Map<String, String> hello() {
         log.debug("hello()");

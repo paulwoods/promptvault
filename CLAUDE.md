@@ -4,8 +4,9 @@
 
 ### Issue tracker
 
-Issues live as local markdown files under `.scratch/<feature-slug>/`. GitHub Issues is not
-used for this repo, and there is no PR triage surface. See `docs/agents/issue-tracker.md`.
+Issues are tracked as local markdown files under `.scratch/<feature-slug>/` (the directory is
+created on first use and is not present in a clean clone). GitHub Issues is not used for this
+repo, and there is no PR triage surface. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

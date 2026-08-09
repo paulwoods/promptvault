@@ -6,6 +6,7 @@ import { ErrorAlert } from '../components/ErrorAlert'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
+import type { RegisterResponse } from '../lib/types'
 
 export function RegisterPage() {
   usePageTitle('Create account')
@@ -14,7 +15,11 @@ export function RegisterPage() {
   const navigate = useNavigate()
 
   const mutation = useMutation({
-    mutationFn: () => apiClient.post('/api/auth/register', { email, password }),
+    mutationFn: () =>
+      apiClient.post<RegisterResponse>('/api/auth/register', {
+        email,
+        password,
+      }),
     onSuccess: () => navigate('/login', { replace: true }),
   })
 

@@ -1,6 +1,7 @@
 # Issue tracker: Local Markdown
 
-Issues and PRDs for this repo live as markdown files in `.scratch/`.
+Issues and PRDs for this repo are tracked as markdown files in `.scratch/` (the directory is
+created on first use and is not present in a clean clone).
 The GitHub repo (`paulwoods/promptvault`) is used for code hosting only — do not
 create, read, or triage GitHub Issues, and do not treat pull requests as a request surface.
 

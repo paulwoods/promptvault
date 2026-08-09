@@ -19,7 +19,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * committed JPA txns), not new machinery: write data, "restart" by booting a
  * second context against the same Postgres, and confirm the data is intact and
  * startup is clean under ddl-auto=validate + Flyway on the populated DB.
- * Run finalization is atomic (finalizeCompleted/finalizeFailed are @Transactional).
  */
 class DurabilityTest extends AbstractDatabaseTest {
 

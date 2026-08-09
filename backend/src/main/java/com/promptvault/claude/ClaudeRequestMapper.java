@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
  * Effort and thinking are already guaranteed legal for the Prompt's model by
  * {@link com.promptvault.prompt.RunSettingsValidator} at save time, so this
  * class only decides whether to forward effort (Haiku 400s if it's present at
- * all, regardless of value) and forwards thinking as-is. The rendered prompt
- * is the user message; the system prompt is sent separately.
+ * all, regardless of value) and forwards thinking as-is. The prompt text is sent
+ * verbatim as the user message (ADR-0009); the system prompt is sent separately.
  */
 @Component
 public class ClaudeRequestMapper {
