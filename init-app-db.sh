@@ -6,8 +6,6 @@
 #   docker compose exec postgres bash /docker-entrypoint-initdb.d/init-app-db.sh
 #
 # Reads from the environment (provided by postgres.env via docker compose):
-#   EQUIPMENT_DB_USERNAME  equipment role; also used as its database name
-#   EQUIPMENT_DB_PASSWORD  equipment role password
 #   PROMPTVAULT_DB_USERNAME     promptvault role (default: promptvault); also its database name
 #   PROMPTVAULT_DB_PASSWORD     promptvault role password
 set -euo pipefail

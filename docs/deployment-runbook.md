@@ -35,9 +35,9 @@ needed — the default profile reads these variables):
 
 | Variable | Purpose | Generate / value |
 |---|---|---|
-| `DATABASE_URL` | JDBC URL | `jdbc:postgresql://postgres:5432/promptvault` |
-| `DATABASE_USERNAME` | DB role | `promptvault` |
-| `DATABASE_PASSWORD` | DB password | strong random |
+| `SPRING_DATASOURCE_URL` | JDBC URL | `jdbc:postgresql://postgres:5432/promptvault` |
+| `SPRING_DATASOURCE_USERNAME` | DB role | `promptvault` |
+| `SPRING_DATASOURCE_PASSWORD` | DB password | strong random |
 | `PROMPTVAULT_ENC_KEY` | AES-256-GCM master key for stored API keys (ADR-0002). Must decode to exactly 32 bytes or the app refuses to start. | `openssl rand -base64 32` |
 | `PROMPTVAULT_JWT_SECRET` | HS256 signing secret, ≥ 256-bit | `openssl rand -base64 48` |
 
@@ -190,7 +190,7 @@ credentials to `postgres.env` on the droplet:
 
 ```bash
 # postgres.env — add:
-PROMPTVAULT_DB_PASSWORD=<same value as DATABASE_PASSWORD in promptvault.env>
+PROMPTVAULT_DB_PASSWORD=<same value as SPRING_DATASOURCE_PASSWORD in promptvault.env>
 ```
 
 The password lives in two files and must stay in sync: the backend
@@ -217,9 +217,9 @@ droplet.
 
 ```bash
 # --- Datasource (shared postgres container, database "promptvault") ---
-DATABASE_URL=jdbc:postgresql://postgres:5432/promptvault
-DATABASE_USERNAME=promptvault
-DATABASE_PASSWORD=xxxxxxxxxxxxxxxxxx
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/promptvault
+SPRING_DATASOURCE_USERNAME=promptvault
+SPRING_DATASOURCE_PASSWORD=xxxxxxxxxxxxxxxxxx
 
 # --- Encryption master key (base64, 32 bytes): openssl rand -base64 32 ---
 # Decrypts every user's stored Anthropic API key. Back it up. Do not lose it.
@@ -234,7 +234,7 @@ two tags are pinned independently (Part 2) — they are not expected to match:
 
 ```yaml
   promptvault-backend:
-    image: paulwoods/promptvault-backend:0.1.5
+    image: paulwoods/promptvault-backend:0.1.6
     env_file:
       - promptvault.env
     restart: unless-stopped
@@ -245,7 +245,7 @@ two tags are pinned independently (Part 2) — they are not expected to match:
           memory: 1g
 
   promptvault-frontend:
-    image: paulwoods/promptvault-frontend:0.0.4
+    image: paulwoods/promptvault-frontend:0.0.9
     restart: unless-stopped
     logging: *default-logging
     deploy:

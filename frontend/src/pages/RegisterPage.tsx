@@ -22,7 +22,7 @@ export function RegisterPage() {
     <div className="auth-page">
       <AuthHero
         title="Create your account"
-        subtitle="Store, version, and run your Claude prompts."
+        subtitle="Store and run your Claude prompts."
       />
       <form
         onSubmit={(event) => {

@@ -6,7 +6,7 @@ services:
       - .env
     environment:
       # postgres superuser db and credentials
-      POSTGRES_DB: ${POSTGRES_DB_URL:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: ${POSTGRES_DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD:-postgres}
     ports:
@@ -15,7 +15,7 @@ services:
 #      - promptvault-pgdata:/var/lib/postgresql
       - ./init-app-db.sh:/docker-entrypoint-initdb.d/init-app-db.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME:-promptvault} -d ${SPRING_DATASOURCE_URL:-promptvault}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 10

@@ -1,9 +1,10 @@
 # PRD: Prompt Vault (MVP)
 
-> **Historical document — describes the MVP as shipped.** Versions, Run history, and the Activity feed were removed afterwards; see [ADR-0007](../adr/0007-mutable-prompts-no-version-or-run-history.md). Stories below that depend on Versions, stored Runs, or Activity no longer describe the product, and the Out of Scope fence's references to Versions and Runs are correspondingly stale. Nothing here has been rewritten — this is the record of what was specified and built.
+> **Historical document — describes the MVP as shipped.** Versions, Run history, and the Activity feed were removed afterwards (ADR-0007); Variables were removed (ADR-0009); and the separate View, Edit, Run, and Duplicate pages were collapsed into the single Prompt Console (ADR-0008 and ADR-0010). Stories below that depend on Versions, stored Runs, Activity, Variables, or the separate Edit/Run/View/Duplicate pages no longer describe the product, and the Out of Scope fence's references to Versions and Runs are correspondingly stale. Nothing here has been rewritten — this is the record of what was specified and built.
 
-> Vocabulary in this document — **User, Prompt, Version, Variable, Run Settings, Run** — is defined in [
-`../CONTEXT.md`](../CONTEXT.md). Load-bearing decisions are recorded in [`docs/adr/`](../adr/README.md) and are treated
+> Vocabulary in this document — **User, Prompt, Run Settings, Trash** — is defined in
+> [`../CONTEXT.md`](../CONTEXT.md). Earlier drafts also use Version, Variable, and Run — terms since removed from the
+> glossary by ADR-0007 and ADR-0009. Load-bearing decisions are recorded in [`docs/adr/`](../adr/README.md) and are treated
 > as fixed constraints here.
 
 ## Problem Statement

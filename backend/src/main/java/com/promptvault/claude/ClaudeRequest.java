@@ -1,7 +1,7 @@
 package com.promptvault.claude;
 
 /**
- * An SDK-agnostic request to Claude built from a Version's Run Settings. The
+ * An SDK-agnostic request to Claude built from a Prompt's Run Settings. The
  * implementation decides which fields to forward per model (e.g. effort is
  * omitted for models that do not support it).
  */

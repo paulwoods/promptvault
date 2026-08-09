@@ -1,6 +1,8 @@
 # One Prompt Console replacing the separate Edit and Run pages
 
 > **Amended by [ADR-0009](0009-remove-variables.md).** The decision stands. Its "Prompt text and Variables must be saved as one unit" consequence is void — Variables are gone, so there is no declaration list for the text to agree with and no `variableMismatch()` predicate. The separate Run page this ADR left in place is deleted; the Console's click-to-run pane is the sole run surface.
+>
+> **Amended by [ADR-0010](0010-console-absorbs-view-and-duplicate.md).** The decision stands. Its "three tabs: View / Console / Duplicate" end-state never shipped — the Console absorbed View and Duplicate too, leaving the Console as the sole prompt surface, and `PromptForm` is deleted. See ADR-0010.
 
 Editing a [Prompt](../CONTEXT.md#prompt) and running it become one surface: the **Console**, at `/prompts/:id/console`.
 Fields are edited in place and saved incrementally rather than through a whole-form Save button, and the response
