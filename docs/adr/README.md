@@ -1,6 +1,7 @@
 # Architecture Decision Records
 
-Why Prompt Vault is shaped the way it is. Each ADR records *that* a decision was made and *why* — read these before reversing one of them. Domain vocabulary is defined in [`CONTEXT.md`](../../CONTEXT.md).
+Why Prompt Vault is shaped the way it is. Each ADR records *that* a decision was made and *why* — read these before
+reversing one of them. Domain vocabulary is defined in [`../CONTEXT.md`](../CONTEXT.md).
 
 Superseded and amended ADRs are kept, never deleted or rewritten — a reversed decision is still the reason the code looks the way it does. Each carries a banner at the top pointing at the ADR that changed it.
 

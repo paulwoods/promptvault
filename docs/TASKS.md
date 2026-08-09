@@ -1,6 +1,8 @@
 # Build Tasks: Prompt Vault (MVP)
 
-The ordered sequence of tasks to build Prompt Vault from the design docs. Each task lists what it delivers and how it's verified. Vocabulary follows [`CONTEXT.md`](../CONTEXT.md); constraints come from the [PRD](prd/prompt-vault-mvp.md) and the [ADRs](adr/README.md).
+The ordered sequence of tasks to build Prompt Vault from the design docs. Each task lists what it delivers and how it's
+verified. Vocabulary follows [`CONTEXT.md`](CONTEXT.md); constraints come from the [PRD](prd/prompt-vault-mvp.md) and
+the [ADRs](adr/README.md).
 
 Ordering rule: each phase depends on the ones before it. Tests are written at the seam the [PRD's Testing Decisions](prd/prompt-vault-mvp.md#testing-decisions) name (HTTP front door for the backend, the injected Claude-client for the model boundary, the rendered UI + MSW for the frontend), not against internal structure.
 
@@ -259,24 +261,50 @@ Gaps surfaced during a post-MVP project review (2026-07-01): real product gaps, 
 
 ## Phase 10 — Frontend check-hook hardening *(code review findings, 2026-07-04)*
 
-Findings from a high-effort review of commit `5e4730e` (the PostToolUse typecheck/lint hook in `.claude/settings.json`). Confirmed bugs: the hook derives the project dir by string-cutting the edited file's path at the *first* `/frontend/` occurrence (wrong directory → silent fail-open via `cd … || exit 0`); it silently no-ops for every edit if `jq` is missing; it hard-blocks every frontend edit in a fresh clone/worktree (no `node_modules` → opaque `npx --no-install` failure, exit 2); and it validates nothing but prettier formatting for `.js`/`.jsx` files (eslint config covers only `**/*.{ts,tsx}`, tsconfig has no `allowJs`). Adjacent gap: `.gitignore` doesn't cover `.claude/settings.local.json` while the commit skill runs `git add -A`. Lower-severity: full-project tsc+lint on every single edit (no file scoping, blocks intentionally-intermediate refactor states), the hand-rolled `tsc -b` duplicating half of the `build` script, timeout fail-open, and a `.tsbuildinfo` race under concurrent hook runs.
+Findings from a high-effort review of commit `5e4730e` (the PostToolUse typecheck/lint hook in
+`../.claude.000/settings.json`). Confirmed bugs: the hook derives the project dir by string-cutting the edited file's
+path at the *first* `/frontend/` occurrence (wrong directory → silent fail-open via `cd … || exit 0`); it silently
+no-ops for every edit if `jq` is missing; it hard-blocks every frontend edit in a fresh clone/worktree (no
+`node_modules` → opaque `npx --no-install` failure, exit 2); and it validates nothing but prettier formatting for `.js`/
+`.jsx` files (eslint config covers only `**/*.{ts,tsx}`, tsconfig has no `allowJs`). Adjacent gap: `.gitignore` doesn't
+cover `../.claude.000/settings.local.json` while the commit skill runs `git add -A`. Lower-severity: full-project
+tsc+lint on every single edit (no file scoping, blocks intentionally-intermediate refactor states), the hand-rolled
+`tsc -b` duplicating half of the `build` script, timeout fail-open, and a `.tsbuildinfo` race under concurrent hook
+runs.
 
 **Decisions locked (grilling session, 2026-07-04):**
 - **Split gate architecture** *(resolves 10.6's and/or)*: the per-edit PostToolUse hook runs **only file-scoped checks** on the edited file (`eslint "$f" --max-warnings 0` + `prettier --check "$f"`); the **full-project gate** (`npm run typecheck` + `npm run lint`) moves to a **Stop hook** that runs once per turn, blocking turn-end (exit 2) until green. Rationale: `tsc -b` is inherently whole-project — kept per-edit it could never satisfy "a two-file refactor doesn't fail between the two edits"; only relocating it off the per-edit path meets the criterion.
 - **Stop-gate trigger = dirty-marker file:** the edit hook touches a marker in `/tmp` keyed by the hook input's `session_id`; the Stop hook exits 0 immediately unless the marker exists, then deletes it and runs the full gate. Backend-only and conversational turns pay zero cost. Rejected alternatives: unconditional run (re-imposes the tax every turn) and transcript-parsing (fragile coupling to an internal format).
 - **Marker scope = any file edit under `frontend/`**, not just `.ts`/`.tsx`: a CSS-/config-only turn still gets the full `prettier --check .`/lint/tsc pass at turn end (honoring the CLAUDE.md "check lint after CSS/HTML changes" rule); the per-edit file-scoped checks still run only for `.ts`/`.tsx`.
-- **One script, mode argument:** a single `.claude/hooks/frontend-check.sh` invoked as `… edit` (PostToolUse) and `… stop` (Stop), so the shared guards (jq, `node_modules`, `cd`, marker path, 10.7 risk notes) live in one place and can't drift. The stop branch respects `stop_hook_active` from the hook input (exit 0, marker left intact) so an unfixable gate can't wedge the session in an infinite stop loop.
+- **One script, mode argument:** a single `../.claude.000/hooks/frontend-check.sh` invoked as `… edit` (PostToolUse) and
+  `… stop` (Stop), so the shared guards (jq, `node_modules`, `cd`, marker path, 10.7 risk notes) live in one place and
+  can't drift. The stop branch respects `stop_hook_active` from the hook input (exit 0, marker left intact) so an
+  unfixable gate can't wedge the session in an infinite stop loop.
 - **Frontend-file detection by prefix match** against `"$CLAUDE_PROJECT_DIR/frontend/"` — not `*/frontend/*` glob-cutting — immune to checkouts whose path contains another `/frontend/` segment.
 - **TS-only per-edit gate** *(resolves 10.4's either/or)*: stop matching `.js`/`.jsx` — the frontend has **no JS app source** (the only real `.js` file is `eslint.config.js` itself, still covered by the Stop gate's `prettier --check .`); no JS block is added to the eslint config. If JS source ever appears, extending is a one-line follow-up.
 - **Fail-loud = blocking exit 2 for both guard failures:** missing `jq` and missing `frontend/node_modules` each produce a clear, actionable stderr message + exit 2 (the agent can then run `npm install` itself) — never a silent exit 0.
 
-- [x] **10.1 Ignore local Claude settings.** Add `.claude/settings.local.json` to the repo `.gitignore` — the existing `*.local` pattern doesn't match a name ending in `.json`; today only the author's personal global gitignore prevents the commit skill's `git add -A` from committing another contributor's personal settings. → *verify: `git check-ignore -v .claude/settings.local.json` matches a repo rule, not the global ignore.*
-- [x] **10.2 Extract the hook to a script with `edit`/`stop` modes.** Move the inline JSON-escaped one-liner to `.claude/hooks/frontend-check.sh`; `settings.json` registers `"$CLAUDE_PROJECT_DIR"/.claude/hooks/frontend-check.sh edit` on PostToolUse (matcher `Edit|Write` — drop the dead `MultiEdit` branch; the tool no longer exists) and `… stop` on Stop; inside, `cd "$CLAUDE_PROJECT_DIR/frontend"` + prefix-match detection replace the `${f%%/frontend/*}` path-cutting (fixing the wrong-directory / fail-open bug). → *verify: `shellcheck` passes on the script; editing a frontend file still triggers the edit-mode check; the check runs correctly regardless of where the repo is checked out (including a path containing another `/frontend/` segment).*
+- [x] **10.1 Ignore local Claude settings.** Add `../.claude.000/settings.local.json` to the repo `.gitignore` — the
+  existing `*.local` pattern doesn't match a name ending in `.json`; today only the author's personal global gitignore
+  prevents the commit skill's `git add -A` from committing another contributor's personal settings. → *verify:
+  `git check-ignore -v .claude/settings.local.json` matches a repo rule, not the global ignore.*
+- [x] **10.2 Extract the hook to a script with `edit`/`stop` modes.** Move the inline JSON-escaped one-liner to
+  `../.claude.000/hooks/frontend-check.sh`; `settings.json` registers
+  `"$CLAUDE_PROJECT_DIR"/.claude/hooks/frontend-check.sh edit` on PostToolUse (matcher `Edit|Write` — drop the dead
+  `MultiEdit` branch; the tool no longer exists) and `… stop` on Stop; inside, `cd "$CLAUDE_PROJECT_DIR/frontend"` +
+  prefix-match detection replace the `${f%%/frontend/*}` path-cutting (fixing the wrong-directory / fail-open bug). →
+  *verify: `shellcheck` passes on the script; editing a frontend file still triggers the edit-mode check; the check runs
+  correctly regardless of where the repo is checked out (including a path containing another `/frontend/` segment).*
 - [x] **10.3 Fail loud, not open.** In the script (both modes): a missing `jq` produces a clear error (exit 2) instead of silently disabling the gate forever; a missing `frontend/node_modules` (fresh clone/worktree) produces an actionable "run npm install in frontend/" message (exit 2) instead of the opaque npx resolution error. → *verify: simulating each condition (PATH without jq; renamed node_modules) surfaces the clear message; normal edits are unaffected.*
 - [x] **10.4 TS-only per-edit gate.** Narrow the edit-mode file match to `.ts`/`.tsx` under `frontend/` — `.js`/`.jsx` files provably never enter the file-scoped checks (decision above; no eslint-config change). → *verify: a `.js` probe file with an unused var never enters the gate; a `.ts` probe still does.*
 - [x] **10.5 Shared typecheck script.** Add `"typecheck": "tsc -b"` to `frontend/package.json` and call it from both `build` (`npm run typecheck && vite build`) and the Stop-mode gate, so the two invocations can't silently drift. → *verify: `npm run typecheck` succeeds; `build` and the stop gate both delegate to the shared script.*
 - [x] **10.6 Split gate + dirty marker.** Implement the locked architecture: edit mode touches the session-keyed marker for **any** frontend edit and runs `eslint "$f"` + `prettier --check "$f"` for `.ts`/`.tsx` only; stop mode exits 0 without the marker (or when `stop_hook_active` is set), else consumes it and runs `npm run typecheck && npm run lint`, exit 2 on failure. → *verify: a two-file refactor doesn't fail the gate between the two edits but a broken end state blocks the Stop; a CSS-only turn triggers the stop gate; a backend-only turn runs no frontend check; per-edit hook runtime drops measurably (~6s → sub-second).*
-- [x] **10.7 Document accepted risks in the script header.** Behaviors left as-is: a hook exceeding its timeout is cancelled non-blocking (fails open with only a generic hook-error notice, no tsc/eslint output); the `.tsbuildinfo` race is now confined to concurrent *sessions* (tsc runs once per turn on Stop, not per edit) and tsc self-heals via full rebuild — a perf blip, not wrong diagnostics; a `stop_hook_active` turn skips re-verification (the marker persists, so the next turn's Stop re-checks). → *verify: the notes exist in `.claude/hooks/frontend-check.sh`; no behavior change.*
+- [x] **10.7 Document accepted risks in the script header.** Behaviors left as-is: a hook exceeding its timeout is
+  cancelled non-blocking (fails open with only a generic hook-error notice, no tsc/eslint output); the `.tsbuildinfo`
+  race is now confined to concurrent *sessions* (tsc runs once per turn on Stop, not per edit) and tsc self-heals via
+  full rebuild — a perf blip, not wrong diagnostics; a `stop_hook_active` turn skips re-verification (the marker
+  persists, so the next turn's Stop re-checks). → *verify: the notes exist in `../.claude.000/hooks/frontend-check.sh`;
+  no behavior change.*
 
 ## Phase 11 — User-facing activity feed *(grilled 2026-07-05, ADR-0006)*
 
@@ -305,7 +333,9 @@ Usage tracking as a user-facing activity history: each User sees their own accou
 
 ## Phase 12 — Remove Versions, Run history, and Activity *(grilled 2026-08-08, ADR-0007)*
 
-Reverses ADR-0001 and ADR-0006 and amends ADR-0003/0004/0005. A [Prompt](../CONTEXT.md#prompt) becomes one mutable row; running still streams but is not persisted; the Activity feed is deleted. Phases 4, 5, and 11 remain above as the record of what was built and later removed.
+Reverses ADR-0001 and ADR-0006 and amends ADR-0003/0004/0005. A [Prompt](CONTEXT.md#prompt) becomes one mutable row;
+running still streams but is not persisted; the Activity feed is deleted. Phases 4, 5, and 11 remain above as the record
+of what was built and later removed.
 
 **Decisions locked (grilling session):**
 - **Runs:** stop *persisting*, keep *executing*. SSE streaming stays; nothing about a run is stored.
@@ -334,7 +364,10 @@ Reverses ADR-0001 and ADR-0006 and amends ADR-0003/0004/0005. A [Prompt](../CONT
 
 ## Phase 13 — Prompt Console *(grilled 2026-08-08, ADR-0008)*
 
-Collapses editing and running a [Prompt](../CONTEXT.md#prompt) into one surface at `/prompts/:id/console`: fields edited in place, saved incrementally, with the response streaming into the same page. Amends ADR-0007's concurrency consequence. Phase 12's "View and Edit stay separate pages; tabs collapse to View / Edit / Run / Duplicate" is reversed here — tabs end at View / Console / Duplicate.
+Collapses editing and running a [Prompt](CONTEXT.md#prompt) into one surface at `/prompts/:id/console`: fields edited in
+place, saved incrementally, with the response streaming into the same page. Amends ADR-0007's concurrency consequence.
+Phase 12's "View and Edit stay separate pages; tabs collapse to View / Edit / Run / Duplicate" is reversed here — tabs
+end at View / Console / Duplicate.
 
 **Decisions locked (grilling session, 2026-08-08):**
 - **Destination:** the Console **replaces** Edit and Run — not an additional power-user surface. Tabs go five → three.

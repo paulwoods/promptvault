@@ -3,7 +3,7 @@
 .env.*
 !.env.example
 *.local
-.claude/settings.local.json
+.claude.000/settings.local.json
 
 # Java / Spring Boot
 target/

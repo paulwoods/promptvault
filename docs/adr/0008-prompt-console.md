@@ -1,6 +1,9 @@
 # One Prompt Console replacing the separate Edit and Run pages
 
-Editing a [Prompt](../../CONTEXT.md#prompt) and running it become one surface: the **Console**, at `/prompts/:id/console`. Fields are edited in place and saved incrementally rather than through a whole-form Save button, and the response streams into the same page. The separate Edit and Run pages are deleted once the Console does everything they did, collapsing the Prompt tabs from five to three (View / Console / Duplicate).
+Editing a [Prompt](../CONTEXT.md#prompt) and running it become one surface: the **Console**, at `/prompts/:id/console`.
+Fields are edited in place and saved incrementally rather than through a whole-form Save button, and the response
+streams into the same page. The separate Edit and Run pages are deleted once the Console does everything they did,
+collapsing the Prompt tabs from five to three (View / Console / Duplicate).
 
 This **amends [ADR-0007](0007-mutable-prompts-no-version-or-run-history.md)**, whose consequences were reasoned about an explicit, deliberate Save.
 
@@ -24,4 +27,5 @@ We chose this because iterating on a prompt is a loop — edit, run, read, edit 
 - **`PATCH /api/prompts/{id}` exists before it has a caller.** It is committed with tests ahead of the Console consuming it. `PUT` remains the full-save path and keeps serving Create, Duplicate, and the Console's first iteration.
 - **`PromptForm` survives with two consumers, Create and Duplicate.** Both create a Prompt that has no id yet, so neither can `PATCH` and neither wants in-place editing — the whole-form component remains the right shape for them. The Console owns a separate copy, which is the point: the two are diverging, not duplicating by accident.
 - **Edit and Run are deleted only once the Console is a proven superset.** Until then all three coexist and the Console is knowingly redundant. Deleting earlier would leave the app's primary editing surface half-built.
-- **The Console is a UI surface, not domain vocabulary.** It gets no `CONTEXT.md` glossary entry; it names a page, not a concept the domain reasons about.
+- **The Console is a UI surface, not domain vocabulary.** It gets no `../CONTEXT.md` glossary entry; it names a page,
+  not a concept the domain reasons about.
