@@ -1,5 +1,7 @@
 # Mutable Prompts with no Version or Run history
 
+> **Amended by [ADR-0008](0008-prompt-console.md).** The decision stands. Its "concurrent edits are last-write-wins" consequence was reasoned about an explicit Save button; the Console saves incrementally, making writes frequent and incidental rather than deliberate and rare.
+
 A [Prompt](../../CONTEXT.md#prompt) now carries all of its own content — name, description, prompt text, [Variables](../../CONTEXT.md#variable), and [Run Settings](../../CONTEXT.md#run-settings) — in one **mutable** row. Saving an edit overwrites what was there. Running a Prompt still streams Claude's response to the browser, but the run is **not persisted**: no inputs, no rendered prompt, no response, no status, no id. The `version`, `run`, and `activity_event` tables are dropped, and the Version, Run, and Activity concepts are removed from the glossary entirely.
 
 This **supersedes [ADR-0001](0001-immutable-everything-versioning.md)** (fully-immutable, everything-versioned Prompts) and **[ADR-0006](0006-user-facing-activity-feed.md)** (user-facing activity feed), and **amends [ADR-0003](0003-sse-streaming-runs.md)**, **[ADR-0004](0004-soft-deletable-prompts-with-trash.md)**, and **[ADR-0005](0005-usage-dashboard-tokens-not-dollars.md)** as described below.
