@@ -20,24 +20,12 @@ const EFFORTS = ['low', 'medium', 'high']
 
 export function PromptConsolePage() {
   const { id = '' } = useParams()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   const prompt = useQuery({
     queryKey: ['prompt', id],
     queryFn: () => apiClient.get<PromptResponse>(`/api/prompts/${id}`),
   })
   usePageTitle(prompt.data ? `Console: ${prompt.data.name}` : 'Console')
-
-  // Fires immediately on click — no confirmation dialog, matching the app's
-  // existing convention (ADR-0004): safe because Trash + restore make it low-stakes.
-  const deletePrompt = useMutation({
-    mutationFn: () => apiClient.delete(`/api/prompts/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
-      navigate('/')
-    },
-  })
 
   if (prompt.isPending) {
     return <Loading />
@@ -49,19 +37,6 @@ export function PromptConsolePage() {
   return (
     <>
       <PromptTabs promptId={id} />
-      <div className="actions">
-        <button
-          type="button"
-          className="button-sm"
-          disabled={deletePrompt.isPending}
-          onClick={() => deletePrompt.mutate()}
-        >
-          Delete
-        </button>
-      </div>
-      {deletePrompt.isError && (
-        <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
-      )}
       <ConsoleForm promptId={id} prompt={prompt.data} />
     </>
   )
@@ -91,6 +66,16 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   })
   const [values, setValues] = useState(() => toFormValues(prompt))
   const [mismatch, setMismatch] = useState<string | null>(null)
+
+  // Fires immediately on click — no confirmation dialog, matching the app's
+  // existing convention (ADR-0004): safe because Trash + restore make it low-stakes.
+  const deletePrompt = useMutation({
+    mutationFn: () => apiClient.delete(`/api/prompts/${promptId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      navigate('/')
+    },
+  })
 
   // Saving overwrites the prompt; the previous content is not recoverable (ADR-0007).
   const mutation = useMutation({
@@ -347,9 +332,21 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
         </button>
       </fieldset>
 
-      <button type="submit" disabled={mutation.isPending}>
-        Save
-      </button>
+      <div className="actions">
+        <button
+          type="button"
+          disabled={deletePrompt.isPending}
+          onClick={() => deletePrompt.mutate()}
+        >
+          Delete
+        </button>
+        <button type="submit" disabled={mutation.isPending}>
+          Save
+        </button>
+      </div>
+      {deletePrompt.isError && (
+        <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
+      )}
       {alertMessage != null && <ErrorAlert>{alertMessage}</ErrorAlert>}
     </form>
   )

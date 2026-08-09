@@ -184,7 +184,7 @@ describe('prompt console', () => {
     )
   })
 
-  it('shows the tabs and Delete while the models query is still pending', async () => {
+  it('shows the tabs while the models query is still pending', async () => {
     setToken('t')
     server.use(
       getPrompt(),
@@ -196,10 +196,15 @@ describe('prompt console', () => {
 
     renderApp('/prompts/p1/console')
 
-    // The prompt has loaded, so the page chrome renders; only the form waits.
-    expect(await screen.findByRole('button', { name: 'Delete' })).toBeVisible()
-    expect(screen.getByRole('link', { name: 'View' })).toBeInTheDocument()
+    // The prompt has loaded, so the tabs render; the form and its actions --
+    // Delete included, now that it sits beside Save -- wait on the models query.
+    expect(
+      await screen.findByRole('link', { name: 'View' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Loading…')).toBeInTheDocument()
     expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Delete' }),
+    ).not.toBeInTheDocument()
   })
 })
