@@ -7,6 +7,7 @@ import { EditPromptPage } from '../pages/EditPromptPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { ProfilePage } from '../pages/ProfilePage'
+import { PromptConsolePage } from '../pages/PromptConsolePage'
 import { PromptViewPage } from '../pages/PromptViewPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { RunPage } from '../pages/RunPage'
@@ -59,6 +60,14 @@ export function AppRoutes() {
             element={
               <RequireAuth>
                 <RunPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/prompts/:id/console"
+            element={
+              <RequireAuth>
+                <PromptConsolePage />
               </RequireAuth>
             }
           />
