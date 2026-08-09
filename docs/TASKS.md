@@ -402,6 +402,24 @@ end at View / Console / Duplicate.
 
 ---
 
+## Phase 14 — Console absorbs View and Duplicate *(ADR-0010)*
+
+Phase 13's "tabs end at View / Console / Duplicate" is reversed here — the Console absorbs View and Duplicate too,
+leaving the Console as the sole prompt surface. Amends ADR-0008, whose three-tab end-state never shipped: the last Edit
+page, the shared `PromptForm`, and the `PromptTabs` nav are deleted in the same consolidation.
+
+**Decisions locked:**
+- **The Console is the view.** A separate read-only View page was redundant once the Console showed the live prompt inline; it is deleted, not kept as a duplicate surface.
+- **Duplicate is a button, not a page.** Duplicating a Prompt is a single action with no form of its own — it fits as a button in the Console's Details section (POST a copy, navigate to the new prompt's Console), not a navigable tab.
+- **Create skips the form.** "New Prompt" POSTs a default prompt and opens its Console; the first editing happens inline in the Console, the same surface every other edit uses. `PromptForm` is deleted — it existed to serve a Create/Duplicate page that no longer exists.
+- **Routes collapse.** `/prompts/:id` (View), `/prompts/:id/edit`, and `/prompts/:id/duplicate` redirect to `/prompts/:id/console`; the Console is the only prompt route that renders.
+- **No glossary entry.** Like the Console itself (ADR-0008), this is a UI-surface change, not domain vocabulary; `CONTEXT.md` is unchanged.
+
+- [x] **14.1 Docs first: ADR-0010, banner, this phase.** Write `docs/adr/0010-…` amending ADR-0008's three-tab end-state and voiding its "PromptForm survives serving Create and Duplicate" consequence; add the amendment banner to 0008; list it in `docs/adr/README.md`. → *verify: ADR listed in the index with its amend status; no earlier ADR body rewritten.*
+- [x] **14.2 Collapse routes and delete the page components.** `RedirectToConsole` covers `/prompts/:id`, `/prompts/:id/edit`, and `/prompts/:id/duplicate`; delete `PromptViewPage`, `EditPromptPage`, `DuplicatePromptPage`, `PromptForm`, `PromptTabs`, and their tests; Duplicate becomes a button in the Console's Details section. → *verify (RTL + MSW): the three old paths redirect to `/prompts/:id/console`; Create and Duplicate still work as one-click actions into the Console; `npm run lint`, `typecheck`, `test`, and `build` clean.*
+
+---
+
 ### Out of scope (do **not** build — from the PRD)
 
 Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · OAuth/SSO/social login · draft-vs-published Versions · sharing/teams/roles · folders/tags/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2). *Note: "search" was also originally on this list; Phase 9.1 subsequently scoped in a narrow name/description substring search — folders/tags/favorites (prompt organization) remain out of scope.*

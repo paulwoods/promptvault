@@ -53,7 +53,7 @@ Dev URLs:
 cd backend && ./mvnw verify
 
 # Frontend: tests, type-check, lint/format
-cd frontend && npm test && npx tsc -b && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 ## Authentication & sessions

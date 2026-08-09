@@ -37,7 +37,7 @@ function makeWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/prompts/p1/run']}>
+        <MemoryRouter initialEntries={['/prompts/p1/console']}>
           <LocationProbe />
           {children}
         </MemoryRouter>
@@ -48,7 +48,7 @@ function makeWrapper(queryClient: QueryClient) {
 
 beforeEach(() => {
   setToken('t')
-  currentPath = '/prompts/p1/run'
+  currentPath = '/prompts/p1/console'
 })
 
 describe('useRunStream', () => {

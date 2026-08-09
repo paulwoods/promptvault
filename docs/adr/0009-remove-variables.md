@@ -1,6 +1,6 @@
 # Remove Variables from Prompts
 
-A [Prompt](../CONTEXT.md#prompt) no longer has declared [Variables](../CONTEXT.md#prompt). The `variables` column, the declaration
+A [Prompt](../CONTEXT.md#prompt) no longer has declared Variables. The `variables` column, the declaration
 UI, the run-time value form, and the `{{name}}` substitution that tied them together are all removed. A Prompt's text is
 sent to Claude **verbatim** as the user message, with nothing interpolated. Running a Prompt takes no request body and
 collects no per-run values; the Console's Run pane is the only run surface.
