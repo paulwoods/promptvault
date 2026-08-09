@@ -303,6 +303,35 @@ Usage tracking as a user-facing activity history: each User sees their own accou
 
 ---
 
+## Phase 12 — Remove Versions, Run history, and Activity *(grilled 2026-08-08, ADR-0007)*
+
+Reverses ADR-0001 and ADR-0006 and amends ADR-0003/0004/0005. A [Prompt](../CONTEXT.md#prompt) becomes one mutable row; running still streams but is not persisted; the Activity feed is deleted. Phases 4, 5, and 11 remain above as the record of what was built and later removed.
+
+**Decisions locked (grilling session):**
+- **Runs:** stop *persisting*, keep *executing*. SSE streaming stays; nothing about a run is stored.
+- **Usage:** survives on a purpose-built `token_usage` table keyed `(user_id, model)`, incremented on completion. Not a run log.
+- **Activity:** deleted outright — table, package, feed, ADR-0006. The `logged_in` / `api_key_set` trail goes with it.
+- **Prompt:** absorbs every Version field, plus `updated_at`. `created_at` already existed on `prompt` (V3) but was never mapped. Lists sort `updated_at DESC`, preserving today's edit-floats-to-top ordering.
+- **Trash:** unchanged. Its ADR-0004 rationale (protect Run history) is void; kept as accidental-delete undo.
+- **"Run" is not a noun.** `POST /api/prompts/{id}/run` is an action — no Run entity, id, or read DTOs. **"Run Settings" survives** as the verb form, redefined onto Prompt; `RunSettingsValidator` keeps its name.
+- **SSE protocol:** `meta` frame deleted (it carried only `runId` + `versionNumber`); becomes `token*` → `done` | `error`. `done`'s shape is unchanged.
+- **Concurrency:** last-write-wins. The `FOR UPDATE` lock (which existed for Version numbering) is removed, not replaced with optimistic locking. A stale tab clobbers newer edits silently — accepted.
+- **UI:** View and Edit stay separate pages; tabs collapse to View / Edit / Run / Duplicate. No redesign bundled in.
+- **Packages:** new `usage`; `run` keeps no entity, repository, or transaction of its own; `activity` deleted.
+- **Docs:** ADRs are superseded/amended by banner, never edited or deleted. PRD gets a historical banner. This phase is appended, not a rewrite.
+- **Migration:** V10 is irreversible — `pg_dump` the database immediately before deploying it.
+
+- [ ] **12.1 Docs first: ADR-0007, banners, CONTEXT.md, PRD, this phase.** Write `docs/adr/0007-…` superseding 0001/0006 and amending 0003/0004/0005; add a banner to each of those five; rewrite CONTEXT.md's glossary (delete Version, Run, Activity; rewrite Prompt, Run Settings, Trash, User); banner the PRD. → *verify: ADR listed in `docs/adr/README.md` with its supersede/amend status; no ADR body rewritten; CONTEXT.md defines only vocabulary the code still uses.*
+- [ ] **12.2 Migration V10 + backfill.** Add Version's columns to `prompt` (nullable → backfill from the max-number Version → `NOT NULL`); backfill `updated_at` from that Version's `created_at`; re-add the `max_tokens` CHECK only (V7 deliberately dropped the effort/thinking ones); seed `token_usage` from `sum(input_tokens), sum(output_tokens)` over `status = 'completed'` runs; drop `activity_event`, then `run`, then `version`. → *verify: applies on a fresh **and** a populated DB; follows `ActivityEventMigrationTest`'s seed-to-V9-then-migrate pattern; backfilled content matches each prompt's current Version; token totals match the pre-migration sums; list ordering is byte-for-byte unchanged.*
+- [ ] **12.3 Prompt absorbs Version.** One mutable entity; `PromptService` gains update-in-place; `PromptRequest`/`PromptResponse`/`PromptSummary` replace the Version DTOs; `PUT /api/prompts/{id}` replaces `POST /{id}/versions`; the current-version subqueries collapse to plain `prompt` queries. Delete `Version`, `VersionRepository`, `PromptDetail`, `VersionSummary`, and the `FOR UPDATE` lock. → *verify (HTTP): create/read/update/delete/restore/search/paginate all pass owner-scoped; placeholder set-equality and Run Settings validation are unchanged; no `/versions` route resolves.*
+- [ ] **12.4 New `usage` package.** `TokenUsage`, repository, `TokenUsageRecorder`, `UsageController`, `ModelUsage` move here; `RunStreamer` reports to the recorder on completion. → *verify (HTTP): `GET /api/me/usage` returns per-model totals; two runs on one model accumulate into one row; a failed run contributes nothing; cross-User isolation holds.*
+- [ ] **12.5 Strip the `run` package.** Delete `Run`, `RunRepository`, `RunStore`, `RunQueryService`, `RunReadController`, `RunDetail`, `RunSummary`; drop the `meta` frame; `RunService` resolves a Prompt instead of a Version. → *verify: the package holds no entity, repository, or `@Transactional`; streaming tests pass through the existing `RunStream` test double with no database.*
+- [ ] **12.6 Delete the `activity` package.** Package, `ActivityRecorder` call sites in `AuthService` / `UserService` / `ApiKeyService` / `PromptService`, and the three activity tests. → *verify: no reference to `activity` remains; the mutations it instrumented still succeed and roll back correctly.*
+- [ ] **12.7 Frontend: delete, rename, collapse.** Delete `CompareVersionsPage`, `PromptDetailPage`, `RunListPage`, `RunDetailPage`, `ActivityFeed` and their tests; rename `VersionViewPage`/`EditFromVersionPage`/`DuplicateFromVersionPage`; `VersionForm` → `PromptForm`; `PromptTabs` becomes a static four-link nav with no data fetching; routes 17 → 9; drop the now-orphaned `diff` dependency. → *verify (RTL + MSW): view/create/edit/run/duplicate/trash/profile all pass; `npm run lint`, `typecheck`, `test`, and `build` are clean.*
+- [ ] **12.8 Sweep orphans.** `PromptSummary.currentVersionNumber` (already unrendered), Version/Run types in `types.ts`, stale MSW handlers, dead assertions. → *verify: full backend and frontend suites green; no unused export or handler remains.*
+
+---
+
 ### Out of scope (do **not** build — from the PRD)
 
 Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · OAuth/SSO/social login · draft-vs-published Versions · sharing/teams/roles · folders/tags/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2). *Note: "search" was also originally on this list; Phase 9.1 subsequently scoped in a narrow name/description substring search — folders/tags/favorites (prompt organization) remain out of scope.*

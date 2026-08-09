@@ -1,6 +1,6 @@
 # Prompt Vault
 
-Store, version, and run Claude prompts with per-user encrypted API keys.
+Store and run Claude prompts with per-user encrypted API keys.
 Monorepo: `backend/` (Spring Boot 4.1 / Java 25, Maven) and `frontend/` (Vite +
 React + TypeScript SPA). See `CONTEXT.md` for the vocabulary and `docs/` for the
 PRD, ADRs, and build plan.

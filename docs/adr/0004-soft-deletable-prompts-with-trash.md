@@ -1,5 +1,7 @@
 # Soft-deletable Prompts with a restore-only Trash
 
+> **Amended by [ADR-0007](0007-mutable-prompts-no-version-or-run-history.md).** The decision stands, but the rationale below is void: it chose soft delete to protect Run history, which no longer exists. Trash is now kept purely as an undo for an accidental delete.
+
 A [Prompt](../../CONTEXT.md#prompt) can now be deleted, but deletion is soft: the Prompt gets a `deleted_at` timestamp rather than being removed, and it — along with all its [Versions](../../CONTEXT.md#version) and [Runs](../../CONTEXT.md#run) — disappears from every normal view (lists, detail pages, historical Versions, direct `/runs/:id` links) until it is restored from [Trash](../../CONTEXT.md#trash). We chose soft delete because a hard delete would cascade-destroy Run history, undermining ADR-0001's premise that a stored Run always points at the precise inputs that produced it. This is a distinct, coarser operation from ADR-0001's per-Version immutability: individual Versions and Runs remain permanently undeletable; only a whole Prompt (identity + everything under it) can be deleted, as a unit.
 
 ## Considered options
