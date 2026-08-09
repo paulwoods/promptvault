@@ -30,8 +30,7 @@ class PromptPatchTest extends IntegrationTest {
               "systemPrompt": "Be brief",
               "maxTokens": 1000,
               "effort": "medium",
-              "thinking": "off",
-              "variables": [{"name": "who"}]
+              "thinking": "off"
             }
             """;
 
@@ -75,8 +74,7 @@ class PromptPatchTest extends IntegrationTest {
                 .andExpect(jsonPath("$.systemPrompt").value("Be brief"))
                 .andExpect(jsonPath("$.maxTokens").value(1000))
                 .andExpect(jsonPath("$.effort").value("medium"))
-                .andExpect(jsonPath("$.thinking").value("off"))
-                .andExpect(jsonPath("$.variables[0].name").value("who"));
+                .andExpect(jsonPath("$.thinking").value("off"));
     }
 
     /** An empty patch is legal and leaves the content as it was. */
@@ -118,22 +116,6 @@ class PromptPatchTest extends IntegrationTest {
         patchPrompt(token, promptId, "{\"effort\": \"extreme\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.effort").exists());
-    }
-
-    /** Placeholder set-equality holds across the merge: new text must match the stored Variables. */
-    @Test
-    void patchingPromptTextAloneMustStillMatchTheDeclaredVariables() throws Exception {
-        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "placeholder@example.com", "password123");
-        String promptId = createPrompt(token);
-
-        patchPrompt(token, promptId, "{\"promptText\": \"Hello {{someone_else}}\"}")
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.details.variables").exists());
-
-        patchPrompt(token, promptId, "{\"promptText\": \"Hi {{who}} and {{other}}\", \"variables\":"
-                        + " [{\"name\": \"who\"}, {\"name\": \"other\"}]}")
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.promptText").value("Hi {{who}} and {{other}}"));
     }
 
     /** Bean Validation still applies to the merged content, so a patch cannot blank a required field. */

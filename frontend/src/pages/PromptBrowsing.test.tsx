@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -46,7 +46,6 @@ describe('prompt browsing', () => {
           maxTokens: 1000,
           effort: 'medium',
           thinking: 'off',
-          variables: [{ name: 'topic', required: true }],
           createdAt: 'x',
           updatedAt: 'x',
         }),
@@ -60,8 +59,6 @@ describe('prompt browsing', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Tell me about {{topic}}')).toBeInTheDocument()
     expect(screen.getByText('claude-opus-4-8')).toBeInTheDocument()
-    const variables = screen.getByRole('list')
-    expect(within(variables).getByText(/topic/)).toBeInTheDocument()
   })
 
   it('navigates from the list into a prompt', async () => {
@@ -92,7 +89,6 @@ describe('prompt browsing', () => {
           maxTokens: 1000,
           effort: 'medium',
           thinking: 'off',
-          variables: [],
           createdAt: 'x',
           updatedAt: 'x',
         }),

@@ -9,14 +9,12 @@ import com.promptvault.claude.Usage;
 import com.promptvault.prompt.Prompt;
 import com.promptvault.prompt.PromptRequest;
 import com.promptvault.prompt.PromptService;
-import com.promptvault.prompt.VariableDeclaration;
 import com.promptvault.usage.ModelUsage;
 import com.promptvault.usage.TokenUsageRecorder;
 import com.promptvault.usage.UsageQueryService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -26,11 +24,10 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Exercises the real, fully-wired {@link RunService#run} end to end — guard,
- * owner-scoped resolution, preparation, streaming, and token accounting
- * together — the one path no other test reaches (RunEndpointTest stops before
- * streaming starts; RunStreamerTest calls RunStreamer directly, bypassing
- * RunService). Only the Claude client is faked; everything else is the real,
- * DB-backed bean.
+ * owner-scoped resolution, streaming, and token accounting together — the one
+ * path no other test reaches (RunEndpointTest stops before streaming starts;
+ * RunStreamerTest calls RunStreamer directly, bypassing RunService). Only the
+ * Claude client is faked; everything else is the real, DB-backed bean.
  *
  * <p>Since ADR-0007 the run itself leaves no row, so the observable end state is
  * the User's token totals. Not transactional: the streaming half genuinely runs
@@ -45,9 +42,6 @@ class RunServiceTest extends AbstractDatabaseTest {
 
     @Autowired
     private PromptService promptService;
-
-    @Autowired
-    private RunPreparer runPreparer;
 
     @Autowired
     private TokenUsageRecorder tokenUsageRecorder;
@@ -85,23 +79,22 @@ class RunServiceTest extends AbstractDatabaseTest {
                 null,
                 1000,
                 "medium",
-                "off",
-                List.of(new VariableDeclaration("name", null, true, null)));
+                "off");
         Prompt prompt = promptService.createPrompt(userId, request);
 
         FakeClaudeClient fake = new FakeClaudeClient();
         fake.respondWith(List.of("Hello", " there"), new Usage(4, 6));
         RunStreamer streamer = new RunStreamer(fake, tokenUsageRecorder, objectMapper);
-        RunService runService = new RunService(apiKeyService, promptService, runPreparer, streamer);
+        RunService runService = new RunService(apiKeyService, promptService, streamer);
 
-        runService.run(userId, prompt.getId(), Map.of("name", "Ada"));
+        runService.run(userId, prompt.getId());
 
         ModelUsage usage = awaitUsage(userId);
         assertThat(usage.model()).isEqualTo("claude-opus-4-8");
         assertThat(usage.inputTokens()).isEqualTo(4);
         assertThat(usage.outputTokens()).isEqualTo(6);
-        // The seam received the substituted prompt, proving preparation ran in this path.
-        assertThat(fake.capturedRequest().userMessage()).isEqualTo("Say hi to Ada");
+        // The seam received the prompt text verbatim (ADR-0009): {{name}} is ordinary text now.
+        assertThat(fake.capturedRequest().userMessage()).isEqualTo("Say hi to {{name}}");
     }
 
     /** Polls because the streaming half settles on its own virtual thread. */

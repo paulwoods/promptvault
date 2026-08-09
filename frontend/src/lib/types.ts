@@ -14,17 +14,6 @@ export interface PromptSummary {
   updatedAt: string
 }
 
-export interface VariableDeclaration {
-  name: string
-  description?: string | null
-  required?: boolean | null
-  defaultValue?: string | null
-}
-
-export function isRequired(variable: VariableDeclaration): boolean {
-  return variable.required ?? true
-}
-
 export interface PromptResponse {
   promptId: string
   name: string
@@ -35,7 +24,6 @@ export interface PromptResponse {
   maxTokens: number
   effort: string
   thinking: string
-  variables: VariableDeclaration[]
   createdAt: string
   updatedAt: string
 }

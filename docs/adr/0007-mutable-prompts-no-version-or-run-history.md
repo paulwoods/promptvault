@@ -1,6 +1,8 @@
 # Mutable Prompts with no Version or Run history
 
 > **Amended by [ADR-0008](0008-prompt-console.md).** The decision stands. Its "concurrent edits are last-write-wins" consequence was reasoned about an explicit Save button; the Console saves incrementally, making writes frequent and incidental rather than deliberate and rare.
+>
+> **Amended by [ADR-0009](0009-remove-variables.md).** The decision stands. Variables are no longer part of a Prompt's content; the "Prompt text and Variables" pairing referenced below is gone.
 
 A [Prompt](../CONTEXT.md#prompt) now carries all of its own content — name, description, prompt
 text, [Variables](../CONTEXT.md#variable), and [Run Settings](../CONTEXT.md#run-settings) — in one **mutable** row.

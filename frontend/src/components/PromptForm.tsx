@@ -5,12 +5,7 @@ import { Loading } from './Loading'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import type { ModelsResponse } from '../lib/types'
-import { variableMismatch } from './promptFormValues'
-import type {
-  VariableRow,
-  PromptFormValues,
-  PromptRequestBody,
-} from './promptFormValues'
+import type { PromptFormValues, PromptRequestBody } from './promptFormValues'
 
 const EFFORTS = ['low', 'medium', 'high']
 
@@ -36,7 +31,6 @@ export function PromptForm({
     queryFn: () => apiClient.get<ModelsResponse>('/api/models'),
   })
   const [values, setValues] = useState(initial)
-  const [mismatch, setMismatch] = useState<string | null>(null)
 
   const capability = models.data?.models.find(
     (model) => model.id === values.model,
@@ -54,21 +48,7 @@ export function PromptForm({
     }))
   }
 
-  function updateVariable(index: number, patch: Partial<VariableRow>) {
-    setValues((current) => ({
-      ...current,
-      variables: current.variables.map((row, i) =>
-        i === index ? { ...row, ...patch } : row,
-      ),
-    }))
-  }
-
   function submit() {
-    const problem = variableMismatch(values.promptText, values.variables)
-    setMismatch(problem)
-    if (problem !== null) {
-      return
-    }
     onSubmit({
       name: values.name,
       description: values.description.trim() === '' ? null : values.description,
@@ -79,12 +59,6 @@ export function PromptForm({
       maxTokens: values.maxTokens,
       effort: values.effort,
       thinking: values.thinking,
-      variables: values.variables.map((row) => ({
-        name: row.name,
-        description: row.description === '' ? null : row.description,
-        required: row.required,
-        defaultValue: row.defaultValue === '' ? null : row.defaultValue,
-      })),
     })
   }
 
@@ -92,8 +66,7 @@ export function PromptForm({
     return <Loading />
   }
 
-  // A client-side mismatch means submit never fired, so any server error is stale.
-  const alertMessage = mismatch ?? (error != null ? errorMessage(error) : null)
+  const alertMessage = error != null ? errorMessage(error) : null
 
   return (
     <form
@@ -218,67 +191,6 @@ export function PromptForm({
             </select>
           </label>
         </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Variables</legend>
-        {values.variables.map((row, index) => (
-          <div key={index}>
-            <input
-              aria-label={`Variable ${index + 1} name`}
-              placeholder="Variable name"
-              value={row.name}
-              onChange={(event) =>
-                updateVariable(index, { name: event.target.value })
-              }
-            />
-            <label>
-              Required
-              <input
-                type="checkbox"
-                checked={row.required}
-                onChange={(event) =>
-                  updateVariable(index, { required: event.target.checked })
-                }
-              />
-            </label>
-            <input
-              aria-label={`Variable ${index + 1} default`}
-              placeholder="Default value"
-              value={row.defaultValue}
-              onChange={(event) =>
-                updateVariable(index, { defaultValue: event.target.value })
-              }
-            />
-            <button
-              type="button"
-              className="variable-remove"
-              onClick={() =>
-                setValues((c) => ({
-                  ...c,
-                  variables: c.variables.filter((_, i) => i !== index),
-                }))
-              }
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="variable-add"
-          onClick={() =>
-            setValues((c) => ({
-              ...c,
-              variables: [
-                ...c.variables,
-                { name: '', description: '', required: true, defaultValue: '' },
-              ],
-            }))
-          }
-        >
-          Add variable
-        </button>
       </fieldset>
 
       <button type="submit" className={submitClassName} disabled={pending}>

@@ -91,7 +91,7 @@ public class PromptController {
     private void logPatch(UUID promptId, PromptPatchRequest patch) {
         log.debug(
                 "patchPrompt(userId={}, promptId={}, name={}, model={}, maxTokens={}, effort={}, thinking={},"
-                        + " promptText.len={}, systemPrompt.len={}, variables.count={})",
+                        + " promptText.len={}, systemPrompt.len={})",
                 currentUser.userId(),
                 promptId,
                 patch.name(),
@@ -100,15 +100,14 @@ public class PromptController {
                 patch.effort(),
                 patch.thinking(),
                 patch.promptText() == null ? "absent" : patch.promptText().length(),
-                patch.systemPrompt() == null ? "absent" : patch.systemPrompt().length(),
-                patch.variables() == null ? "absent" : patch.variables().size());
+                patch.systemPrompt() == null ? "absent" : patch.systemPrompt().length());
     }
 
     /** Shapes and lengths only — never the prompt text or system prompt themselves (leak hygiene). */
     private void logRequest(String operation, UUID promptId, PromptRequest request) {
         log.debug(
                 "{}(userId={}, promptId={}, name={}, model={}, maxTokens={}, effort={}, thinking={},"
-                        + " promptText.len={}, systemPrompt.len={}, variables.count={})",
+                        + " promptText.len={}, systemPrompt.len={})",
                 operation,
                 currentUser.userId(),
                 promptId,
@@ -118,7 +117,6 @@ public class PromptController {
                 request.effort(),
                 request.thinking(),
                 request.promptText() == null ? 0 : request.promptText().length(),
-                request.systemPrompt() == null ? 0 : request.systemPrompt().length(),
-                request.variables() == null ? 0 : request.variables().size());
+                request.systemPrompt() == null ? 0 : request.systemPrompt().length());
     }
 }

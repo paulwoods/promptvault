@@ -15,22 +15,20 @@ export interface StreamHandlers {
 /**
  * Consumes the streaming run endpoint: a Bearer POST whose response is a
  * text/event-stream parsed with a ReadableStream reader and our own SSE frame
- * parser (the three named events). Pre-stream failures arrive as a JSON error
+ * parser (the three named events). The prompt is run as stored (ADR-0009) —
+ * there is no request body. Pre-stream failures arrive as a JSON error
  * envelope and are thrown as an ApiError (e.g. no_api_key) for the caller to route.
  */
 export async function streamRun(
   promptId: string,
-  values: Record<string, string>,
   handlers: StreamHandlers,
 ): Promise<void> {
   const token = getToken()
   const response = await fetch(`/api/prompts/${promptId}/run`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ values }),
   })
 
   const contentType = response.headers.get('content-type') ?? ''

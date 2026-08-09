@@ -3,7 +3,7 @@ import { ApiError } from './ApiError'
 /**
  * Human-readable message from an unknown error, preferring the API envelope's
  * message. Validation envelopes carry the actual reason in {@code details}
- * (e.g. "Validation failed" + {variables: "..."}), so those are appended --
+ * (e.g. "Validation failed" + {model: "..."}), so those are appended --
  * the message alone tells the user nothing actionable.
  */
 export function errorMessage(

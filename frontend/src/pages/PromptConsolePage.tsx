@@ -4,12 +4,6 @@ import { useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import {
-  toFormValues,
-  variableMismatch,
-  type PromptRequestBody,
-  type VariableRow,
-} from '../components/promptFormValues'
 import { PromptTabs } from '../components/PromptTabs'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
@@ -41,7 +35,7 @@ export function PromptConsolePage() {
       <PromptTabs promptId={id} />
       <div className="console-layout">
         <ConsoleForm promptId={id} prompt={prompt.data} />
-        <RunPane promptId={id} prompt={prompt.data} />
+        <RunPane promptId={id} />
       </div>
     </>
   )
@@ -49,30 +43,16 @@ export function PromptConsolePage() {
 
 /**
  * The right half of the Console: a Run button that fires the prompt at its
- * current stored values, and a tall read-only textarea beneath it that fills
- * with the run's output as it streams. Reuses the same plumbing the dedicated
- * Run page does (useRunStream) so the prompt stays editable on the left while
- * the result accumulates here. Variables are sent at their declared default
- * values — the Console is for shaping the prompt, and a variable that needs a
- * fresh value each run belongs on the Run page.
+ * current stored content, and a tall read-only textarea beneath it that fills
+ * with the run's output as it streams. The prompt is run as stored
+ * (ADR-0009) — there are no per-run values to collect — so the prompt stays
+ * editable on the left while the result accumulates here.
  */
-function RunPane({
-  promptId,
-  prompt,
-}: {
-  promptId: string
-  prompt: PromptResponse
-}) {
+function RunPane({ promptId }: { promptId: string }) {
   const { status, output, failure, run } = useRunStream(promptId)
 
   function handleRun() {
-    const values = Object.fromEntries(
-      prompt.variables.map((variable) => [
-        variable.name,
-        variable.defaultValue ?? '',
-      ]),
-    )
-    run(values)
+    run()
   }
 
   return (
@@ -108,8 +88,7 @@ interface ConsoleFormProps {
 /**
  * One inline-edited Prompt field. Read mode renders `stored` — the value from
  * the ['prompt', id] query — and edit mode a local draft, which makes PATCH the
- * field's only writer: a converted field leaves `values` and the PUT body, and
- * the PUT sources it from the query instead.
+ * field's only writer.
  *
  * Console-local rather than the shared useEditableField, which fits Profile and
  * not this: that hook PUTs a dedicated single-field endpoint, invalidates one
@@ -136,8 +115,9 @@ function useInlineField(
     onSuccess: (updated) => {
       // Written straight in rather than invalidated: the response is already the
       // authoritative new state, and an invalidate-only refetch would leave
-      // `stored` stale for a round-trip — long enough for the Save button, which
-      // now sources this field from the query, to revert the edit just committed.
+      // `stored` stale for the round-trip — long enough for the field, which
+      // sources its read-mode value from the query, to revert the edit just
+      // committed.
       queryClient.setQueryData(['prompt', promptId], updated)
       queryClient.invalidateQueries({ queryKey: ['prompts'] })
       setEditing(false)
@@ -413,16 +393,13 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
     queryKey: ['models'],
     queryFn: () => apiClient.get<ModelsResponse>('/api/models'),
   })
-  const [values, setValues] = useState(() => toFormValues(prompt))
-  const [mismatch, setMismatch] = useState<string | null>(null)
   const [tab, setTab] = useState<'details' | 'userPrompt' | 'systemPrompt'>(
     'details',
   )
-  // Every field below is inline-edited, so none is read from `values` — each
-  // one's value comes from the query and PATCH is its only writer. toFormValues
-  // still seeds `values` with all of them, but only the variables are read back
-  // from it. Description and System Prompt are optional: '' is a value they can
-  // hold, and the blank string is what clears the stored column.
+  // Every field below is inline-edited: each one's value comes from the query
+  // and PATCH is its only writer. Description and System Prompt are optional:
+  // '' is a value they can hold, and the blank string is what clears the
+  // stored column.
   const name = useInlineField(promptId, prompt.name, (draft) => ({
     name: draft,
   }))
@@ -473,17 +450,6 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
     },
   })
 
-  // Saving overwrites the prompt; the previous content is not recoverable (ADR-0007).
-  const mutation = useMutation({
-    mutationFn: (body: PromptRequestBody) =>
-      apiClient.put<PromptResponse>(`/api/prompts/${promptId}`, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prompt', promptId] })
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
-      navigate(`/prompts/${promptId}`)
-    },
-  })
-
   // Read off the stored model, not a Model draft: an uncommitted pick must not
   // reshape the fields around it.
   const capability = models.data?.models.find(
@@ -492,52 +458,9 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   const supportsEffort = capability?.supportsEffort ?? false
   const supportsAdaptive = capability?.supportsAdaptiveThinking ?? false
 
-  function updateVariable(index: number, patch: Partial<VariableRow>) {
-    setValues((current) => ({
-      ...current,
-      variables: current.variables.map((row, i) =>
-        i === index ? { ...row, ...patch } : row,
-      ),
-    }))
-  }
-
-  function submit() {
-    const problem = variableMismatch(prompt.promptText, values.variables)
-    setMismatch(problem)
-    if (problem !== null) {
-      return
-    }
-    mutation.mutate({
-      // Only the variables still come from this form. Every other field is
-      // inline-edited, so the query — not `values` — holds its current value,
-      // and PromptRequest still carries them all.
-      name: prompt.name,
-      description: prompt.description ?? null,
-      promptText: prompt.promptText,
-      systemPrompt:
-        prompt.systemPrompt && prompt.systemPrompt.trim() !== ''
-          ? prompt.systemPrompt
-          : null,
-      model: prompt.model,
-      maxTokens: prompt.maxTokens,
-      effort: prompt.effort,
-      thinking: prompt.thinking,
-      variables: values.variables.map((row) => ({
-        name: row.name,
-        description: row.description === '' ? null : row.description,
-        required: row.required,
-        defaultValue: row.defaultValue === '' ? null : row.defaultValue,
-      })),
-    })
-  }
-
   if (models.isPending) {
     return <Loading />
   }
-
-  // A client-side mismatch means submit never fired, so any server error is stale.
-  const alertMessage =
-    mismatch ?? (mutation.error != null ? errorMessage(mutation.error) : null)
 
   return (
     <section className="console-form">
@@ -567,7 +490,6 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
       <form
         onSubmit={(event) => {
           event.preventDefault()
-          submit()
         }}
       >
         {tab === 'details' && (
@@ -609,68 +531,6 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
               // so the field reads as text there instead of offering the choice.
               fixed={!supportsAdaptive}
             />
-            {values.variables.map((row, index) => (
-              <div key={index}>
-                <input
-                  aria-label={`Variable ${index + 1} name`}
-                  placeholder="Variable name"
-                  value={row.name}
-                  onChange={(event) =>
-                    updateVariable(index, { name: event.target.value })
-                  }
-                />
-                <label>
-                  Required
-                  <input
-                    type="checkbox"
-                    checked={row.required}
-                    onChange={(event) =>
-                      updateVariable(index, { required: event.target.checked })
-                    }
-                  />
-                </label>
-                <input
-                  aria-label={`Variable ${index + 1} default`}
-                  placeholder="Default value"
-                  value={row.defaultValue}
-                  onChange={(event) =>
-                    updateVariable(index, { defaultValue: event.target.value })
-                  }
-                />
-                <button
-                  type="button"
-                  className="variable-remove"
-                  onClick={() =>
-                    setValues((c) => ({
-                      ...c,
-                      variables: c.variables.filter((_, i) => i !== index),
-                    }))
-                  }
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="variable-add"
-              onClick={() =>
-                setValues((c) => ({
-                  ...c,
-                  variables: [
-                    ...c.variables,
-                    {
-                      name: '',
-                      description: '',
-                      required: true,
-                      defaultValue: '',
-                    },
-                  ],
-                }))
-              }
-            >
-              Add variable
-            </button>
 
             <div className="actions">
               <button
@@ -680,14 +540,10 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
               >
                 Delete
               </button>
-              <button type="submit" disabled={mutation.isPending}>
-                Save
-              </button>
             </div>
             {deletePrompt.isError && (
               <ErrorAlert>{errorMessage(deletePrompt.error)}</ErrorAlert>
             )}
-            {alertMessage != null && <ErrorAlert>{alertMessage}</ErrorAlert>}
           </>
         )}
         {tab === 'userPrompt' && (

@@ -69,7 +69,7 @@ describe('useRunStream', () => {
       wrapper: makeWrapper(queryClient),
     })
 
-    act(() => result.current.run({}))
+    act(() => result.current.run())
     await waitFor(() => expect(result.current.status).toBe('running'))
 
     act(() => push('event:token\ndata:{"text":"Hello"}\n\n'))
@@ -102,7 +102,7 @@ describe('useRunStream', () => {
       wrapper: makeWrapper(queryClient),
     })
 
-    act(() => result.current.run({}))
+    act(() => result.current.run())
     act(() => {
       push(
         'event:error\ndata:{"status":"failed","category":"AUTH","message":"Authentication with Claude failed"}\n\n',
@@ -129,7 +129,7 @@ describe('useRunStream', () => {
       wrapper: makeWrapper(queryClient),
     })
 
-    act(() => result.current.run({}))
+    act(() => result.current.run())
 
     await waitFor(() => expect(currentPath).toBe('/settings/api-key'))
     expect(result.current.status).toBe('running')
@@ -156,7 +156,7 @@ describe('useRunStream', () => {
       },
     )
 
-    act(() => result.current.run({}))
+    act(() => result.current.run())
     act(() => push('event:token\ndata:{"text":"Hello"}\n\n'))
     await waitFor(() => expect(result.current.output).toBe('Hello'))
 

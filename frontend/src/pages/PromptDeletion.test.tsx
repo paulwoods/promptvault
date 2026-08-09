@@ -36,7 +36,6 @@ describe('prompt deletion and trash', () => {
           maxTokens: 1000,
           effort: 'medium',
           thinking: 'off',
-          variables: [],
           createdAt: 'x',
           updatedAt: 'x',
         }),

@@ -4,7 +4,7 @@ interface PromptTabsProps {
   promptId: string
 }
 
-/** Navigation between a prompt's pages: View, Edit, Console, Run, Duplicate. */
+/** Navigation between a prompt's pages: View, Edit, Console, Duplicate. */
 export function PromptTabs({ promptId }: PromptTabsProps) {
   const base = `/prompts/${promptId}`
 
@@ -15,7 +15,6 @@ export function PromptTabs({ promptId }: PromptTabsProps) {
       </NavLink>
       <NavLink to={`${base}/edit`}>Edit</NavLink>
       <NavLink to={`${base}/console`}>Console</NavLink>
-      <NavLink to={`${base}/run`}>Run</NavLink>
       <NavLink to={`${base}/duplicate`}>Duplicate</NavLink>
     </nav>
   )

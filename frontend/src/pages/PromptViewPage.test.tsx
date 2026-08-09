@@ -6,7 +6,7 @@ import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
 describe('PromptViewPage', () => {
-  it('labels a variable with omitted required as required', async () => {
+  it('renders the prompt text and run settings', async () => {
     setToken('t')
     server.use(
       http.get('/api/prompts/p1', () =>
@@ -20,7 +20,6 @@ describe('PromptViewPage', () => {
           maxTokens: 100,
           effort: 'medium',
           thinking: 'off',
-          variables: [{ name: 'topic', defaultValue: null }],
           createdAt: 'x',
           updatedAt: 'x',
         }),
@@ -29,6 +28,8 @@ describe('PromptViewPage', () => {
 
     renderApp('/prompts/p1')
 
-    expect(await screen.findByText('topic (required)')).toBeInTheDocument()
+    // {{topic}} is ordinary text now (ADR-0009) -- shown verbatim, no Variable list.
+    expect(await screen.findByText('Hello {{topic}}')).toBeInTheDocument()
+    expect(screen.getByText('claude-opus-4-8')).toBeInTheDocument()
   })
 })

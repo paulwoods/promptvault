@@ -17,7 +17,6 @@ function promptResponse(overrides: Record<string, unknown> = {}) {
     maxTokens: 1000,
     effort: 'medium',
     thinking: 'off',
-    variables: [],
     createdAt: 'x',
     updatedAt: 'x',
     ...overrides,
@@ -33,7 +32,6 @@ describe('duplicate prompt', () => {
           promptResponse({
             description: 'Original description',
             promptText: 'Hello {{name}}',
-            variables: [{ name: 'name', defaultValue: null }],
           }),
         ),
       ),
@@ -76,7 +74,7 @@ describe('duplicate prompt', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the Duplicate tab alongside View/Edit/Run', async () => {
+  it('shows the Duplicate tab alongside View/Edit/Console', async () => {
     setToken('t')
     server.use(
       http.get('/api/prompts/p1', () =>
@@ -90,7 +88,7 @@ describe('duplicate prompt', () => {
       await screen.findByRole('link', { name: 'View' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Edit' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Run' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Console' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Duplicate' })).toHaveAttribute(
       'href',
       '/prompts/p1/duplicate',
