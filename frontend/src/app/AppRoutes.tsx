@@ -1,7 +1,6 @@
 import { Route, Routes } from 'react-router'
 import { Layout } from '../components/Layout'
 import { ApiKeyPage } from '../pages/ApiKeyPage'
-import { CreatePromptPage } from '../pages/CreatePromptPage'
 import { DuplicatePromptPage } from '../pages/DuplicatePromptPage'
 import { EditPromptPage } from '../pages/EditPromptPage'
 import { HomePage } from '../pages/HomePage'
@@ -27,14 +26,6 @@ export function AppRoutes() {
             element={
               <RequireAuth>
                 <HomePage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/new"
-            element={
-              <RequireAuth>
-                <CreatePromptPage />
               </RequireAuth>
             }
           />

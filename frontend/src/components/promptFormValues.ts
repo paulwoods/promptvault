@@ -22,19 +22,6 @@ export interface PromptRequestBody {
   thinking: string
 }
 
-export function emptyPromptValues(defaultModel: string): PromptFormValues {
-  return {
-    name: '',
-    description: '',
-    promptText: '',
-    systemPrompt: '',
-    model: defaultModel,
-    maxTokens: 1000,
-    effort: 'medium',
-    thinking: 'off',
-  }
-}
-
 /** Seeds form values from an existing Prompt -- used to edit or duplicate it. */
 export function toFormValues(prompt: PromptResponse): PromptFormValues {
   return {
