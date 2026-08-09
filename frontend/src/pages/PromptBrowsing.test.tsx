@@ -7,7 +7,7 @@ import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
 describe('prompt browsing', () => {
-  it('lists prompts by current-version name', async () => {
+  it('lists prompts by name', async () => {
     setToken('t')
     server.use(
       http.get('/api/prompts', () =>
@@ -16,8 +16,8 @@ describe('prompt browsing', () => {
             {
               promptId: 'p1',
               name: 'Greeting',
-              currentVersionNumber: 2,
               createdAt: 'x',
+              updatedAt: 'x',
             },
           ],
           hasMore: false,
@@ -32,47 +32,12 @@ describe('prompt browsing', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows version history descending', async () => {
+  it('opens a prompt with its full content', async () => {
     setToken('t')
     server.use(
       http.get('/api/prompts/p1', () =>
         HttpResponse.json({
           promptId: 'p1',
-          versions: [
-            {
-              versionId: 'v2',
-              number: 2,
-              name: 'Renamed',
-              createdAt: 'x',
-              current: true,
-            },
-            {
-              versionId: 'v1',
-              number: 1,
-              name: 'Original',
-              createdAt: 'x',
-              current: false,
-            },
-          ],
-        }),
-      ),
-    )
-
-    renderApp('/prompts/p1/version')
-
-    const items = await screen.findAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('Renamed (v2)')
-    expect(items[1]).toHaveTextContent('Original (v1)')
-  })
-
-  it('opens a historical version with full content', async () => {
-    setToken('t')
-    server.use(
-      http.get('/api/prompts/p1/versions/1', () =>
-        HttpResponse.json({
-          promptId: 'p1',
-          versionId: 'v1',
-          number: 1,
           name: 'Original',
           description: 'first',
           promptText: 'Tell me about {{topic}}',
@@ -83,14 +48,15 @@ describe('prompt browsing', () => {
           thinking: 'off',
           variables: [{ name: 'topic', required: true }],
           createdAt: 'x',
+          updatedAt: 'x',
         }),
       ),
     )
 
-    renderApp('/prompts/p1/versions/1')
+    renderApp('/prompts/p1')
 
     expect(
-      await screen.findByRole('link', { name: 'Prompt Vault - Original (v1)' }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Original' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Tell me about {{topic}}')).toBeInTheDocument()
     expect(screen.getByText('claude-opus-4-8')).toBeInTheDocument()
@@ -98,7 +64,7 @@ describe('prompt browsing', () => {
     expect(within(variables).getByText(/topic/)).toBeInTheDocument()
   })
 
-  it('navigates from the list into a prompt and a version', async () => {
+  it('navigates from the list into a prompt', async () => {
     const user = userEvent.setup()
     setToken('t')
     server.use(
@@ -108,18 +74,16 @@ describe('prompt browsing', () => {
             {
               promptId: 'p1',
               name: 'Greeting',
-              currentVersionNumber: 1,
               createdAt: 'x',
+              updatedAt: 'x',
             },
           ],
           hasMore: false,
         }),
       ),
-      http.get('/api/prompts/p1/versions/current', () =>
+      http.get('/api/prompts/p1', () =>
         HttpResponse.json({
           promptId: 'p1',
-          versionId: 'v1',
-          number: 1,
           name: 'Greeting',
           description: null,
           promptText: 'Hello',
@@ -130,6 +94,7 @@ describe('prompt browsing', () => {
           thinking: 'off',
           variables: [],
           createdAt: 'x',
+          updatedAt: 'x',
         }),
       ),
     )
@@ -138,7 +103,7 @@ describe('prompt browsing', () => {
     await user.click(await screen.findByRole('link', { name: 'Greeting' }))
 
     expect(
-      await screen.findByRole('link', { name: 'Prompt Vault - Greeting (v1)' }),
+      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
     ).toBeInTheDocument()
   })
 
@@ -167,14 +132,14 @@ describe('prompt browsing', () => {
           {
             promptId: 'p1',
             name: 'Email Summarizer',
-            currentVersionNumber: 1,
             createdAt: 'x',
+            updatedAt: 'x',
           },
           {
             promptId: 'p2',
             name: 'Code Reviewer',
-            currentVersionNumber: 1,
             createdAt: 'x',
+            updatedAt: 'x',
           },
         ]
         const filtered = q
@@ -220,8 +185,8 @@ describe('prompt browsing', () => {
                 {
                   promptId: 'p1',
                   name: 'Alpha',
-                  currentVersionNumber: 1,
                   createdAt: 'x',
+                  updatedAt: 'x',
                 },
               ],
           hasMore: false,
@@ -250,14 +215,14 @@ describe('prompt browsing', () => {
           {
             promptId: 'p1',
             name: 'Alpha',
-            currentVersionNumber: 1,
             createdAt: 'x',
+            updatedAt: 'x',
           },
           {
             promptId: 'p2',
             name: 'Beta',
-            currentVersionNumber: 1,
             createdAt: 'x',
+            updatedAt: 'x',
           },
         ]
         return HttpResponse.json({
@@ -296,8 +261,8 @@ describe('prompt browsing', () => {
                 {
                   promptId: 'p1',
                   name: 'First',
-                  currentVersionNumber: 1,
                   createdAt: 'x',
+                  updatedAt: 'x',
                 },
               ],
               hasMore: true,
@@ -307,8 +272,8 @@ describe('prompt browsing', () => {
                 {
                   promptId: 'p2',
                   name: 'Second',
-                  currentVersionNumber: 1,
                   createdAt: 'x',
+                  updatedAt: 'x',
                 },
               ],
               hasMore: false,

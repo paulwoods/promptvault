@@ -2,14 +2,14 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
-import { VersionForm } from '../components/VersionForm'
+import { PromptForm } from '../components/PromptForm'
 import {
-  emptyVersionValues,
-  type VersionRequestBody,
-} from '../components/versionFormValues'
+  emptyPromptValues,
+  type PromptRequestBody,
+} from '../components/promptFormValues'
 import { apiClient } from '../lib/apiClient'
 import { usePageTitle } from '../lib/pageTitle'
-import type { ModelsResponse, VersionResponse } from '../lib/types'
+import type { ModelsResponse, PromptResponse } from '../lib/types'
 
 export function CreatePromptPage() {
   const navigate = useNavigate()
@@ -20,9 +20,9 @@ export function CreatePromptPage() {
   })
 
   const mutation = useMutation({
-    mutationFn: (body: VersionRequestBody) =>
-      apiClient.post<VersionResponse>('/api/prompts', body),
-    onSuccess: (data) => navigate(`/prompts/${data.promptId}/version`),
+    mutationFn: (body: PromptRequestBody) =>
+      apiClient.post<PromptResponse>('/api/prompts', body),
+    onSuccess: (data) => navigate(`/prompts/${data.promptId}`),
   })
 
   if (models.isPending) {
@@ -33,8 +33,8 @@ export function CreatePromptPage() {
   }
 
   return (
-    <VersionForm
-      initial={emptyVersionValues(models.data.defaultModel)}
+    <PromptForm
+      initial={emptyPromptValues(models.data.defaultModel)}
       submitLabel="Create prompt"
       pending={mutation.isPending}
       error={mutation.error}

@@ -10,8 +10,8 @@ export interface PromptSummary {
   promptId: string
   name: string
   description?: string | null
-  currentVersionNumber: number
   createdAt: string
+  updatedAt: string
 }
 
 export interface VariableDeclaration {
@@ -25,10 +25,8 @@ export function isRequired(variable: VariableDeclaration): boolean {
   return variable.required ?? true
 }
 
-export interface VersionResponse {
+export interface PromptResponse {
   promptId: string
-  versionId: string
-  number: number
   name: string
   description?: string | null
   promptText: string
@@ -39,19 +37,7 @@ export interface VersionResponse {
   thinking: string
   variables: VariableDeclaration[]
   createdAt: string
-}
-
-export interface VersionSummary {
-  versionId: string
-  number: number
-  name: string
-  createdAt: string
-  current: boolean
-}
-
-export interface PromptDetail {
-  promptId: string
-  versions: VersionSummary[]
+  updatedAt: string
 }
 
 export interface TrashedPromptSummary {
@@ -83,40 +69,8 @@ export interface ApiKeyStatus {
   lastSix?: string | null
 }
 
-export interface RunSummary {
-  runId: string
-  versionNumber: number
-  status: string
-  responsePreview?: string | null
-  createdAt: string
-}
-
 export interface ModelUsage {
   model: string
   inputTokens: number
   outputTokens: number
-}
-
-export interface ActivityItem {
-  id: string
-  type: string
-  occurredAt: string
-  label: string
-  versionNumber?: number | null
-  runStatus?: string | null
-}
-
-export interface RunDetail {
-  runId: string
-  versionNumber: number
-  model: string
-  variableValues: Record<string, string>
-  renderedPrompt: string
-  response?: string | null
-  inputTokens?: number | null
-  outputTokens?: number | null
-  status: string
-  errorCategory?: string | null
-  errorMessage?: string | null
-  createdAt: string
 }

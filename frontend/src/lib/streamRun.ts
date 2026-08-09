@@ -1,18 +1,12 @@
 import { UNAUTHORIZED_EVENT, toApiError } from './apiClient'
 import { clearToken, getToken } from './auth'
 
-export interface RunMeta {
-  runId: string
-  versionNumber: number
-}
-
 export interface RunUsage {
   inputTokens: number
   outputTokens: number
 }
 
 export interface StreamHandlers {
-  onMeta?: (meta: RunMeta) => void
   onToken: (text: string) => void
   onDone: (usage: RunUsage) => void
   onError: (info: { category: string; message: string }) => void
@@ -21,27 +15,23 @@ export interface StreamHandlers {
 /**
  * Consumes the streaming run endpoint: a Bearer POST whose response is a
  * text/event-stream parsed with a ReadableStream reader and our own SSE frame
- * parser (the four named events). Pre-stream failures arrive as a JSON error
+ * parser (the three named events). Pre-stream failures arrive as a JSON error
  * envelope and are thrown as an ApiError (e.g. no_api_key) for the caller to route.
  */
 export async function streamRun(
   promptId: string,
-  versionNumber: string,
   values: Record<string, string>,
   handlers: StreamHandlers,
 ): Promise<void> {
   const token = getToken()
-  const response = await fetch(
-    `/api/prompts/${promptId}/versions/${versionNumber}/runs`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ values }),
+  const response = await fetch(`/api/prompts/${promptId}/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-  )
+    body: JSON.stringify({ values }),
+  })
 
   const contentType = response.headers.get('content-type') ?? ''
   if (
@@ -90,9 +80,6 @@ function dispatch(rawEvent: string, handlers: StreamHandlers): void {
   }
   const payload = JSON.parse(data)
   switch (eventName) {
-    case 'meta':
-      handlers.onMeta?.(payload as RunMeta)
-      break
     case 'token':
       handlers.onToken((payload as { text: string }).text)
       break
