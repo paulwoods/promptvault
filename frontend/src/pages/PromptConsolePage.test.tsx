@@ -17,9 +17,6 @@ function promptResponse(overrides: Record<string, unknown> = {}) {
     maxTokens: 2048,
     effort: 'high',
     thinking: 'off',
-    variables: [
-      { name: 'topic', description: null, required: true, defaultValue: null },
-    ],
     createdAt: 'x',
     updatedAt: 'x',
     ...overrides,
@@ -50,9 +47,6 @@ async function editDescription(user: ReturnType<typeof userEvent.setup>) {
 /**
  * Pins the Console's behavior mechanism-by-mechanism so the form can be inlined
  * off PromptForm and proven faithful by an unchanged suite (Phase 13.3/13.4).
- * The five placeholder/variable cases live in CreateEditPrompt.test.tsx: they
- * exercise variableMismatch(), a shared pure function that is not being
- * inlined, so one case here is enough to prove the gate is wired.
  */
 describe('prompt console', () => {
   it('seeds every field from the loaded prompt', async () => {
@@ -70,8 +64,7 @@ describe('prompt console', () => {
     expect(
       screen.getByRole('button', { name: 'Description A greeting' }),
     ).toBeInTheDocument()
-    // The run settings read as text too, and only the variables are still plain
-    // form fields — all on the Details tab.
+    // The run settings read as text too — all on the Details tab.
     expect(
       screen.getByRole('button', { name: 'Model claude-opus-4-8' }),
     ).toBeInTheDocument()
@@ -81,7 +74,6 @@ describe('prompt console', () => {
     expect(
       screen.getByRole('button', { name: 'Effort high' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Variable 1 name')).toHaveValue('topic')
 
     // The prompt text and system prompt live on their own tabs.
     await user.click(screen.getByRole('button', { name: 'User Prompt' }))
@@ -92,32 +84,6 @@ describe('prompt console', () => {
     expect(
       screen.getByRole('button', { name: 'System Prompt Be brief' }),
     ).toBeInTheDocument()
-  })
-
-  it('blocks submit when the prompt and its variables disagree', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    let saved = false
-    server.use(
-      getPrompt(),
-      http.put('/api/prompts/p1', () => {
-        saved = true
-        return HttpResponse.json(promptResponse())
-      }),
-    )
-
-    renderApp('/prompts/p1/console')
-    // Declare a second variable the prompt text never uses.
-    await user.click(
-      await screen.findByRole('button', { name: 'Add variable' }),
-    )
-    await user.type(screen.getByLabelText('Variable 2 name'), 'tone')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Variable {{tone}} not used in the prompt',
-    )
-    expect(saved).toBe(false)
   })
 
   it('carries thinking off in the same patch that moves to Haiku', async () => {
@@ -163,40 +129,6 @@ describe('prompt console', () => {
       screen.queryByRole('button', { name: /^Thinking / }),
     ).not.toBeInTheDocument()
     expect(screen.getByText('off')).toBeInTheDocument()
-  })
-
-  it('saving carries the stored name, not the inline field draft', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    let submitted: unknown
-    server.use(
-      getPrompt(),
-      // A save is still a PUT over the whole prompt for the fields the form owns.
-      http.put('/api/prompts/p1', async ({ request }) => {
-        submitted = await request.json()
-        return HttpResponse.json(promptResponse())
-      }),
-    )
-
-    renderApp('/prompts/p1/console')
-    // Name is inline-edited, so an uncommitted draft must not ride along on the
-    // PUT -- the body carries the name the query holds.
-    const nameField = await editName(user)
-    await user.clear(nameField)
-    await user.type(nameField, 'Uncommitted')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    expect(
-      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
-    ).toBeInTheDocument()
-    expect(submitted).toMatchObject({
-      name: 'Greeting',
-      // Name, system prompt, and the run settings are all inline-edited now,
-      // so the PUT carries what the query holds — not any uncommitted draft.
-      systemPrompt: 'Be brief',
-      maxTokens: 2048,
-      effort: 'high',
-    })
   })
 
   it('committing PATCHes the name alone and takes the new value from the response', async () => {
@@ -279,7 +211,7 @@ describe('prompt console', () => {
     await user.type(nameField, 'Renamed{Enter}')
 
     await waitFor(() => expect(patched).toEqual({ name: 'Renamed' }))
-    // Enter falling through would PUT every other field from `values`.
+    // Enter commits the inline field; it must not fall through to anything else.
     expect(put).toBe(false)
   })
 
@@ -403,29 +335,6 @@ describe('prompt console', () => {
     ).toBeInTheDocument()
   })
 
-  it('saving carries the stored description, not the inline field draft', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    let submitted: unknown
-    server.use(
-      getPrompt(),
-      http.put('/api/prompts/p1', async ({ request }) => {
-        submitted = await request.json()
-        return HttpResponse.json(promptResponse())
-      }),
-    )
-
-    renderApp('/prompts/p1/console')
-    const field = await editDescription(user)
-    await user.clear(field)
-    await user.type(field, 'Uncommitted')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    await waitFor(() =>
-      expect(submitted).toMatchObject({ description: 'A greeting' }),
-    )
-  })
-
   it('keeps the draft and reports a failed patch beside the field', async () => {
     const user = userEvent.setup()
     setToken('t')
@@ -481,39 +390,6 @@ describe('prompt console', () => {
     expect(deleted).toBe(true)
   })
 
-  it('shadows a stale server error once the client gate fires', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    server.use(
-      getPrompt(),
-      http.put('/api/prompts/p1', () =>
-        HttpResponse.json(
-          {
-            error: 'validation_error',
-            message: 'Validation failed',
-            details: { name: 'must not be blank' },
-          },
-          { status: 400 },
-        ),
-      ),
-    )
-
-    renderApp('/prompts/p1/console')
-    await user.click(await screen.findByRole('button', { name: 'Save' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Validation failed: must not be blank',
-    )
-
-    // The client gate now blocks submit, so the server error above is stale.
-    await user.click(screen.getByRole('button', { name: 'Add variable' }))
-    await user.type(screen.getByLabelText('Variable 2 name'), 'tone')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Variable {{tone}} not used in the prompt',
-    )
-  })
-
   it('shows the tabs while the models query is still pending', async () => {
     setToken('t')
     server.use(
@@ -527,7 +403,7 @@ describe('prompt console', () => {
     renderApp('/prompts/p1/console')
 
     // The prompt has loaded, so the tabs render; the form and its actions --
-    // Delete included, now that it sits beside Save -- wait on the models query.
+    // Delete included -- wait on the models query.
     expect(
       await screen.findByRole('link', { name: 'View' }),
     ).toBeInTheDocument()

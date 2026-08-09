@@ -21,20 +21,14 @@ public class PromptService {
 
     private final PromptRepository prompts;
     private final RunSettingsValidator runSettingsValidator;
-    private final VariableValidator variableValidator;
-    private final PlaceholderValidator placeholderValidator;
     private final Validator validator;
 
     public PromptService(
             PromptRepository prompts,
             RunSettingsValidator runSettingsValidator,
-            VariableValidator variableValidator,
-            PlaceholderValidator placeholderValidator,
             Validator validator) {
         this.prompts = prompts;
         this.runSettingsValidator = runSettingsValidator;
-        this.variableValidator = variableValidator;
-        this.placeholderValidator = placeholderValidator;
         this.validator = validator;
     }
 
@@ -52,8 +46,7 @@ public class PromptService {
                 validated.systemPrompt(),
                 request.maxTokens(),
                 request.effort(),
-                request.thinking(),
-                validated.variables());
+                request.thinking());
         return prompts.save(prompt);
     }
 
@@ -75,8 +68,7 @@ public class PromptService {
                 validated.systemPrompt(),
                 request.maxTokens(),
                 request.effort(),
-                request.thinking(),
-                validated.variables());
+                request.thinking());
         return prompt;
     }
 
@@ -103,8 +95,7 @@ public class PromptService {
                 validated.systemPrompt(),
                 merged.maxTokens(),
                 merged.effort(),
-                merged.thinking(),
-                validated.variables());
+                merged.thinking());
         return prompt;
     }
 
@@ -189,18 +180,14 @@ public class PromptService {
                 .toList();
     }
 
-    /** Run Settings, Variable, and placeholder validation, plus blank-to-null normalization. */
+    /** Run Settings validation, plus blank-to-null normalization. */
     private Validated validate(PromptRequest request) {
         runSettingsValidator.validate(request);
-        List<VariableDeclaration> variables = variableValidator.normalize(request.variables());
-        placeholderValidator.validateSetEquality(request.promptText(), variables);
         return new Validated(
                 request.name().trim(),
                 StringUtils.hasText(request.description()) ? request.description() : null,
-                StringUtils.hasText(request.systemPrompt()) ? request.systemPrompt() : null,
-                variables);
+                StringUtils.hasText(request.systemPrompt()) ? request.systemPrompt() : null);
     }
 
-    private record Validated(
-            String name, String description, String systemPrompt, List<VariableDeclaration> variables) {}
+    private record Validated(String name, String description, String systemPrompt) {}
 }

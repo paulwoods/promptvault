@@ -17,7 +17,6 @@ function promptResponse(overrides: Record<string, unknown> = {}) {
     maxTokens: 1000,
     effort: 'medium',
     thinking: 'off',
-    variables: [],
     createdAt: 'x',
     updatedAt: 'x',
     ...overrides,
@@ -45,7 +44,7 @@ describe('create / edit prompt', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the server placeholder/variable mismatch error inline', async () => {
+  it('shows the server validation error inline', async () => {
     const user = userEvent.setup()
     setToken('t')
     server.use(
@@ -54,7 +53,7 @@ describe('create / edit prompt', () => {
           {
             error: 'validation_error',
             message: 'Validation failed',
-            details: { variables: 'mismatch' },
+            details: { model: 'unsupported model' },
           },
           { status: 400 },
         ),
@@ -68,102 +67,10 @@ describe('create / edit prompt', () => {
 
     // The envelope's details carry the reason -- "Validation failed" alone is useless.
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Validation failed: mismatch',
+      'Validation failed: unsupported model',
     )
     expect(
       screen.getByRole('link', { name: 'Prompt Vault - New prompt' }),
-    ).toBeInTheDocument()
-  })
-
-  it('blocks submit when a declared variable is not used in the prompt', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-
-    renderApp('/prompts/new')
-    await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
-    await user.click(screen.getByRole('button', { name: 'Add variable' }))
-    await user.type(screen.getByLabelText('Variable 1 name'), 'topic')
-    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Variable {{topic}} not used in the prompt',
-    )
-    expect(
-      screen.getByRole('link', { name: 'Prompt Vault - New prompt' }),
-    ).toBeInTheDocument()
-  })
-
-  it('blocks submit when a placeholder has no declared variable', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-
-    renderApp('/prompts/new')
-    await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    // paste, not type -- userEvent.type reads "{{" as an escape sequence.
-    await user.click(screen.getByLabelText('User Prompt'))
-    await user.paste('Hello {{topic}}')
-    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Variable {{topic}} used in the prompt but not declared',
-    )
-  })
-
-  it('names every unused variable, pluralized', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-
-    renderApp('/prompts/new')
-    await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
-    await user.click(screen.getByRole('button', { name: 'Add variable' }))
-    await user.type(screen.getByLabelText('Variable 1 name'), 'topic')
-    await user.click(screen.getByRole('button', { name: 'Add variable' }))
-    await user.type(screen.getByLabelText('Variable 2 name'), 'tone')
-    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Variables {{topic}}, {{tone}} not used in the prompt',
-    )
-  })
-
-  it('blocks submit on an unnamed variable row', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-
-    renderApp('/prompts/new')
-    await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    await user.type(screen.getByLabelText('User Prompt'), 'Hello there')
-    await user.click(screen.getByRole('button', { name: 'Add variable' }))
-    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Invalid variable name: (empty)',
-    )
-  })
-
-  it('saves once the variable and its placeholder match', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    server.use(
-      http.post('/api/prompts', () =>
-        HttpResponse.json(promptResponse(), { status: 201 }),
-      ),
-      http.get('/api/prompts/p9', () => HttpResponse.json(promptResponse())),
-    )
-
-    renderApp('/prompts/new')
-    await user.type(await screen.findByLabelText('Name'), 'Greeting')
-    // paste, not type -- userEvent.type reads "{{" as an escape sequence.
-    await user.click(screen.getByLabelText('User Prompt'))
-    await user.paste('Hello {{topic}}')
-    await user.click(screen.getByRole('button', { name: 'Add variable' }))
-    await user.type(screen.getByLabelText('Variable 1 name'), 'topic')
-    await user.click(screen.getByRole('button', { name: 'Create prompt' }))
-
-    expect(
-      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
     ).toBeInTheDocument()
   })
 

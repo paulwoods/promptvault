@@ -5,8 +5,8 @@ import java.util.List;
 /**
  * Test double for {@link ClaudeClient}. Emits configured text deltas then a
  * chosen {@link Usage}, or fails with a chosen {@link ClaudeException}. Captures
- * the API key and request it received so tests can assert decryption and
- * Variable substitution without any network or real key.
+ * the API key and request it received so tests can assert decryption and the
+ * prompt text forwarded to Claude without any network or real key.
  */
 public class FakeClaudeClient implements ClaudeClient {
 

@@ -10,7 +10,6 @@ import { ProfilePage } from '../pages/ProfilePage'
 import { PromptConsolePage } from '../pages/PromptConsolePage'
 import { PromptViewPage } from '../pages/PromptViewPage'
 import { RegisterPage } from '../pages/RegisterPage'
-import { RunPage } from '../pages/RunPage'
 import { TrashPage } from '../pages/TrashPage'
 import { AuthListener } from './AuthListener'
 import { RequireAuth } from './RequireAuth'
@@ -52,14 +51,6 @@ export function AppRoutes() {
             element={
               <RequireAuth>
                 <EditPromptPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/run"
-            element={
-              <RequireAuth>
-                <RunPage />
               </RequireAuth>
             }
           />

@@ -1,7 +1,6 @@
 package com.promptvault.prompt;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 /** Full content of a Prompt. */
@@ -15,7 +14,6 @@ public record PromptResponse(
         int maxTokens,
         String effort,
         String thinking,
-        List<VariableDeclaration> variables,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -30,7 +28,6 @@ public record PromptResponse(
                 prompt.getMaxTokens(),
                 prompt.getEffort(),
                 prompt.getThinking(),
-                prompt.getVariables(),
                 prompt.getCreatedAt(),
                 prompt.getUpdatedAt());
     }

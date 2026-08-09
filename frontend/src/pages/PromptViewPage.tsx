@@ -3,10 +3,8 @@ import { useParams } from 'react-router'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { PromptTabs } from '../components/PromptTabs'
-import { SimpleList } from '../components/SimpleList'
 import { apiClient } from '../lib/apiClient'
 import { usePageTitle } from '../lib/pageTitle'
-import { isRequired } from '../lib/types'
 import type { PromptResponse } from '../lib/types'
 
 export function PromptViewPage() {
@@ -48,19 +46,6 @@ export function PromptViewPage() {
         <h2>Prompt text</h2>
         <pre>{data.promptText}</pre>
       </section>
-      {data.variables.length > 0 && (
-        <section>
-          <h2>Variables</h2>
-          <SimpleList>
-            {data.variables.map((variable) => (
-              <li key={variable.name}>
-                {variable.name}
-                {isRequired(variable) ? ' (required)' : ''}
-              </li>
-            ))}
-          </SimpleList>
-        </section>
-      )}
     </>
   )
 }
