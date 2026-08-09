@@ -48,6 +48,87 @@ interface ConsoleFormProps {
 }
 
 /**
+ * One inline-edited Prompt field. Read mode renders `stored` — the value from
+ * the ['prompt', id] query — and edit mode a local draft, which makes PATCH the
+ * field's only writer: a converted field leaves `values` and the PUT body, and
+ * the PUT sources it from the query instead.
+ *
+ * Console-local rather than the shared useEditableField, which fits Profile and
+ * not this: that hook PUTs a dedicated single-field endpoint, invalidates one
+ * query key where this needs two of different prefixes, and gets Enter-to-commit
+ * from each Profile field owning a <form> — which cannot nest inside ConsoleForm's.
+ */
+function useInlineField(promptId: string, field: string, stored: string) {
+  const queryClient = useQueryClient()
+  const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState(false)
+
+  const save = useMutation({
+    mutationFn: () =>
+      apiClient.patch<PromptResponse>(`/api/prompts/${promptId}`, {
+        [field]: draft,
+      }),
+    onSuccess: (updated) => {
+      // Written straight in rather than invalidated: the response is already the
+      // authoritative new state, and an invalidate-only refetch would leave
+      // `stored` stale for a round-trip — long enough for the Save button, which
+      // now sources this field from the query, to revert the edit just committed.
+      queryClient.setQueryData(['prompt', promptId], updated)
+      queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      setEditing(false)
+    },
+  })
+
+  // Blank matches @NotBlank exactly, so the server's rejection is unreachable
+  // from the UI; unchanged refuses a no-op write, which still costs a list
+  // invalidation (ADR-0008's "frequent and incidental writes" concern).
+  const committable = draft.trim() !== '' && draft !== stored
+
+  function commit() {
+    if (committable && !save.isPending) {
+      // Sent untrimmed: the PUT path does not trim, and trimming only here would
+      // make the two writers disagree about the same field.
+      save.mutate()
+    }
+  }
+
+  return {
+    value: editing ? draft : stored,
+    editing,
+    committable,
+    save,
+    commit,
+    beginEditing: () => {
+      if (!editing) {
+        setDraft(stored)
+        setEditing(true)
+      }
+    },
+    setDraft,
+    cancel: () => setEditing(false),
+  }
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  )
+}
+
+/**
  * The Console's own copy of the prompt form, inlined off the shared PromptForm
  * so it can diverge into inline-editable fields (Phase 13). PromptForm stays
  * where it is, serving Create and Duplicate.
@@ -66,6 +147,10 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   })
   const [values, setValues] = useState(() => toFormValues(prompt))
   const [mismatch, setMismatch] = useState<string | null>(null)
+  // Name is inline-edited, so it is no longer read from `values` — the field's
+  // value comes from the query and PATCH is its only writer. `values.name` is
+  // still populated by the shared toFormValues, but nothing here reads it.
+  const name = useInlineField(promptId, 'name', prompt.name)
 
   // Fires immediately on click — no confirmation dialog, matching the app's
   // existing convention (ADR-0004): safe because Trash + restore make it low-stakes.
@@ -120,7 +205,9 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
       return
     }
     mutation.mutate({
-      name: values.name,
+      // Not values.name: Name is inline-edited, so the query — not this form —
+      // holds its current value, and PromptRequest still requires the field.
+      name: prompt.name,
       description: values.description.trim() === '' ? null : values.description,
       promptText: values.promptText,
       systemPrompt:
@@ -157,16 +244,41 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
         <legend>Profile</legend>
         <label>
           Name
-          <input
-            name="name"
-            placeholder="Name"
-            value={values.name}
-            onChange={(event) =>
-              setValues((c) => ({ ...c, name: event.target.value }))
-            }
-            required
-          />
+          <div className="inline-field-row">
+            <input
+              name="name"
+              placeholder="Name"
+              value={name.value}
+              onFocus={name.beginEditing}
+              onChange={(event) => name.setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  // Without this the outer form submits and the PUT overwrites
+                  // every other field from `values`.
+                  event.preventDefault()
+                  name.commit()
+                } else if (event.key === 'Escape') {
+                  name.cancel()
+                }
+              }}
+            />
+            {name.editing && (
+              <button
+                type="button"
+                className="inline-save"
+                aria-label="Save name"
+                title="Save name"
+                disabled={!name.committable || name.save.isPending}
+                onClick={name.commit}
+              >
+                <CheckIcon />
+              </button>
+            )}
+          </div>
         </label>
+        {name.save.isError && (
+          <ErrorAlert>{errorMessage(name.save.error)}</ErrorAlert>
+        )}
         <label>
           Description
           <input

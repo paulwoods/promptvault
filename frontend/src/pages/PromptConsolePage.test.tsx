@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -100,15 +100,53 @@ describe('prompt console', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('saving overwrites the prompt with a PUT and navigates back to it', async () => {
+  it('saving carries the stored name, not the inline field draft', async () => {
     const user = userEvent.setup()
     setToken('t')
     let submitted: unknown
     server.use(
       getPrompt(),
-      // A save is a PUT over the prompt -- the console does not PATCH yet.
+      // A save is still a PUT over the whole prompt for the fields the form owns.
       http.put('/api/prompts/p1', async ({ request }) => {
         submitted = await request.json()
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    // Name is inline-edited, so an uncommitted draft must not ride along on the
+    // PUT -- the body carries the name the query holds.
+    const nameField = await screen.findByLabelText('Name')
+    await user.clear(nameField)
+    await user.type(nameField, 'Uncommitted')
+    const tokens = screen.getByLabelText('Max tokens')
+    await user.clear(tokens)
+    await user.type(tokens, '4096')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(
+      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
+    ).toBeInTheDocument()
+    expect(submitted).toMatchObject({
+      name: 'Greeting',
+      maxTokens: 4096,
+      promptText: 'Hello {{topic}}',
+      effort: 'high',
+    })
+  })
+
+  it('committing PATCHes the name alone and takes the new value from the response', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    let gets = 0
+    server.use(
+      http.get('/api/prompts/p1', () => {
+        gets += 1
+        return HttpResponse.json(promptResponse())
+      }),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
         return HttpResponse.json(promptResponse({ name: 'Renamed' }))
       }),
     )
@@ -117,17 +155,121 @@ describe('prompt console', () => {
     const nameField = await screen.findByLabelText('Name')
     await user.clear(nameField)
     await user.type(nameField, 'Renamed')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Save name' }))
 
+    // Back in read mode, showing the value the PATCH itself returned.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Save name' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(nameField).toHaveValue('Renamed')
+    expect(patched).toEqual({ name: 'Renamed' })
+    // setQueryData, not invalidate: the detail query is never refetched.
+    expect(gets).toBe(1)
+  })
+
+  it('shows the commit button only while editing, disabled until the draft differs', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const nameField = await screen.findByLabelText('Name')
     expect(
-      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
+      screen.queryByRole('button', { name: 'Save name' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(nameField)
+    expect(screen.getByRole('button', { name: 'Save name' })).toBeDisabled()
+
+    await user.type(nameField, '!')
+    expect(screen.getByRole('button', { name: 'Save name' })).toBeEnabled()
+
+    // Blank matches the server's @NotBlank, so the commit stays refused.
+    await user.clear(nameField)
+    expect(screen.getByRole('button', { name: 'Save name' })).toBeDisabled()
+  })
+
+  it('commits on Enter without submitting the outer form', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let put = false
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.put('/api/prompts/p1', () => {
+        put = true
+        return HttpResponse.json(promptResponse())
+      }),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse({ name: 'Renamed' }))
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const nameField = await screen.findByLabelText('Name')
+    await user.clear(nameField)
+    await user.type(nameField, 'Renamed{Enter}')
+
+    await waitFor(() => expect(patched).toEqual({ name: 'Renamed' }))
+    // Enter falling through would PUT every other field from `values`.
+    expect(put).toBe(false)
+  })
+
+  it('reverts to the stored name on Escape', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const nameField = await screen.findByLabelText('Name')
+    await user.clear(nameField)
+    await user.type(nameField, 'Discarded')
+    expect(nameField).toHaveValue('Discarded')
+
+    await user.type(nameField, '{Escape}')
+
+    expect(nameField).toHaveValue('Greeting')
+    expect(
+      screen.queryByRole('button', { name: 'Save name' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps the draft and reports a failed patch beside the field', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () =>
+        HttpResponse.json(
+          {
+            error: 'validation_error',
+            message: 'Validation failed',
+            details: { name: 'size must be between 0 and 200' },
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    const nameField = await screen.findByLabelText('Name')
+    await user.clear(nameField)
+    await user.type(nameField, 'Rejected')
+    await user.click(screen.getByRole('button', { name: 'Save name' }))
+
+    // Scoped: a field-level alert can now coexist with the form's bottom one.
+    const profile = screen.getByRole('group', { name: 'Profile' })
+    expect(await within(profile).findByRole('alert')).toHaveTextContent(
+      'Validation failed: size must be between 0 and 200',
+    )
+    // The draft survives the failure -- there is nothing to recover it from.
+    expect(nameField).toHaveValue('Rejected')
+    expect(
+      screen.getByRole('button', { name: 'Save name' }),
     ).toBeInTheDocument()
-    expect(submitted).toMatchObject({
-      name: 'Renamed',
-      promptText: 'Hello {{topic}}',
-      maxTokens: 2048,
-      effort: 'high',
-    })
   })
 
   it('deletes immediately with no confirmation and navigates home', async () => {

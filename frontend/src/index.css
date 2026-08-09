@@ -656,6 +656,26 @@ fieldset > div:last-child {
   flex: 1;
 }
 
+/* Console inline-edited field: input plus the commit button that appears
+   beside it while the field is being edited. */
+.inline-field-row {
+  display: flex;
+  gap: var(--space-8);
+  align-items: stretch;
+}
+
+.inline-field-row input {
+  flex: 1;
+}
+
+.inline-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  font-size: 16px;
+}
+
 .button-gold {
   background: var(--gold);
   color: var(--carbon);
