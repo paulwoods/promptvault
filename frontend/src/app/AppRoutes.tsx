@@ -1,17 +1,23 @@
-import { Route, Routes } from 'react-router'
+import { Navigate, Route, Routes, useParams } from 'react-router'
 import { Layout } from '../components/Layout'
 import { ApiKeyPage } from '../pages/ApiKeyPage'
-import { DuplicatePromptPage } from '../pages/DuplicatePromptPage'
-import { EditPromptPage } from '../pages/EditPromptPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { ProfilePage } from '../pages/ProfilePage'
 import { PromptConsolePage } from '../pages/PromptConsolePage'
-import { PromptViewPage } from '../pages/PromptViewPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { TrashPage } from '../pages/TrashPage'
 import { AuthListener } from './AuthListener'
 import { RequireAuth } from './RequireAuth'
+
+/**
+ * Redirects a removed prompt page (View, Edit, Duplicate) to the Console, which
+ * absorbed all three. Reads the `:id` param so the redirect preserves it.
+ */
+function RedirectToConsole() {
+  const { id = '' } = useParams()
+  return <Navigate replace to={`/prompts/${id}/console`} />
+}
 
 export function AppRoutes() {
   return (
@@ -29,22 +35,8 @@ export function AppRoutes() {
               </RequireAuth>
             }
           />
-          <Route
-            path="/prompts/:id"
-            element={
-              <RequireAuth>
-                <PromptViewPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/prompts/:id/edit"
-            element={
-              <RequireAuth>
-                <EditPromptPage />
-              </RequireAuth>
-            }
-          />
+          <Route path="/prompts/:id" element={<RedirectToConsole />} />
+          <Route path="/prompts/:id/edit" element={<RedirectToConsole />} />
           <Route
             path="/prompts/:id/console"
             element={
@@ -55,11 +47,7 @@ export function AppRoutes() {
           />
           <Route
             path="/prompts/:id/duplicate"
-            element={
-              <RequireAuth>
-                <DuplicatePromptPage />
-              </RequireAuth>
-            }
+            element={<RedirectToConsole />}
           />
           <Route
             path="/trash"

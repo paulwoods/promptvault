@@ -257,35 +257,6 @@ nav > div {
   margin: 0;
 }
 
-/* Per-prompt tab bar */
-.prompt-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-8);
-  margin-bottom: var(--space-24);
-}
-
-.prompt-tabs a {
-  padding: var(--space-8) var(--space-14);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--fog);
-}
-
-.prompt-tabs a:hover {
-  color: var(--paper);
-  background: var(--graphite);
-  text-decoration: none;
-}
-
-.prompt-tabs a[aria-current='page'] {
-  color: var(--gold);
-  background: var(--gold-dim);
-  border-color: var(--gold-dim);
-}
-
 /* Main content column */
 main {
   width: 100%;
@@ -550,7 +521,7 @@ button[type='submit']:active:not(:disabled) {
 }
 
 /* Console section tabs: switch the form between Details, User Prompt, and
-   System Prompt. Styled like the page-level .prompt-tabs but with buttons. */
+   System Prompt. */
 .console-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -906,9 +877,8 @@ fieldset > div:last-child {
   max-width: none;
 }
 
-/* The right half: a tall, read-only results area that fills whatever height
-   the left column reaches, with the Run button floating at its bottom-right
-   corner. */
+/* The right half: the Run button at the top, with the tall read-only output
+   area filling whatever height the left column reaches beneath it. */
 .run-pane {
   display: flex;
   flex-direction: column;
@@ -916,24 +886,15 @@ fieldset > div:last-child {
   min-height: calc(100svh - 240px);
 }
 
-/* Positioning context for the floating Run button over the output. */
-.run-output-wrap {
-  position: relative;
-  flex: 1;
-  display: flex;
-  min-height: 240px;
-}
-
 .run-output {
   flex: 1;
   resize: none;
   background: transparent;
+  min-height: 240px;
 }
 
 .run-button {
-  position: absolute;
-  right: var(--space-8);
-  bottom: var(--space-8);
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1092,6 +1053,16 @@ pre code {
   gap: var(--space-12);
   flex-wrap: wrap;
   margin-bottom: var(--space-24);
+}
+
+/* An icon-only action button (Duplicate, Delete) in the Console's actions row.
+   Squares the base button's padding and centers the 1em icon it holds. */
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  font-size: 16px;
 }
 
 .status {

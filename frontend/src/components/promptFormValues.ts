@@ -1,16 +1,4 @@
-import type { PromptResponse } from '../lib/types'
-
-export interface PromptFormValues {
-  name: string
-  description: string
-  promptText: string
-  systemPrompt: string
-  model: string
-  maxTokens: number
-  effort: string
-  thinking: string
-}
-
+/** The body of a create or duplicate POST to /api/prompts. */
 export interface PromptRequestBody {
   name: string
   description: string | null
@@ -20,18 +8,4 @@ export interface PromptRequestBody {
   maxTokens: number
   effort: string
   thinking: string
-}
-
-/** Seeds form values from an existing Prompt -- used to edit or duplicate it. */
-export function toFormValues(prompt: PromptResponse): PromptFormValues {
-  return {
-    name: prompt.name,
-    description: prompt.description ?? '',
-    promptText: prompt.promptText,
-    systemPrompt: prompt.systemPrompt ?? '',
-    model: prompt.model,
-    maxTokens: prompt.maxTokens,
-    effort: prompt.effort,
-    thinking: prompt.thinking,
-  }
 }

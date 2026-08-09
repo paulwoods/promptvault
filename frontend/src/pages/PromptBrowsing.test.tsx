@@ -32,7 +32,7 @@ describe('prompt browsing', () => {
     ).toBeInTheDocument()
   })
 
-  it('opens a prompt with its full content', async () => {
+  it('opens a prompt on the Console with its content loaded', async () => {
     setToken('t')
     server.use(
       http.get('/api/prompts/p1', () =>
@@ -52,13 +52,18 @@ describe('prompt browsing', () => {
       ),
     )
 
+    // The bare /prompts/:id route redirects to the Console, which absorbed
+    // the old View page; the prompt's name seeds the inline Name field.
     renderApp('/prompts/p1')
 
     expect(
-      await screen.findByRole('link', { name: 'Prompt Vault - Original' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Console: Original',
+      }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Tell me about {{topic}}')).toBeInTheDocument()
-    expect(screen.getByText('claude-opus-4-8')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Name Original' }),
+    ).toBeInTheDocument()
   })
 
   it('navigates from the list into a prompt', async () => {
@@ -99,7 +104,9 @@ describe('prompt browsing', () => {
     await user.click(await screen.findByRole('link', { name: 'Greeting' }))
 
     expect(
-      await screen.findByRole('link', { name: 'Prompt Vault - Greeting' }),
+      await screen.findByRole('link', {
+        name: 'Prompt Vault - Console: Greeting',
+      }),
     ).toBeInTheDocument()
   })
 
