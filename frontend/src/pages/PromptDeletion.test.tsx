@@ -110,8 +110,8 @@ describe('prompt deletion and trash', () => {
     let prompts: {
       promptId: string
       name: string
-      currentVersionNumber: number
       createdAt: string
+      updatedAt: string
     }[] = []
 
     server.use(
@@ -125,8 +125,8 @@ describe('prompt deletion and trash', () => {
           {
             promptId: 'p1',
             name: 'Restorable',
-            currentVersionNumber: 1,
             createdAt: 'x',
+            updatedAt: 'x',
           },
         ]
         return new HttpResponse(null, { status: 204 })
