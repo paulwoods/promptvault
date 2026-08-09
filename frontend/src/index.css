@@ -656,8 +656,42 @@ fieldset > div:last-child {
   flex: 1;
 }
 
-/* Console inline-edited field: input plus the commit button that appears
-   beside it while the field is being edited. */
+/* Console inline-edited field: the stored value reads as plain text and turns
+   link-like on hover, then swaps for the input and its commit button on click. */
+.inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.inline-field-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fog);
+}
+
+.inline-value {
+  align-self: flex-start;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  /* Matches the input's box so clicking through to edit does not shift the row. */
+  padding: var(--space-12) var(--space-14);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--paper);
+  text-align: left;
+}
+
+/* :not(:disabled) is not idle — it outweighs the base button:hover:not(:disabled)
+   rule, which would otherwise repaint this as a filled box on hover. */
+.inline-value:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--gold-bright);
+  text-decoration: underline;
+}
+
 .inline-field-row {
   display: flex;
   gap: var(--space-8);
