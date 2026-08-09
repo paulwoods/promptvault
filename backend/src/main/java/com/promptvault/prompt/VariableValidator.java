@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Validates and normalizes declared Variables: names match the placeholder
- * charset and are unique within the Version; {@code required} defaults to true.
+ * charset and are unique within the Prompt; {@code required} defaults to true.
  */
 @Component
 public class VariableValidator {

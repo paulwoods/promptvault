@@ -66,7 +66,7 @@ class PromptDeletionTest extends IntegrationTest {
 
     private Instant deletedAtOf(String promptId) {
         // Delete/restore mutate a managed entity via dirty checking (no explicit save());
-        // flush so the raw JDBC read below sees it, mirroring RunStoreTest's pattern.
+        // flush so the raw JDBC read below sees it.
         entityManager.flush();
         return jdbcTemplate.queryForObject(
                 "select deleted_at from prompt where id = ?", Instant.class, UUID.fromString(promptId));

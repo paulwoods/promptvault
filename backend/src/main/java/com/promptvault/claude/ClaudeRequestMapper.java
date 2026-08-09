@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Maps an SDK-agnostic {@link ClaudeRequest} to the SDK's MessageCreateParams.
- * Effort and thinking are already guaranteed legal for the Version's model by
+ * Effort and thinking are already guaranteed legal for the Prompt's model by
  * {@link com.promptvault.prompt.RunSettingsValidator} at save time, so this
  * class only decides whether to forward effort (Haiku 400s if it's present at
  * all, regardless of value) and forwards thinking as-is. The rendered prompt
