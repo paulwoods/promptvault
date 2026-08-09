@@ -23,7 +23,7 @@ class RunStreamerTest {
     private final RunStreamer streamer = new RunStreamer(fake, recorder, new ObjectMapper());
 
     private static ClaudeRequest request() {
-        return new ClaudeRequest(MODEL, null, "rendered prompt", 1000, "medium", "off");
+        return new ClaudeRequest(MODEL, null, "prompt text", 1000, "medium", "off");
     }
 
     @Test

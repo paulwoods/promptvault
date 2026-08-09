@@ -60,45 +60,66 @@ promptvault.mrpaulwoods.com  →  <droplet IP>
 Caddy will obtain the certificate automatically on first request once the
 record resolves and the Caddyfile block (1.5) is live.
 
-### 1.2 Dockerfiles (commit to this repo)
+### 1.2 Dockerfiles
 
-These do not exist yet. Create them on first deploy and commit them.
+Both Dockerfiles are committed to this repo. CI (`./mvnw -B verify` for the
+backend, `npm test -- --run` + `npm run build` for the frontend) builds and
+tests before the image is assembled, so the images carry no build tooling.
 
-**`backend/Dockerfile`** — multi-stage; tests are skipped in the image build
-(they need Docker for Testcontainers — run the suite locally/CI before
-building, per the git workflow):
+**`backend/Dockerfile`** — single-stage; expects the JAR prebuilt by
+`./mvnw package` (or `verify`) before `docker build`, runs as a non-root
+`spring` user, and healthchecks the public `/api/hello` endpoint:
 
 ```dockerfile
-FROM eclipse-temurin:25-jdk AS build
-WORKDIR /app
-COPY .mvn .mvn
-COPY mvnw pom.xml ./
-RUN ./mvnw -B dependency:go-offline
-COPY src src
-RUN ./mvnw -B package -DskipTests
+FROM eclipse-temurin:25.0.2_10-jre-noble
 
-FROM eclipse-temurin:25-jre
+# Install curl for health check
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+# Non-root user
+RUN groupadd spring && useradd -g spring spring
+USER spring:spring
+
 WORKDIR /app
-COPY --from=build /app/target/backend-*.jar app.jar
+
+# Expects the JAR to be prebuilt by `./mvnw package` (or `verify`) before `docker build`.
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} app.jar
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# 127.0.0.1, not localhost: that also resolves to ::1, and the JVM listens on
+# IPv4 only. start-period covers a ~45s cold boot on a 1-vCPU host.
+HEALTHCHECK --interval=2m --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -f http://127.0.0.1:8080/api/hello || exit 1
+
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-jar", "app.jar"]
 ```
 
 **`frontend/Dockerfile`** — builds the SPA (the `build` script also runs the
 typecheck), serves it with nginx:
 
 ```dockerfile
+# ─── Stage 1: Build ───────────────────────────────────────────────────────────
 FROM node:26-alpine AS build
 WORKDIR /app
+
 COPY package.json package-lock.json ./
 RUN npm ci
+
 COPY . .
 RUN npm run build
 
+# ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+
 EXPOSE 80
+
+HEALTHCHECK --interval=2m --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --spider -q http://127.0.0.1:80/ || exit 1
 ```
 
 **`frontend/nginx.conf`** — SPA fallback so client-side routes (react-router)
@@ -127,6 +148,15 @@ context):
 ```
 node_modules
 dist
+.git
+.idea
+.vscode
+*.iml
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.env.local
+.env.*.local
 ```
 
 ### 1.3 Create the database in the shared Postgres
@@ -234,7 +264,7 @@ two tags are pinned independently (Part 2) — they are not expected to match:
 
 ```yaml
   promptvault-backend:
-    image: paulwoods/promptvault-backend:0.1.6
+    image: paulwoods/promptvault-backend:0.1.7
     env_file:
       - promptvault.env
     restart: unless-stopped
@@ -245,7 +275,7 @@ two tags are pinned independently (Part 2) — they are not expected to match:
           memory: 1g
 
   promptvault-frontend:
-    image: paulwoods/promptvault-frontend:0.0.9
+    image: paulwoods/promptvault-frontend:0.0.11
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -294,7 +324,7 @@ git push origin develop
 
 **The two images version independently.** Each workflow is path-filtered, so a
 backend-only change publishes only a new backend image and the frontend tag
-stays where it is (hence `0.1.5` / `0.0.4` rather than one shared number):
+stays where it is (hence `0.1.7` / `0.0.11` rather than one shared number):
 
 | Change under | Publishes | Version bumped by |
 |---|---|---|

@@ -181,7 +181,7 @@ class PromptCollapseMigrationTest {
                 .queryForObject("select updated_at from prompt where id = ?", Timestamp.class, promptA)
                 .toInstant();
         assertThat(updatedAt).isCloseTo(promptAV3CreatedAt, within(1, ChronoUnit.SECONDS));
-        // V3's created_at column is left untouched, so it still marks creation.
+        // Migration V3's prompt.created_at column is left untouched, so it still marks creation.
         Instant createdAt = jdbcTemplate
                 .queryForObject("select created_at from prompt where id = ?", Timestamp.class, promptA)
                 .toInstant();

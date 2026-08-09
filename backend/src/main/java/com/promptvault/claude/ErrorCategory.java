@@ -6,6 +6,5 @@ public enum ErrorCategory {
     RATE_LIMIT,
     OVERLOADED,
     NETWORK,
-    CLIENT_DISCONNECT,
     OTHER
 }

@@ -3,8 +3,9 @@
 -- is irreversible: it destroys every historical Version and every stored Claude
 -- response. Take a pg_dump immediately before deploying it.
 
--- 1. Version's content columns move onto prompt. Nullable first so the backfill
---    can populate them; tightened in step 3.
+-- 1. Version's content columns move onto prompt, plus a new updated_at (backfilled
+--    in step 2 from the current Version's created_at to preserve list ordering).
+--    Nullable first so the backfill can populate them; tightened in step 3.
 alter table prompt
     add column name          text,
     add column description   text,

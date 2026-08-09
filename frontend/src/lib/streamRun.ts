@@ -82,10 +82,12 @@ function dispatch(rawEvent: string, handlers: StreamHandlers): void {
       handlers.onToken((payload as { text: string }).text)
       break
     case 'done':
-      handlers.onDone((payload as { usage: RunUsage }).usage)
+      handlers.onDone((payload as { status: string; usage: RunUsage }).usage)
       break
     case 'error':
-      handlers.onError(payload as { category: string; message: string })
+      handlers.onError(
+        payload as { status: string; category: string; message: string },
+      )
       break
     default:
       break

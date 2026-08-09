@@ -62,3 +62,14 @@ export interface ModelUsage {
   inputTokens: number
   outputTokens: number
 }
+
+/** Response from `POST /api/auth/login`. */
+export interface LoginResponse {
+  token: string
+}
+
+/** Response from `POST /api/auth/register`. */
+export interface RegisterResponse {
+  id: string
+  email: string
+}

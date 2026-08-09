@@ -7,10 +7,7 @@ import { apiClient } from '../lib/apiClient'
 import { setToken } from '../lib/auth'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
-
-interface LoginResponse {
-  token: string
-}
+import type { LoginResponse } from '../lib/types'
 
 export function LoginPage() {
   usePageTitle('Log in')

@@ -14,7 +14,7 @@ import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-/** Issues HS256 access tokens. Token validation/parsing is added with the auth filter (2.3). */
+/** Issues and parses HS256 access tokens; {@code JwtAuthenticationFilter} delegates parsing here. */
 @Service
 public class JwtService {
 

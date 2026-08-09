@@ -50,7 +50,7 @@ public class ApiKey {
         applyPayload(payload, lastSix);
     }
 
-    /** Replaces the stored ciphertext (used by the upsert when a key already exists). */
+    /** Replaces the stored IV, ciphertext, auth tag, and last-six fragment (used by the upsert when a key already exists). */
     public void applyPayload(EncryptedPayload payload, String lastSix) {
         this.iv = payload.iv();
         this.ciphertext = payload.ciphertext();
