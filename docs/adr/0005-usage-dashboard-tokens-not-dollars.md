@@ -1,5 +1,7 @@
 # Usage dashboard shows token counts, not dollar cost
 
+> **Amended by [ADR-0007](0007-mutable-prompts-no-version-or-run-history.md).** The decision stands, but its premise is void: token counts are no longer a by-product of stored Runs. They live in a purpose-built `token_usage` table keyed `(user_id, model)`.
+
 The Profile page's account-wide usage summary reports all-time input/output token totals per model — it does not estimate a dollar cost. The PRD's Out of Scope section already rules out "any billing/cost-tracking beyond per-User attribution via the User's own key"; token counts *are* that per-User attribution (already recorded on every [Run](../../CONTEXT.md#run)), but converting them to a dollar figure would mean introducing and maintaining a per-model price table that has no other reason to exist in this app and goes silently wrong the moment Anthropic reprices a model.
 
 ## Considered options

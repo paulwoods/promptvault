@@ -1,6 +1,6 @@
 # Per-user, reversibly-encrypted Anthropic API keys
 
-Each [User](../../CONTEXT.md#user) supplies their own Anthropic API key, which is used for that User's [Runs](../../CONTEXT.md#run) so cost is attributed per User and one User cannot drain another's quota. Because the key must be sent to Claude at run time it cannot be hashed like a password — it is stored **reversibly encrypted** with AES-256-GCM, where the master encryption key comes from an environment variable / secret (`PROMPTVAULT_ENC_KEY`) and never lives in the database or the repository. The database stores only the IV, ciphertext, and auth tag; the plaintext key is never returned to the client.
+Each [User](../../CONTEXT.md#user) supplies their own Anthropic API key, which is used whenever that User [runs a Prompt](../../CONTEXT.md#prompt) so cost is attributed per User and one User cannot drain another's quota. Because the key must be sent to Claude at run time it cannot be hashed like a password — it is stored **reversibly encrypted** with AES-256-GCM, where the master encryption key comes from an environment variable / secret (`PROMPTVAULT_ENC_KEY`) and never lives in the database or the repository. The database stores only the IV, ciphertext, and auth tag; the plaintext key is never returned to the client.
 
 ## Considered options
 

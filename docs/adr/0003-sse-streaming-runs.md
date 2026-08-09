@@ -1,5 +1,7 @@
 # Runs stream over SSE with an explicit lifecycle
 
+> **Amended by [ADR-0007](0007-mutable-prompts-no-version-or-run-history.md).** The decision to stream over SSE stands; the persisted-lifecycle half below is void — runs are no longer stored, so there is no status, no orphan case, and no `meta` frame.
+
 A [Run](../../CONTEXT.md#run) delivers Claude's response to the browser incrementally via Server-Sent Events rather than a single blocking JSON response. The backend streams Claude's tokens as they arrive and persists the complete Run once the stream finishes. Consequently a Run carries an explicit lifecycle — in-progress → completed / failed — rather than existing only as a finished record. We chose this for responsiveness on long generations, accepting the extra plumbing on both Spring (SSE endpoint, partial-state handling) and React (consuming the stream, rendering partial output).
 
 ## Considered options
