@@ -22,6 +22,45 @@ class UsersTableMigrationTest extends IntegrationTest {
     }
 
     @Test
+    void googleOnlyUserNeedsNoPassword() {
+        jdbcTemplate.update(
+                "insert into users (id, email, name, google_sub) values (gen_random_uuid(), ?, ?, ?)",
+                "google-only@example.com",
+                "Google Only",
+                "sub-google-only");
+
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from users where google_sub = ?", Integer.class, "sub-google-only");
+        assertThat(count).isEqualTo(1);
+    }
+
+    /** ck_users_has_credential: every User holds at least one Login Method (ADR-0011). */
+    @Test
+    void userWithNeitherPasswordNorGoogleIsRejected() {
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                        "insert into users (id, email, name) values (gen_random_uuid(), ?, ?)",
+                        "credentialless@example.com",
+                        "Nobody"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void googleSubUniquenessRejectsDuplicate() {
+        jdbcTemplate.update(
+                "insert into users (id, email, name, google_sub) values (gen_random_uuid(), ?, ?, ?)",
+                "first@example.com",
+                "First",
+                "sub-shared");
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                        "insert into users (id, email, name, google_sub) values (gen_random_uuid(), ?, ?, ?)",
+                        "second@example.com",
+                        "Second",
+                        "sub-shared"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     void lowerEmailUniquenessRejectsCaseVariantDuplicate() {
         jdbcTemplate.update(
                 "insert into users (id, email, password_hash, name) values (gen_random_uuid(), ?, ?, ?)",

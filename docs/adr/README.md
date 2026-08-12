@@ -15,3 +15,4 @@ Superseded and amended ADRs are kept, never deleted or rewritten — a reversed 
 - [0008 — One Prompt Console replacing the separate Edit and Run pages](0008-prompt-console.md) — *amended by 0009, 0010*
 - [0009 — Remove Variables from Prompts](0009-remove-variables.md)
 - [0010 — Console absorbs View and Duplicate — the sole prompt surface](0010-console-absorbs-view-and-duplicate.md)
+- [0011 — Google sign-in via ID token, linked by verified email](0011-google-sign-in-verified-email-linking.md)

@@ -37,9 +37,14 @@ public class SecurityConfig {
                         // dispatch, and DispatcherType is set by the container, not the client.
                         auth -> auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
                                 .permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
+                                .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/auth/register",
+                                        "/api/auth/login",
+                                        "/api/auth/google")
                                 .permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/hello")
+                                // The SPA needs the auth config before it can render a login screen.
+                                .requestMatchers(HttpMethod.GET, "/api/hello", "/api/auth/config")
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated())

@@ -443,6 +443,37 @@ Both are built; recorded here so every PRD story has a TASKS home.
 
 ---
 
+## Phase 16 — Google sign-in as a second Login Method *(ADR-0011)*
+
+Scoped in after the MVP, reversing this list's original "OAuth/SSO/social login" fence. A Google account
+becomes a second **Login Method** on the *same* User, never a second account; the design and its rejected
+alternatives are in [ADR-0011](adr/0011-google-sign-in-verified-email-linking.md).
+
+- [x] **16.1 Docs first: ADR-0011 and the glossary.** Add `Login Method` to `docs/CONTEXT.md` and amend
+  `User` to hold one or more of them; write `docs/adr/0011-…` and list it in `docs/adr/README.md`.
+  → *verify: the ADR is indexed and CONTEXT.md stays implementation-free.*
+- [x] **16.2 Schema: a User may have no password.** V12 adds `google_sub` (unique), drops
+  `password_hash NOT NULL`, and adds `ck_users_has_credential` so "every User holds at least one Login
+  Method" is a database invariant. → *verify (SQL): a Google-only row inserts; a row with neither
+  credential is rejected; a duplicate `google_sub` is rejected.*
+- [x] **16.3 Verification seam.** `GoogleTokenVerifier` returns a `GoogleIdentity`; `RealGoogleTokenVerifier`
+  checks signature, issuer, audience and expiry via `NimbusJwtDecoder` against Google's JWK Set, and
+  `FakeGoogleTokenVerifier` stands in everywhere else. Unlike `RealClaudeClient` the real adapter is tested —
+  failing open here is an auth bypass. → *verify (JUnit): tokens signed by an unpublished key, for another
+  audience, from another issuer, or expired are all rejected; both spellings of Google's issuer are accepted.*
+- [x] **16.4 Login: subject, then verified email, then create.** `POST /api/auth/google` issues the ordinary
+  access token; `GET /api/auth/config` publishes the client ID at runtime; an unset `GOOGLE_CLIENT_ID` turns
+  the feature off (`503 google_not_configured`) rather than stopping the app. → *verify (HTTP): a verified
+  email links onto an existing password account; a returning user is found by subject after their Google
+  email changes, with the stored email untouched; an unverified email and a Google-only user's password
+  attempt both get the generic 401.*
+- [x] **16.5 Google's button on Login and Register.** The GIS script is injected only when a client ID is
+  configured; `googleSignIn.ts` is the only place that touches `window.google`. → *verify (RTL + MSW): no
+  button and no `initialize` when the backend reports no client ID; a credential is exchanged for a token and
+  lands in the app; a rejected token shows the error and stays put.*
+
+---
+
 ### Out of scope (do **not** build — from the PRD)
 
-Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · OAuth/SSO/social login · draft-vs-published Versions · sharing/teams/roles · folders/tags/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2). *Note: "search" was also originally on this list; Phase 9.1 subsequently scoped in a narrow name/description substring search — folders/tags/favorites (prompt organization) remain out of scope.*
+Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · draft-vs-published Versions · sharing/teams/roles · folders/tags/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2). *Note: "search" was also originally on this list; Phase 9.1 subsequently scoped in a narrow name/description substring search — folders/tags/favorites (prompt organization) remain out of scope. "OAuth/SSO/social login" was likewise removed: Phase 16 scoped in Google sign-in as a second Login Method (ADR-0011) — SSO, other providers, and teams/roles remain out of scope.*

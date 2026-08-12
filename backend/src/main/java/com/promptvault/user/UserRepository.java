@@ -13,4 +13,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("select u from User u where lower(u.email) = lower(:email)")
     Optional<User> findByEmailNormalized(@Param("email") String email);
+
+    /** Google's subject is the account-lookup key for Google sign-in (ADR-0011). */
+    Optional<User> findByGoogleSub(String googleSub);
 }

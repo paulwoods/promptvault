@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { AuthHero } from '../components/AuthHero'
 import { ErrorAlert } from '../components/ErrorAlert'
+import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
@@ -62,6 +63,7 @@ export function RegisterPage() {
       {mutation.isError && (
         <ErrorAlert>{errorMessage(mutation.error)}</ErrorAlert>
       )}
+      <GoogleSignInButton />
       <p className="muted">
         Already have an account? <Link to="/login">Log in</Link>
       </p>
