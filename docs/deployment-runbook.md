@@ -40,6 +40,7 @@ needed — the default profile reads these variables):
 | `SPRING_DATASOURCE_PASSWORD` | DB password | strong random |
 | `PROMPTVAULT_ENC_KEY` | AES-256-GCM master key for stored API keys (ADR-0002). Must decode to exactly 32 bytes or the app refuses to start. | `openssl rand -base64 32` |
 | `PROMPTVAULT_JWT_SECRET` | HS256 signing secret, ≥ 256-bit | `openssl rand -base64 48` |
+| `GOOGLE_CLIENT_ID` | **Optional.** OAuth 2.0 Web application client ID enabling Google sign-in (ADR-0011). Not a secret, and there is no client secret. Unset ⇒ the feature is off and no Google button is rendered; the app still starts. | Google Cloud Console, with the site's origin as an Authorized JavaScript origin |
 
 > **Never rotate or lose `PROMPTVAULT_ENC_KEY` casually** — it decrypts every
 > user's stored Anthropic API key. Losing it means every user must re-enter
@@ -257,6 +258,11 @@ PROMPTVAULT_ENC_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
 
 # --- JWT signing secret (HS256, >= 256-bit): openssl rand -base64 48 ---
 PROMPTVAULT_JWT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# --- Google sign-in (ADR-0011). Optional: omit and the feature is off. ---
+# Not a secret. The site's own origin must be an Authorized JavaScript origin
+# on this client in the Google Cloud Console.
+#GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
 ```
 
 **`docker-compose.yml`** — add two services, matching the equipment style. The

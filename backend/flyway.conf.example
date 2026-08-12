@@ -1,0 +1,15 @@
+# Flyway Maven plugin configuration template.
+#
+# Copy this file to `backend/flyway.conf` (git-ignored) to run ad-hoc Flyway
+# goals against your local database:
+#
+#   ./mvnw -f backend/pom.xml flyway:info
+#   ./mvnw -f backend/pom.xml flyway:repair
+#
+# The plugin does NOT read application.properties or the root `.env`, which is
+# why these values are repeated here. Keep them in sync with
+# SPRING_DATASOURCE_* in `.env`. Dev-only values; never commit a real
+# flyway.conf.
+flyway.url=jdbc:postgresql://localhost:5432/promptvault
+flyway.user=promptvault
+flyway.password=xxxxxxxxx

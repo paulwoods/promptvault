@@ -315,6 +315,29 @@ main[data-drawer-open='true'] {
   max-width: var(--auth-form-max);
 }
 
+/* Google sign-in. The button itself is an iframe rendered and styled by Google
+   (ADR-0011), so only its surroundings are ours to style. */
+.google-signin {
+  margin-top: var(--space-20);
+}
+
+/* Rule either side of the word, drawn with borders on the pseudo-elements. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin: 0 0 var(--space-16);
+  color: var(--fog);
+  font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
 /* Typography */
 h1,
 h2,

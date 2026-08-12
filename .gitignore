@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+backend/flyway.conf
 *.local
 .claude.000/settings.local.json
 

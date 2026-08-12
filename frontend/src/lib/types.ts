@@ -68,6 +68,14 @@ export interface LoginResponse {
   token: string
 }
 
+/**
+ * Response from `GET /api/auth/config`. `googleClientId` is absent (or null)
+ * when Google sign-in is not configured, and no Google button is offered.
+ */
+export interface AuthConfig {
+  googleClientId?: string | null
+}
+
 /** Response from `POST /api/auth/register`. */
 export interface RegisterResponse {
   id: string

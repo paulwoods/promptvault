@@ -49,6 +49,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+		<!-- Google ID token verification (ADR-0011): NimbusJwtDecoder + JWK Set. -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-jose</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>com.github.f4b6a3</groupId>
 			<artifactId>uuid-creator</artifactId>
@@ -123,6 +128,26 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+      <!--
+        Ad-hoc Flyway goals (flyway:info, flyway:repair, flyway:validate). No
+        executions are bound to the build: the app itself still runs migrations
+        via spring-boot-starter-flyway at startup. The plugin does not read
+        application.properties, so connection details come from flyway.conf
+        (git-ignored; copy it from flyway.conf.example).
+      -->
+      <plugin>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-maven-plugin</artifactId>
+        <version>13.2.0</version>
+        <configuration>
+          <configFiles>
+            <configFile>${project.basedir}/flyway.conf</configFile>
+          </configFiles>
+          <locations>
+            <location>filesystem:${project.basedir}/src/main/resources/db/migration</location>
+          </locations>
+        </configuration>
+      </plugin>
 		</plugins>
 	</build>
 

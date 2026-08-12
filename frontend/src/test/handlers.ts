@@ -2,6 +2,8 @@ import { http, HttpResponse } from 'msw'
 
 /** Default happy-path handlers; individual tests override with server.use(...). */
 export const handlers = [
+  // Google sign-in off by default; tests that want it override this.
+  http.get('/api/auth/config', () => HttpResponse.json({})),
   http.get('/api/prompts', () =>
     HttpResponse.json({ items: [], hasMore: false }),
   ),
