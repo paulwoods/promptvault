@@ -56,6 +56,23 @@ cd backend && ./mvnw verify
 cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
+## Database migrations
+
+The backend applies Flyway migrations (`backend/src/main/resources/db/migration`)
+at startup, so normal development needs no extra step. To inspect or fix the
+schema history out of band, use the Flyway Maven plugin:
+
+```sh
+cp backend/flyway.conf.example backend/flyway.conf   # once; git-ignored
+cd backend
+./mvnw flyway:info      # what is applied vs. pending
+./mvnw flyway:repair    # realign checksums / clear failed entries
+```
+
+The plugin does not read `application.properties` or `.env`, which is why
+`flyway.conf` repeats the connection details — keep it in sync with the
+`SPRING_DATASOURCE_*` values in `.env`.
+
 ## Authentication & sessions
 
 A user signs in with a password or with a Google account (ADR-0011). Both are
