@@ -49,7 +49,8 @@ Dev URLs:
 ## Checks
 
 ```sh
-# Backend: compile + tests + Spotless format check
+# Backend: compile + tests (JUnit + Testcontainers). No formatter gate — Java
+# style is convention, matched by hand.
 cd backend && ./mvnw verify
 
 # Frontend: tests, type-check, lint/format
