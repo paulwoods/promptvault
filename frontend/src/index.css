@@ -574,6 +574,38 @@ button[type='submit']:active:not(:disabled) {
   border-color: var(--gold-dim);
 }
 
+/* The dot marking a tab whose body is dirty, blocked or failed. Inline so it
+   sits against the tab's label rather than in a corner of its own. */
+.tab-marker {
+  margin-left: var(--space-6);
+  color: var(--gold);
+  line-height: 1;
+}
+
+/* Where a self-saving body says what it has done with what was typed. Sits
+   under the editor, quiet enough not to compete with the prompt itself. */
+.save-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fog);
+}
+
+.save-status-empty,
+.save-status-failed {
+  color: var(--error);
+}
+
+/* The wrapper that hides an inactive prompt body. Transparent to layout while
+   showing, so the field inside stays a direct flex item of the form and keeps
+   the height .inline-field-fill gives it. */
+.console-body {
+  display: contents;
+}
+
+.console-body[hidden] {
+  display: none;
+}
+
 .button-inline {
   width: auto;
   align-self: flex-end;

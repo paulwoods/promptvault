@@ -3,6 +3,8 @@
 > **Amended by [ADR-0008](0008-prompt-console.md).** The decision stands. Its "concurrent edits are last-write-wins" consequence was reasoned about an explicit Save button; the Console saves incrementally, making writes frequent and incidental rather than deliberate and rare.
 >
 > **Amended by [ADR-0009](0009-remove-variables.md).** The decision stands. Variables are no longer part of a Prompt's content; the "Prompt text and Variables" pairing referenced below is gone.
+>
+> **Amended by [ADR-0012](0012-prompt-bodies-autosave.md).** The decision stands, sharper again. Its "saving is destructive and has no undo" consequence loses its last mitigation for the prompt bodies: ADR-0008 removed the abandon-by-navigating-away moment, and ADR-0012 removes the revert button that replaced it. The editor's own `Ctrl+Z` is the only undo.
 
 A [Prompt](../CONTEXT.md#prompt) now carries all of its own content — name, description, prompt
 text, [Variables](../CONTEXT.md#variable), and [Run Settings](../CONTEXT.md#run-settings) — in one **mutable** row.

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { Options } from 'easymde'
 import type { Editor } from 'codemirror'
 import SimpleMdeReact from 'react-simplemde-editor'
@@ -18,8 +18,12 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void
   /** Names the field for screen readers, and stands in as the placeholder. */
   label: string
-  /** Run by the commit chord, the editor's stand-in for Enter. */
-  onCommit: () => void
+  /**
+   * Whether the editor's tab is the one showing. It stays mounted either way —
+   * CodeMirror's history is the only undo (ADR-0012) — so this is what tells it
+   * it has just been revealed and needs to measure itself again.
+   */
+  active: boolean
 }
 
 /**
@@ -39,8 +43,14 @@ export function MarkdownEditor({
   value,
   onChange,
   label,
-  onCommit,
+  active,
 }: MarkdownEditorProps) {
+  const codemirror = useRef<Editor | null>(null)
+  // Whether this editor has ever been shown. The first reveal stands in for the
+  // `autofocus` option dropped below, which put the cursor at the end of the
+  // document; later reveals leave the cursor where the user left it.
+  const revealed = useRef(false)
+
   const options = useMemo<Options>(
     () => ({
       placeholder: label,
@@ -54,9 +64,10 @@ export function MarkdownEditor({
       // an inline style. The field is already sized to fill its tab, so that
       // floor only shows up as an inner scrollbar on a short viewport.
       minHeight: '0',
-      // The click that opened the tab landed on the tab, not on this control,
-      // so without it the user would have to click twice.
-      autofocus: true,
+      // No `autofocus`: it only fires at construction, and this editor is
+      // constructed while its tab is hidden. Focus is driven by the activation
+      // effect below instead — and it has to be, because `options` is memoised
+      // and any change to that object's identity rebuilds the editor.
       // Left on, EasyMDE appends a <link> to a Font Awesome CDN at construction.
       // The icons are bundled above, so that request would be a second copy from
       // a third party — and the only thing in the app fetched from one.
@@ -65,21 +76,37 @@ export function MarkdownEditor({
     [label],
   )
 
-  // Enter has to reach the editor as a newline, so the commit moves to the
-  // chord. Both spellings are bound: CodeMirror maps Cmd- on macOS only.
-  const extraKeys = useMemo(
-    () => ({ 'Ctrl-Enter': onCommit, 'Cmd-Enter': onCommit }),
-    [onCommit],
-  )
-
   // The <textarea> EasyMDE was built from is hidden, and the one it types into
-  // is CodeMirror's own — this is the only way to give that one a name.
-  const nameForScreenReaders = useCallback(
-    (codemirror: Editor) => {
-      codemirror.setOption('screenReaderLabel', label)
+  // is CodeMirror's own — this is the only way to give that one a name. The
+  // instance is kept as well: it is the only handle on the editor, and the
+  // activation effect needs it.
+  const captureEditor = useCallback(
+    (editor: Editor) => {
+      codemirror.current = editor
+      editor.setOption('screenReaderLabel', label)
     },
     [label],
   )
+
+  // A hidden editor is display:none, which CodeMirror measures as a zero-height
+  // viewport and then caches — so on reveal it renders no lines until told to
+  // measure again. EasyMDE's `autoRefresh` option does not cover this: the addon
+  // arms once, only if the wrapper is already zero-height at construction, and
+  // calls stopListening the first time it fires.
+  useEffect(() => {
+    const editor = codemirror.current
+    if (!active || !editor) {
+      return
+    }
+    editor.refresh()
+    editor.focus()
+    if (!revealed.current) {
+      revealed.current = true
+      // What the dropped `autofocus` did: land the cursor after the stored text
+      // so the tab opens ready to continue it, not to prepend to it.
+      editor.setCursor(editor.lineCount(), 0)
+    }
+  }, [active])
 
   return (
     <SimpleMdeReact
@@ -87,8 +114,7 @@ export function MarkdownEditor({
       value={value}
       onChange={onChange}
       options={options}
-      extraKeys={extraKeys}
-      getCodemirrorInstance={nameForScreenReaders}
+      getCodemirrorInstance={captureEditor}
     />
   )
 }

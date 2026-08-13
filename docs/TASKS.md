@@ -474,6 +474,103 @@ alternatives are in [ADR-0011](adr/0011-google-sign-in-verified-email-linking.md
 
 ---
 
+## Phase 17 — Markdown prompt bodies that save themselves *(ADR-0012)*
+
+The Console's two prompt bodies — a Prompt's **prompt text** and its **system prompt**, labelled *User Prompt* and
+*System Prompt* in the UI — become markdown editors that autosave, and their per-field commit and revert buttons are
+deleted. The Details fields keep the click-to-edit, explicit-commit behaviour Phase 13 shipped. Phase 13.5 recorded
+autosave as the intended endpoint and named the blocker — prompt text and Variables validated as an atomic pair, so
+*"field-at-a-time autosave of either is not implementable"* — which ADR-0009 removed by deleting Variables. This phase
+spends that freedom on the two fields the edit → run → read loop actually turns.
+
+**Decisions locked (grilling session, 2026-08-12):**
+- **Trigger:** a debounced `PATCH` per body — one second after typing stops, or every ten seconds under unbroken typing
+  (a pure debounce never fires for a fast continuous typist). Two independent savers, extending the existing per-field
+  `PATCH` model rather than introducing a combined write. Rejected: **save on blur** (exactly the "stale tab clobbers on
+  a stray blur" hazard ADR-0008 flagged, and CodeMirror blurs in surprising places); **one Console-level Save button**
+  (reverses ADR-0008 for every field and does not fix the stale-run trap, only relocates it); **save only on Run**
+  (editing without running is ordinary and would be lost on navigation).
+- **Run writes before it runs.** A run reads the *stored* Prompt — `streamRun` sends only a `promptId` — so Run cancels
+  the pending debounce, `PATCH`es, awaits the write, then streams. A failed write blocks the run. Duplicate does the
+  same: it copies from the query cache and would otherwise silently duplicate the previous text. Delete **cancels**
+  pending saves rather than flushing them. In-app navigation fires a best-effort flush without awaiting (React Query
+  mutations outlive unmount).
+- **Blank is two different things.** `promptText` is `@NotBlank`, so an empty body holds the save rather than sending a
+  request that must `400` — and blocks Run, because a flush that writes nothing would let Run fall through to the
+  previous stored text. `systemPrompt` has no constraint; blank is a legitimate save that clears the column.
+- **Five status states** — *Saved*, *Saving…*, *Unsaved changes*, *Can't be empty*, *Couldn't save* — shown in the
+  active field, with a dirty/error marker on each tab so the body you are not looking at is not silent. Rejected: a
+  single Console-level aggregate (cannot say *which* field is stuck) and status in the active field only (a System
+  Prompt failing to save for ten minutes reads as "Saved" from the User Prompt tab).
+- **The `Ctrl+Enter` commit chord goes with the button.** It exists because Enter had to reach the editor as a newline,
+  leaving the commit homeless; once the field saves itself there is nothing for it to do, and Run already flushes for
+  anyone who wants the write to happen *now*. A "save now" chord was considered and rejected as a third way to do what
+  the debounce and Run already do.
+- **Failure is visible and inert.** No retry machinery: the next keystroke restarts the debounce and Run flushes.
+  Rejected: **backoff retry** (a `400` can never succeed, and a give-up rule is another decision) and a **clickable
+  Retry / conditional ✓** (a save button by another name, and UI that appears and vanishes is harder to learn than
+  either extreme).
+- **Undo is `Ctrl+Z` only, so the editors stay mounted.** Tab switching hides them rather than unmounting them, keeping
+  CodeMirror's history alive for the life of the Console. EasyMDE's `autoRefresh` option does **not** cover reveal — the
+  addon arms once, only if the wrapper is already zero-height, and calls `stopListening` the first time it fires — so
+  activation needs an explicit `codemirror.refresh()`. The same effect must carry `focus()`, because `autofocus` lives
+  in the memoised `options` object and changing that object's identity tears the editor down and rebuilds it.
+- **`beforeunload` covers every uncommitted Console draft**, the bodies *and* an open Details editor — one rule rather
+  than two notions of unsaved work. It does not fire on in-app navigation, so abandoning a Details edit by navigating
+  away still works exactly as it does today.
+- **Writes are cheap, and that is load-bearing.** `['prompts', q]` is queried only by the prompt list, which is
+  unmounted while the Console is open, so each save's invalidation marks stale without refetching. Overlapping saves
+  need an ordering guard: each success writes `setQueryData(['prompt', id])`, and a slow earlier response would
+  otherwise overwrite a newer one.
+- **Test-seam limits, recorded because they shape the suite.** CodeMirror's textarea is a keystroke buffer, so
+  `toHaveValue` and `user.clear` do not touch the document — content is asserted through the `PATCH` body, and typing
+  appends at the autofocused cursor. CodeMirror measures its viewport off element heights, which jsdom reports as zero,
+  so rendered line text is not reliable. `user-event` no longer sends the legacy `keyCode` CodeMirror resolves chords
+  through, so chord tests use `fireEvent`. Reveal-refresh and `beforeunload` are not reachable in jsdom at all and are
+  verified in a browser.
+- **No glossary entry.** Like the Console itself (ADR-0008), this is a UI surface; *prompt text* and *system prompt*
+  already exist in `CONTEXT.md`, and when a Prompt is written is not something the domain reasons about.
+
+- [x] **17.1 Docs first: ADR-0012, banners, this phase.** Write `docs/adr/0012-…` amending ADR-0008's "a Prompt is saved
+  without the User asking" consequence (reached, not reversed) and ADR-0007's "saving is destructive and has no undo"
+  (sharper — the revert button that replaced abandon-by-navigating-away is gone); add amendment banners to 0007 and
+  0008; list it in `docs/adr/README.md`. → *verify: ADR indexed with its amend status; no earlier ADR body rewritten;
+  `CONTEXT.md` untouched.*
+- [x] **17.2 EasyMDE markdown editor for the two prompt bodies.** Replace the plain textareas with
+  `react-simplemde-editor` (matching `paulwoods/equipment-frontend`); bundle Font Awesome and disable EasyMDE's runtime
+  CDN fetch; map its palette onto the app's tokens so it follows the theme toggle; reset the app's `<ul>`/`<li>` globals
+  inside the preview. Landed on branch `markdown-prompt-editor` ahead of this ADR — the editor's toolbar, preview and
+  `Ctrl+Z` are what the decisions above assume. → *verify (RTL + MSW): the tab renders an editor with a formatting
+  toolbar and no read mode; the toolbar writes markdown syntax into the source; `npm run lint`, `typecheck`, `test`,
+  `build` clean. Browser: icons render, both themes readable, preview and side-by-side correct.*
+- [x] **17.3 Keep both editors mounted across tab switches.** Render the two bodies always and hide the inactive one;
+  add an activation effect calling `codemirror.refresh()` and `focus()`, and drop `autofocus` from the memoised
+  `options`. Pure refactor — no save behaviour changes yet. → *verify (RTL): switching to Details and back leaves the
+  draft intact and the editor focused; the hidden body is not reachable by role query. Browser: a revealed editor
+  measures correctly rather than collapsing.*
+- [x] **17.4 Debounced autosave, and the ✓/✕ come off the two bodies.** Extend `useInlineField` with a 1s/10s debounce
+  for `live` fields; hold the save while `promptText` is blank; add the overlapping-response ordering guard; drop the
+  `Ctrl+Enter`/`Cmd-Enter` commit chord and the `onCommit` prop with the buttons. → *verify
+  (RTL + MSW): a pause after typing fires one `PATCH` carrying that field alone; unbroken typing still saves within the
+  ceiling; a blank User Prompt sends nothing; a stale response cannot overwrite a newer one; no commit or revert button
+  renders for either body.*
+- [x] **17.5 Save status: five states in the field, a marker on the tab.** → *verify (RTL + MSW): the status reads
+  *Saved* on arrival, *Saving…* in flight, *Unsaved changes* while the debounce is pending, *Can't be empty* on a blank
+  User Prompt, and *Couldn't save* after a rejected `PATCH`; a dirty System Prompt shows a tab marker while the User
+  Prompt tab is active.*
+- [x] **17.6 Lift save state; Run and Duplicate flush, Delete cancels.** Move the coordinating state into
+  `PromptConsolePage` so `RunPane` can see it. → *verify (RTL + MSW): clicking Run straight after typing `PATCH`es
+  before it streams, and the run carries the typed text; a failed flush blocks the run and surfaces the error; Run is
+  blocked on a blank User Prompt; Duplicate copies the typed text, not the stored text; Delete fires no `PATCH`.*
+- [ ] **17.7 `beforeunload` guard over every uncommitted Console draft.** Bodies dirty or failed, plus any Details field
+  open with a draft differing from stored. → *verify (RTL): the handler is registered only while something is
+  uncommitted and removed once clean. Browser: closing the tab mid-edit prompts; in-app navigation does not.*
+- [ ] **17.8 Browser verification of what jsdom cannot reach.** Reveal-refresh across tab switches, the `beforeunload`
+  dialog, and the status wording in both themes. → *verify: driven in Chrome against the running app, as the Phase 17.2
+  styling was.*
+
+---
+
 ### Out of scope (do **not** build — from the PRD)
 
 Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · draft-vs-published Versions · sharing/teams/roles · folders/tags/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2). *Note: "search" was also originally on this list; Phase 9.1 subsequently scoped in a narrow name/description substring search — folders/tags/favorites (prompt organization) remain out of scope. "OAuth/SSO/social login" was likewise removed: Phase 16 scoped in Google sign-in as a second Login Method (ADR-0011) — SSO, other providers, and teams/roles remain out of scope.*

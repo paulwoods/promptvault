@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
@@ -21,6 +21,39 @@ const THINKING = ['off', 'adaptive']
 const COPY_SUFFIX = ' copy'
 const NAME_MAX_LENGTH = 200
 
+// A live field saves itself (ADR-0012): one PATCH a second after the typing
+// stops, and one every ten seconds if it never stops — a plain debounce never
+// fires for a fast continuous typist, so a body typed into without a pause
+// would otherwise never be written at all.
+const AUTOSAVE_IDLE_MS = 1000
+const AUTOSAVE_CEILING_MS = 10000
+
+/**
+ * Where a self-saving field stands. `empty` is separate from `unsaved` because
+ * it is the one state the User has to act on: promptText is @NotBlank, so the
+ * save is held rather than sent to be rejected, and it stays held until there
+ * is something to write.
+ */
+type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'empty' | 'failed'
+
+const STATUS_LABEL: Record<SaveStatus, string> = {
+  saved: 'Saved',
+  saving: 'Saving…',
+  unsaved: 'Unsaved changes',
+  empty: "Can't be empty",
+  failed: "Couldn't save",
+}
+
+// The states worth a mark on a tab you are not looking at. `saving` is not one
+// of them: it resolves on its own, and a marker that blinks past is noise.
+const STATUS_NEEDS_ATTENTION: Record<SaveStatus, boolean> = {
+  saved: false,
+  saving: false,
+  unsaved: true,
+  empty: true,
+  failed: true,
+}
+
 export function PromptConsolePage() {
   const { id = '' } = useParams()
 
@@ -37,14 +70,94 @@ export function PromptConsolePage() {
     return <LoadError>Could not load this prompt.</LoadError>
   }
 
+  // Keyed so a move to another prompt (Duplicate lands on the copy) rebuilds
+  // everything below: the live prompt fields seed their drafts from the prompt
+  // once, at mount, and would otherwise keep showing the previous prompt's text.
+  return <Console key={id} promptId={id} prompt={prompt.data} />
+}
+
+/**
+ * What both halves of the Console need to agree on: whether the bodies are
+ * safe to run against, and how to make them so.
+ */
+interface BodySaves {
+  /** A run would read the wrong text, and no write can fix it. */
+  blocked: boolean
+  /** Writes both bodies and resolves once they have landed. Rejects if one fails. */
+  flush: () => Promise<void>
+  /** Drops pending saves and stops any later flush — for a Prompt being deleted. */
+  discard: () => void
+}
+
+/**
+ * The Console proper, mounted only once the Prompt has loaded.
+ *
+ * The two self-saving bodies are held here rather than inside the form because
+ * the Run pane depends on them: a run reads the *stored* Prompt (ADR-0009), so
+ * Run has to write what is on screen before it streams, and only a component
+ * above both can hand it the means to.
+ */
+function Console({ promptId, prompt }: ConsoleFormProps) {
+  const promptText = useInlineField(
+    promptId,
+    prompt.promptText,
+    (draft) => ({ promptText: draft }),
+    false,
+    true,
+  )
+  const systemPrompt = useInlineField(
+    promptId,
+    prompt.systemPrompt ?? '',
+    (draft) => ({ systemPrompt: draft }),
+    true,
+    true,
+  )
+
+  // Set by Delete. A discarded Console must not write on the way out, and its
+  // unmount flush below runs after the navigation that Delete triggers.
+  const discarded = useRef(false)
+
+  const bodies: BodySaves = {
+    // A blank User Prompt is never written (it is @NotBlank), so a flush would
+    // leave the previous text stored and the run would quietly use that.
+    blocked: promptText.status === 'empty',
+    flush: async () => {
+      if (discarded.current) {
+        return
+      }
+      await Promise.all([promptText.flush(), systemPrompt.flush()])
+    },
+    discard: () => {
+      discarded.current = true
+      promptText.cancelPending()
+      systemPrompt.cancelPending()
+    },
+  }
+
+  // Leaving the Console in-app writes whatever is pending, best-effort: the
+  // mutation outlives the unmount, and nothing here waits on it or reports it.
+  // beforeunload covers closing the tab instead — this cannot.
+  const flushOnLeave = useRef(bodies.flush)
+  useEffect(() => {
+    flushOnLeave.current = bodies.flush
+  })
+  useEffect(
+    () => () => {
+      void flushOnLeave.current().catch(() => {})
+    },
+    [],
+  )
+
   return (
     <div className="console-layout">
-      {/* Keyed so a move to another prompt (Duplicate lands on the copy)
-          rebuilds the form: the live prompt fields seed their drafts from the
-          prompt once, at mount, and would otherwise keep showing the previous
-          prompt's text. */}
-      <ConsoleForm key={id} promptId={id} prompt={prompt.data} />
-      <RunPane promptId={id} />
+      <ConsoleForm
+        promptId={promptId}
+        prompt={prompt}
+        promptText={promptText}
+        systemPrompt={systemPrompt}
+        bodies={bodies}
+      />
+      <RunPane promptId={promptId} bodies={bodies} />
     </div>
   )
 }
@@ -56,12 +169,40 @@ export function PromptConsolePage() {
  * (ADR-0009) — there are no per-run values to collect — so the prompt stays
  * editable on the left while the result accumulates here.
  */
-function RunPane({ promptId }: { promptId: string }) {
+function RunPane({
+  promptId,
+  bodies,
+}: {
+  promptId: string
+  bodies: BodySaves
+}) {
   const { status, output, failure, run } = useRunStream(promptId)
+  const [flushError, setFlushError] = useState<string | null>(null)
+  const [flushing, setFlushing] = useState(false)
 
-  function handleRun() {
+  async function handleRun() {
+    setFlushError(null)
+    setFlushing(true)
+    try {
+      // The backend reads the stored Prompt, so the only way to make the output
+      // match the screen is to make the screen the stored Prompt first.
+      await bodies.flush()
+    } catch (error) {
+      // A run against text the server does not have is worse than no run.
+      setFlushError(errorMessage(error))
+      return
+    } finally {
+      setFlushing(false)
+    }
     run()
   }
+
+  const busy = status === 'running' || flushing
+  const label = bodies.blocked
+    ? 'Run prompt — the User Prompt cannot be empty'
+    : busy
+      ? 'Running…'
+      : 'Run prompt'
 
   return (
     <section className="run-pane" aria-label="Run">
@@ -69,9 +210,9 @@ function RunPane({ promptId }: { promptId: string }) {
         type="button"
         className="run-button button-gold"
         onClick={handleRun}
-        disabled={status === 'running'}
-        aria-label={status === 'running' ? 'Running…' : 'Run prompt'}
-        title={status === 'running' ? 'Running…' : 'Run prompt'}
+        disabled={busy || bodies.blocked}
+        aria-label={label}
+        title={label}
       >
         <PlayIcon />
       </button>
@@ -81,6 +222,7 @@ function RunPane({ promptId }: { promptId: string }) {
         readOnly
         value={output}
       />
+      {flushError && <ErrorAlert>{flushError}</ErrorAlert>}
       {failure && <ErrorAlert>{failure}</ErrorAlert>}
     </section>
   )
@@ -89,6 +231,12 @@ function RunPane({ promptId }: { promptId: string }) {
 interface ConsoleFormProps {
   promptId: string
   prompt: PromptResponse
+}
+
+interface ConsoleFormBodies {
+  promptText: ReturnType<typeof useInlineField>
+  systemPrompt: ReturnType<typeof useInlineField>
+  bodies: BodySaves
 }
 
 /**
@@ -117,17 +265,44 @@ function useInlineField(
   // editor from the first paint, so no beginEditing ever runs to seed it.
   const [draft, setDraft] = useState(stored)
   const [editing, setEditing] = useState(live)
+  // Bumped every time a save is sent. It is what re-arms the ceiling timer
+  // below, which is otherwise deliberately blind to the typing.
+  const [sends, setSends] = useState(0)
+
+  // A timer fires outside the render that scheduled it, so it reads the draft
+  // through a ref rather than through a closure that has since gone stale.
+  const draftRef = useRef(draft)
+
+  // Two saves can be in flight at once — the ceiling firing while a debounced
+  // save is still on the wire — and the slower can land last. Each response
+  // carries the order its request went out in, and only one newer than the last
+  // applied is allowed to write the cache.
+  const sent = useRef(0)
+  const landed = useRef(0)
 
   const save = useMutation({
-    mutationFn: () =>
-      apiClient.patch<PromptResponse>(`/api/prompts/${promptId}`, patch(draft)),
-    onSuccess: (updated) => {
+    mutationFn: async (value: string) => {
+      sent.current += 1
+      const sequence = sent.current
+      const updated = await apiClient.patch<PromptResponse>(
+        `/api/prompts/${promptId}`,
+        patch(value),
+      )
+      return { sequence, updated }
+    },
+    onSuccess: ({ sequence, updated }) => {
+      if (sequence < landed.current) {
+        return
+      }
+      landed.current = sequence
       // Written straight in rather than invalidated: the response is already the
       // authoritative new state, and an invalidate-only refetch would leave
       // `stored` stale for the round-trip — long enough for the field, which
       // sources its read-mode value from the query, to revert the edit just
       // committed.
       queryClient.setQueryData(['prompt', promptId], updated)
+      // Marks the list stale without refetching it: it is unmounted while the
+      // Console is open, which is what makes a save cheap enough to debounce.
       queryClient.invalidateQueries({ queryKey: ['prompts'] })
       // A live field has no read mode to drop back to — it stays its own
       // editor, now sitting on the value the save just returned.
@@ -137,26 +312,108 @@ function useInlineField(
 
   // Blank matches @NotBlank exactly, so the server's rejection is unreachable
   // from the UI; an optional field has no such rule, and its blank string is
-  // how a full save clears the column, so blank stays committable there.
-  // Unchanged refuses a no-op write either way, which still costs a list
-  // invalidation (ADR-0008's "frequent and incidental writes" concern).
+  // how a full save clears the column, so blank stays committable there. For a
+  // live field this is also what *holds* the save rather than sending a request
+  // that could only 400.
   const committable = (optional || draft.trim() !== '') && draft !== stored
+
+  // `save` itself is not a dependency anywhere below: its identity changes as
+  // the mutation moves through pending, which would re-arm both timers mid-save
+  // and write the field twice for one edit.
+  const saveRef = useRef(save)
+
+  // Kept current in an effect rather than assigned during render: a timer only
+  // ever reads these after the commit that scheduled it, so there is nothing to
+  // gain from writing them earlier.
+  useEffect(() => {
+    draftRef.current = draft
+    saveRef.current = save
+  })
+
+  const send = useCallback(() => {
+    // Sent untrimmed: the PUT path does not trim, and trimming only here would
+    // make the two writers disagree about the same field.
+    saveRef.current.mutate(draftRef.current)
+    setSends((count) => count + 1)
+  }, [])
+
+  // Both timers are also held in refs so Run, Duplicate and Delete can reach
+  // in and stop them — an effect cleanup only fires when React decides to
+  // re-run the effect, which is too late for a click that has to write, or
+  // must not write, right now.
+  const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const ceilingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  // Reset by every keystroke, so it fires once the typing settles.
+  useEffect(() => {
+    if (!live || !committable) {
+      return
+    }
+    idleTimer.current = setTimeout(send, AUTOSAVE_IDLE_MS)
+    return () => clearTimeout(idleTimer.current)
+  }, [live, committable, draft, sends, send])
+
+  // Deliberately not keyed on `draft`: this one has to survive the keystrokes
+  // that keep resetting the timer above. It re-arms on `sends` instead, so an
+  // unbroken hour of typing is written every ten seconds rather than once.
+  useEffect(() => {
+    if (!live || !committable) {
+      return
+    }
+    ceilingTimer.current = setTimeout(send, AUTOSAVE_CEILING_MS)
+    return () => clearTimeout(ceilingTimer.current)
+  }, [live, committable, sends, send])
+
+  // Drops whatever was scheduled without writing it. Nothing re-arms until the
+  // next keystroke, which is what makes this safe for Delete.
+  const cancelPending = useCallback(() => {
+    clearTimeout(idleTimer.current)
+    clearTimeout(ceilingTimer.current)
+  }, [])
+
+  /**
+   * Writes the draft now and resolves when it has landed, so a caller that
+   * reads the stored Prompt afterwards reads what is on screen. Rejects if the
+   * PATCH does — the caller decides what a failed write means.
+   */
+  async function flush() {
+    cancelPending()
+    if (!committable) {
+      return
+    }
+    await save.mutateAsync(draft)
+  }
 
   function commit() {
     if (committable && !save.isPending) {
-      // Sent untrimmed: the PUT path does not trim, and trimming only here would
-      // make the two writers disagree about the same field.
-      save.mutate()
+      send()
     }
   }
+
+  // Ordered by what the User can do about it. Blank comes first because it is
+  // why nothing is being sent; pending outranks the last failure so a retry
+  // does not still read as broken while it is in flight.
+  const status: SaveStatus =
+    !optional && draft.trim() === ''
+      ? 'empty'
+      : save.isPending
+        ? 'saving'
+        : save.isError
+          ? 'failed'
+          : committable
+            ? 'unsaved'
+            : 'saved'
 
   return {
     value: editing ? draft : stored,
     editing,
     live,
     committable,
+    status,
     save,
     commit,
+    flush,
+    cancelPending,
     // Only reachable from read mode — the editor replaces the trigger that
     // calls it — so it needs no already-editing guard.
     beginEditing: () => {
@@ -164,10 +421,10 @@ function useInlineField(
       setEditing(true)
     },
     setDraft,
-    // Leaving edit mode is what discards the draft for a read/edit field. A
-    // live field never leaves it, so there the draft has to be put back by
-    // hand — same outcome, and the only way to undo an unsaved change.
-    cancel: () => (live ? setDraft(stored) : setEditing(false)),
+    // Leaving edit mode is what discards the draft. A live field never leaves
+    // it and has no cancel gesture left to reach this (ADR-0012 deleted the
+    // revert button along with the commit one); its undo is the editor's own.
+    cancel: () => setEditing(false),
   }
 }
 
@@ -283,6 +540,8 @@ interface InlineFieldProps {
   rows?: number
   /** Present ⇒ the editor is the markdown editor, which outranks `rows`. */
   markdown?: boolean
+  /** Markdown only: whether this field's tab is the one showing. */
+  active?: boolean
   /** Present ⇒ the field fills most of the viewport height (prompt editors). */
   fill?: boolean
   /** No legal alternative to the stored value — reads as text, with no editor. */
@@ -306,6 +565,7 @@ function InlineField({
   numeric,
   rows,
   markdown,
+  active = true,
   fill,
   fixed,
   hideLabel,
@@ -372,7 +632,7 @@ function InlineField({
                 value={field.value}
                 onChange={field.setDraft}
                 label={label}
-                onCommit={field.commit}
+                active={active}
               />
             ) : rows ? (
               <textarea
@@ -397,32 +657,32 @@ function InlineField({
                 onKeyDown={onKeyDown}
               />
             )}
-            <button
-              type="button"
-              className="inline-save"
-              aria-label={`Save ${noun}`}
-              // Enter types a newline in the markdown editor rather than
-              // committing, so the chord that does needs somewhere to be said.
-              title={markdown ? `Save ${noun} (Ctrl+Enter)` : `Save ${noun}`}
-              disabled={!field.committable || field.save.isPending}
-              onClick={field.commit}
-            >
-              <CheckIcon />
-            </button>
-            <button
-              type="button"
-              className="inline-cancel"
-              // "Cancel edit" names leaving edit mode, which a live field never
-              // does; there the button puts the stored value back instead.
-              aria-label={field.live ? `Revert ${noun}` : `Cancel ${noun} edit`}
-              title={field.live ? `Revert ${noun}` : `Cancel ${noun} edit`}
-              // Nothing to put back until the draft has moved off the stored
-              // value, which is the same test the save button uses.
-              disabled={field.live && !field.committable}
-              onClick={field.cancel}
-            >
-              <XIcon />
-            </button>
+            {/* A live field saves itself, so it has no commit gesture and no
+                revert: its undo is the editor's own Ctrl+Z (ADR-0012), which is
+                why the editor is hidden rather than unmounted between tabs. */}
+            {!field.live && (
+              <>
+                <button
+                  type="button"
+                  className="inline-save"
+                  aria-label={`Save ${noun}`}
+                  title={`Save ${noun}`}
+                  disabled={!field.committable || field.save.isPending}
+                  onClick={field.commit}
+                >
+                  <CheckIcon />
+                </button>
+                <button
+                  type="button"
+                  className="inline-cancel"
+                  aria-label={`Cancel ${noun} edit`}
+                  title={`Cancel ${noun} edit`}
+                  onClick={field.cancel}
+                >
+                  <XIcon />
+                </button>
+              </>
+            )}
           </div>
         ) : fixed ? (
           // Nothing to pick, so nothing to click: an editor here would open on
@@ -447,10 +707,56 @@ function InlineField({
           </button>
         )}
       </div>
+      {/* Only a self-saving field has a save state worth naming: every other
+          one is written by a click the User just made. It is a live region
+          because it changes without anything being clicked. */}
+      {field.live && (
+        <p className={`save-status save-status-${field.status}`} role="status">
+          {STATUS_LABEL[field.status]}
+        </p>
+      )}
       {field.save.isError && (
         <ErrorAlert>{errorMessage(field.save.error)}</ErrorAlert>
       )}
     </>
+  )
+}
+
+/**
+ * A tab for one of the two self-saving bodies. It carries a dot when that body
+ * has work the User would not otherwise see — while a body is off screen, its
+ * tab is the only thing left that can speak for it.
+ */
+function BodyTab({
+  label,
+  status,
+  current,
+  onSelect,
+}: {
+  label: string
+  status: SaveStatus
+  current: boolean
+  onSelect: () => void
+}) {
+  const marked = STATUS_NEEDS_ATTENTION[status]
+  return (
+    <button
+      type="button"
+      aria-current={current ? 'true' : undefined}
+      // The dot is decorative, so the state has to reach the name some other
+      // way. Not a nested visually-hidden span: accessible names are computed
+      // by trimming each node and concatenating, which would run the label and
+      // the state together as one word.
+      aria-label={marked ? `${label} ${STATUS_LABEL[status]}` : undefined}
+      onClick={onSelect}
+    >
+      {label}
+      {marked && (
+        <span className="tab-marker" aria-hidden="true">
+          •
+        </span>
+      )}
+    </button>
   )
 }
 
@@ -463,7 +769,13 @@ function InlineField({
  * mount until the prompt has loaded, because its state is seeded once from
  * that prompt and useState ignores its argument on every later render.
  */
-function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
+function ConsoleForm({
+  promptId,
+  prompt,
+  promptText,
+  systemPrompt,
+  bodies,
+}: ConsoleFormProps & ConsoleFormBodies) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -508,24 +820,6 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   const thinking = useInlineField(promptId, prompt.thinking, (draft) => ({
     thinking: draft,
   }))
-  // The two prompt bodies are live: the markdown editor is the field, switching
-  // between source and preview on its own toolbar, so there is no read mode to
-  // click through first.
-  const promptText = useInlineField(
-    promptId,
-    prompt.promptText,
-    (draft) => ({ promptText: draft }),
-    false,
-    true,
-  )
-  const systemPrompt = useInlineField(
-    promptId,
-    prompt.systemPrompt ?? '',
-    (draft) => ({ systemPrompt: draft }),
-    true,
-    true,
-  )
-
   // Fires immediately on click — no confirmation dialog, matching the app's
   // existing convention (ADR-0004): safe because Trash + restore make it low-stakes.
   const deletePrompt = useMutation({
@@ -540,19 +834,26 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   // content and a "copy"-suffixed name, then lands on the copy's Console.
   // No confirmation, matching Delete (ADR-0004): the copy is trivial to remove.
   const duplicatePrompt = useMutation({
-    mutationFn: () =>
-      apiClient.post<PromptResponse>('/api/prompts', {
+    mutationFn: async () => {
+      // The copy is taken from the query cache, so an unwritten body would be
+      // duplicated at its previous text. Writing first is what makes the copy
+      // match the screen — the same reason Run flushes.
+      await bodies.flush()
+      const source =
+        queryClient.getQueryData<PromptResponse>(['prompt', promptId]) ?? prompt
+      return apiClient.post<PromptResponse>('/api/prompts', {
         name:
-          prompt.name.slice(0, NAME_MAX_LENGTH - COPY_SUFFIX.length) +
+          source.name.slice(0, NAME_MAX_LENGTH - COPY_SUFFIX.length) +
           COPY_SUFFIX,
-        description: prompt.description ?? null,
-        promptText: prompt.promptText,
-        systemPrompt: prompt.systemPrompt ?? null,
-        model: prompt.model,
-        maxTokens: prompt.maxTokens,
-        effort: prompt.effort,
-        thinking: prompt.thinking,
-      } satisfies PromptRequestBody),
+        description: source.description ?? null,
+        promptText: source.promptText,
+        systemPrompt: source.systemPrompt ?? null,
+        model: source.model,
+        maxTokens: source.maxTokens,
+        effort: source.effort,
+        thinking: source.thinking,
+      } satisfies PromptRequestBody)
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['prompts'] })
       navigate(`/prompts/${data.promptId}/console`)
@@ -585,20 +886,18 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
         >
           Details
         </button>
-        <button
-          type="button"
-          aria-current={tab === 'userPrompt' ? 'true' : undefined}
-          onClick={() => setTab('userPrompt')}
-        >
-          User Prompt
-        </button>
-        <button
-          type="button"
-          aria-current={tab === 'systemPrompt' ? 'true' : undefined}
-          onClick={() => setTab('systemPrompt')}
-        >
-          System Prompt
-        </button>
+        <BodyTab
+          label="User Prompt"
+          status={promptText.status}
+          current={tab === 'userPrompt'}
+          onSelect={() => setTab('userPrompt')}
+        />
+        <BodyTab
+          label="System Prompt"
+          status={systemPrompt.status}
+          current={tab === 'systemPrompt'}
+          onSelect={() => setTab('systemPrompt')}
+        />
       </nav>
       <form
         onSubmit={(event) => {
@@ -660,7 +959,12 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
                 type="button"
                 className="action-icon"
                 disabled={actionPending}
-                onClick={() => deletePrompt.mutate()}
+                // Cancels rather than flushes: a Prompt on its way to Trash has
+                // no use for one last write of what was being typed.
+                onClick={() => {
+                  bodies.discard()
+                  deletePrompt.mutate()
+                }}
                 aria-label="Delete"
                 title="Delete"
               >
@@ -675,26 +979,33 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
             )}
           </>
         )}
-        {tab === 'userPrompt' && (
+        {/* Unlike Details above, the two bodies are rendered whichever tab is
+            showing and the inactive one is hidden. Their markdown editors hold
+            the only undo there is (ADR-0012), so unmounting one on a trip to
+            another tab would throw its history away. `hidden` is also what
+            keeps it out of the accessibility tree while it is off screen. */}
+        <div className="console-body" hidden={tab !== 'userPrompt'}>
           <InlineField
             name="promptText"
             label="User Prompt"
             field={promptText}
             markdown
+            active={tab === 'userPrompt'}
             fill
             hideLabel
           />
-        )}
-        {tab === 'systemPrompt' && (
+        </div>
+        <div className="console-body" hidden={tab !== 'systemPrompt'}>
           <InlineField
             name="systemPrompt"
             label="System Prompt"
             field={systemPrompt}
             markdown
+            active={tab === 'systemPrompt'}
             fill
             hideLabel
           />
-        )}
+        </div>
       </form>
     </section>
   )

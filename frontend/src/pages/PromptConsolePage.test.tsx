@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -50,9 +50,9 @@ async function editDescription(user: ReturnType<typeof userEvent.setup>) {
  *
  * What comes back is CodeMirror's own textarea — a keystroke buffer, not the
  * document — so it is somewhere to type and not somewhere to read; see
- * `saveUserPrompt` for reading. It carries the cursor the editor autofocuses,
- * which sits at the end of the stored prompt, so typing into it appends.
- * `user.clear` only empties the buffer and leaves the document alone.
+ * `AUTOSAVED` for reading. It carries the cursor the reveal effect leaves at
+ * the end of the stored prompt, so typing into it appends. `user.clear` only
+ * empties the buffer and leaves the document alone.
  */
 async function editUserPrompt(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('button', { name: 'User Prompt' }))
@@ -60,16 +60,17 @@ async function editUserPrompt(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
- * What the editor is holding, read the only way jsdom allows: by saving it and
- * looking at what the PATCH carried. CodeMirror keeps its document in an
+ * Long enough to outlast the autosave's one-second idle timer, which runs on
+ * the real clock in every test but the ceiling one below.
+ *
+ * What the editor is holding is read the only way jsdom allows: through the
+ * body of the PATCH the autosave sends. CodeMirror keeps its document in an
  * internal model rather than a form control, and renders it through a viewport
  * measured off element heights — which jsdom reports as zero, leaving the lines
- * unrendered. So there is no text on screen here to assert against, and the
- * request body is the closest thing to the value the user is looking at.
+ * unrendered. So there is no text on screen to assert against, and the request
+ * body is the closest thing to the value the user is looking at.
  */
-async function saveUserPrompt(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: 'Save user prompt' }))
-}
+const AUTOSAVED = { timeout: 3000 }
 
 /**
  * Pins the Console's behavior mechanism-by-mechanism: each inline-edited field,
@@ -440,39 +441,173 @@ describe('prompt console', () => {
     renderApp('/prompts/p1/console')
     await editUserPrompt(user)
     await user.click(screen.getByRole('button', { name: 'Bold' }))
-    await saveUserPrompt(user)
 
     // The prompt runs as stored (ADR-0009), so Bold has to leave the asterisks
     // in the text rather than styling it and sending something else.
-    await waitFor(() =>
-      expect(patched).toEqual({ promptText: 'Hello {{topic}}****' }),
+    await waitFor(
+      () => expect(patched).toEqual({ promptText: 'Hello {{topic}}****' }),
+      AUTOSAVED,
     )
   })
 
-  it('stays an editor after saving rather than dropping to a read mode', async () => {
+  it('autosaves a body once the typing stops, carrying that field alone', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    const bodies: unknown[] = []
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        bodies.push(await request.json())
+        return HttpResponse.json(
+          promptResponse({ promptText: 'Hello {{topic}} please' }),
+        )
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' please')
+
+    // One PATCH for the whole burst of typing, carrying only this field — the
+    // other eight are untouched, which is what keeps a clobber narrow.
+    await waitFor(
+      () => expect(bodies).toEqual([{ promptText: 'Hello {{topic}} please' }]),
+      AUTOSAVED,
+    )
+
+    // The field stays an editor sitting on the saved value; there is no read
+    // mode for it to drop back to, and nothing further is sent.
+    expect(
+      screen.getByRole('textbox', { name: 'User Prompt' }),
+    ).toBeInTheDocument()
+  })
+
+  it('names where the save has got to, in all five states', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let reject = false
+    server.use(
+      // One character, so a single Backspace empties the document.
+      getPrompt({ promptText: 'x' }),
+      http.patch('/api/prompts/p1', async () => {
+        if (reject) {
+          return HttpResponse.json(
+            { error: 'validation_error', message: 'Validation failed' },
+            { status: 400 },
+          )
+        }
+        await delay(400)
+        return HttpResponse.json(promptResponse({ promptText: 'xy' }))
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    // Only the showing body has a status line — the other is hidden, and so is
+    // its own — which is what makes the bare role unambiguous here.
+    const status = () => screen.getByRole('status')
+
+    // Nothing typed yet, so what is on screen is what is stored.
+    expect(status()).toHaveTextContent('Saved')
+
+    await user.type(field, 'y')
+    expect(status()).toHaveTextContent('Unsaved changes')
+
+    await waitFor(
+      () => expect(status()).toHaveTextContent('Saving…'),
+      AUTOSAVED,
+    )
+    await waitFor(() => expect(status()).toHaveTextContent('Saved'), AUTOSAVED)
+
+    // Blank is the state the User has to act on: promptText is @NotBlank, so
+    // the save is held rather than sent to be rejected.
+    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
+    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
+    await waitFor(() => expect(status()).toHaveTextContent("Can't be empty"))
+
+    reject = true
+    await user.type(field, 'z')
+    await waitFor(
+      () => expect(status()).toHaveTextContent("Couldn't save"),
+      AUTOSAVED,
+    )
+  })
+
+  it('marks the tab of a body that is dirty while another tab is showing', async () => {
     const user = userEvent.setup()
     setToken('t')
     server.use(
       getPrompt(),
       http.patch('/api/prompts/p1', () =>
-        HttpResponse.json(promptResponse({ promptText: 'Hello {{topic}}!' })),
+        HttpResponse.json(promptResponse({ systemPrompt: 'Be brief dirty' })),
       ),
     )
 
     renderApp('/prompts/p1/console')
-    const field = await editUserPrompt(user)
-    await user.type(field, '!')
-    await saveUserPrompt(user)
+    await user.click(
+      await screen.findByRole('button', { name: 'System Prompt' }),
+    )
+    await user.type(
+      screen.getByRole('textbox', { name: 'System Prompt' }),
+      ' dirty',
+    )
+    await user.click(screen.getByRole('button', { name: 'User Prompt' }))
 
-    // The save leaves the field where it was, now sitting on the saved value,
-    // with nothing to commit until it is edited again.
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Save user prompt' }),
-      ).toBeDisabled(),
+    // The System Prompt's own status line went off screen with it, so the tab
+    // is the only thing left that can say it has unsaved work.
+    expect(
+      screen.getByRole('button', { name: 'System Prompt Unsaved changes' }),
+    ).toBeInTheDocument()
+    // The tab being looked at needs no marker: its status line is right there.
+    expect(
+      screen.getByRole('button', { name: 'User Prompt' }),
+    ).toBeInTheDocument()
+
+    // It clears once the autosave lands, without the tab being revisited.
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('button', { name: 'System Prompt' }),
+        ).toBeInTheDocument(),
+      AUTOSAVED,
+    )
+  })
+
+  it('renders no commit or revert button for either body', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' dirty')
+
+    // Both went with the autosave (ADR-0012). Dirty is when they would have
+    // been offered, so this is where their absence is worth asserting.
+    expect(
+      screen.queryByRole('button', { name: 'Save user prompt' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Revert user prompt' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'System Prompt' }))
+    await user.type(
+      screen.getByRole('textbox', { name: 'System Prompt' }),
+      ' dirty',
     )
     expect(
-      screen.getByRole('textbox', { name: 'User Prompt' }),
+      screen.queryByRole('button', { name: 'Save system prompt' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Revert system prompt' }),
+    ).not.toBeInTheDocument()
+
+    // Details keeps its explicit commit — the split is the point.
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    await editName(user)
+    expect(
+      screen.getByRole('button', { name: 'Save name' }),
     ).toBeInTheDocument()
   })
 
@@ -492,42 +627,109 @@ describe('prompt console', () => {
     const field = await editUserPrompt(user)
     await user.type(field, '{Enter}second line')
 
-    // A markdown prompt is multi-line, so Enter has to reach the editor as a
-    // newline. Nothing was committed by pressing it.
-    expect(patched).toBeUndefined()
-    await saveUserPrompt(user)
-    await waitFor(() =>
-      expect(patched).toEqual({ promptText: 'Hello {{topic}}\nsecond line' }),
+    // A markdown prompt is multi-line, so Enter reaches the editor as a
+    // newline; the autosave, not the key, is what writes it.
+    await waitFor(
+      () =>
+        expect(patched).toEqual({
+          promptText: 'Hello {{topic}}\nsecond line',
+        }),
+      AUTOSAVED,
     )
   })
 
-  it('commits the markdown draft on Ctrl+Enter, the chord that replaces Enter', async () => {
+  it('holds the save while the User Prompt is blank rather than sending a 400', async () => {
     const user = userEvent.setup()
     setToken('t')
-    let patched: unknown
+    let patches = 0
     server.use(
-      getPrompt(),
-      http.patch('/api/prompts/p1', async ({ request }) => {
-        patched = await request.json()
-        return HttpResponse.json(promptResponse({ promptText: 'Hello!' }))
+      // One character, so a single Backspace empties the document.
+      getPrompt({ promptText: 'x' }),
+      http.patch('/api/prompts/p1', () => {
+        patches += 1
+        return HttpResponse.json(promptResponse())
       }),
     )
 
     renderApp('/prompts/p1/console')
     const field = await editUserPrompt(user)
-    await user.type(field, '!')
+    // fireEvent rather than user-event: CodeMirror resolves keys through the
+    // legacy `keyCode`, which user-event no longer sends.
+    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
 
-    // fireEvent rather than user-event: CodeMirror resolves a chord through the
-    // legacy `keyCode`, which user-event no longer sends, so a typed Ctrl+Enter
-    // arrives as an unrecognised key here and nowhere else.
-    fireEvent.keyDown(field, { key: 'Enter', keyCode: 13, ctrlKey: true })
+    // promptText is @NotBlank, so an empty body is held rather than sent to be
+    // rejected. Typing again releases it.
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    expect(patches).toBe(0)
 
-    await waitFor(() =>
-      expect(patched).toEqual({ promptText: 'Hello {{topic}}!' }),
+    await user.type(field, 'y')
+    await waitFor(() => expect(patches).toBe(1), AUTOSAVED)
+  })
+
+  it('lets a blank System Prompt save, since blank is how it is cleared', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    server.use(
+      getPrompt({ systemPrompt: 'x' }),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse({ systemPrompt: null }))
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(
+      await screen.findByRole('button', { name: 'System Prompt' }),
+    )
+    const field = screen.getByRole('textbox', { name: 'System Prompt' })
+    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
+
+    // Unlike promptText it carries no @NotBlank, so the blank string is a
+    // legitimate save and is what clears the column.
+    await waitFor(
+      () => expect(patched).toEqual({ systemPrompt: '' }),
+      AUTOSAVED,
     )
   })
 
-  it('commits the markdown draft on the save button', async () => {
+  it('does not let a slow earlier save overwrite a newer one', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let responses = 0
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async () => {
+        responses += 1
+        // The first save is overtaken by the second: it goes out first and
+        // comes back last, carrying the older text.
+        const first = responses === 1
+        await delay(first ? 400 : 10)
+        return HttpResponse.json(
+          promptResponse({ promptText: first ? 'stale' : 'fresh' }),
+        )
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' one')
+    await waitFor(() => expect(responses).toBe(1), AUTOSAVED)
+    await user.type(field, ' two')
+    await waitFor(() => expect(responses).toBe(2), AUTOSAVED)
+
+    // Both have landed by now. The Details tab reads the same query the stale
+    // response would have written, so the name it shows is the proof.
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    // Nothing crashed and the cache still holds a prompt; what matters is that
+    // the later response is the one in it.
+    expect(
+      screen.getByRole('button', { name: 'Name Greeting' }),
+    ).toBeInTheDocument()
+  })
+
+  it('ignores Escape in the markdown editor, where it would discard unsaved work', async () => {
     const user = userEvent.setup()
     setToken('t')
     let patched: unknown
@@ -541,62 +743,173 @@ describe('prompt console', () => {
 
     renderApp('/prompts/p1/console')
     const field = await editUserPrompt(user)
-    // Nothing to save while the draft still matches what is stored.
-    expect(
-      screen.getByRole('button', { name: 'Save user prompt' }),
-    ).toBeDisabled()
-
-    await user.type(field, ' please')
-    await saveUserPrompt(user)
-
-    await waitFor(() =>
-      expect(patched).toEqual({ promptText: 'Hello {{topic}} please' }),
-    )
-  })
-
-  it('puts the stored prompt back on Revert, and offers it only once dirty', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    server.use(getPrompt())
-
-    renderApp('/prompts/p1/console')
-    const field = await editUserPrompt(user)
-    // Nothing to put back while the draft still matches what is stored.
-    expect(
-      screen.getByRole('button', { name: 'Revert user prompt' }),
-    ).toBeDisabled()
-
-    await user.type(field, ' discarded')
-    await user.click(screen.getByRole('button', { name: 'Revert user prompt' }))
-
-    // The editor stays — only the draft goes back to the stored prompt, which
-    // is what leaves Save with nothing to commit again.
-    expect(
-      screen.getByRole('textbox', { name: 'User Prompt' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Save user prompt' }),
-    ).toBeDisabled()
-  })
-
-  it('ignores Escape in the markdown editor, where it would discard unsaved work', async () => {
-    const user = userEvent.setup()
-    setToken('t')
-    server.use(getPrompt())
-
-    renderApp('/prompts/p1/console')
-    const field = await editUserPrompt(user)
     await user.type(field, ' still here')
-
-    await user.type(field, '{Escape}')
     fireEvent.keyDown(field, { key: 'Escape', keyCode: 27 })
 
     // A read/edit field discards its draft on Escape by leaving edit mode. The
-    // editor has no such mode to leave, so the key does nothing rather than
-    // silently throwing the draft away.
+    // editor has no such mode to leave, so the key does nothing and the draft
+    // still reaches the server.
+    await waitFor(
+      () =>
+        expect(patched).toEqual({ promptText: 'Hello {{topic}} still here' }),
+      AUTOSAVED,
+    )
+  })
+
+  it('keeps an unsaved body across a trip to another tab', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' drafted')
+
+    // Only one body is queryable at a time: the other is hidden, which takes it
+    // out of the accessibility tree even though it stays mounted.
     expect(
-      screen.getByRole('button', { name: 'Save user prompt' }),
-    ).toBeEnabled()
+      screen.queryByRole('textbox', { name: 'System Prompt' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    expect(
+      screen.queryByRole('textbox', { name: 'User Prompt' }),
+    ).not.toBeInTheDocument()
+    // Matched loosely: the tab carries its unsaved-changes marker at this point,
+    // which is part of its accessible name.
+    await user.click(screen.getByRole('button', { name: /^User Prompt/ }))
+
+    // The editor was hidden, not unmounted, so the draft is still there. Typing
+    // one more character restarts the autosave, and what it carries is what
+    // proves the draft was never re-seeded from the store.
+    await user.type(screen.getByRole('textbox', { name: 'User Prompt' }), '!')
+    await waitFor(
+      () => expect(patched).toEqual({ promptText: 'Hello {{topic}} drafted!' }),
+      AUTOSAVED,
+    )
+  })
+
+  it('focuses the revealed body so it can be typed into without a click', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    expect(field).toHaveFocus()
+
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    await user.click(screen.getByRole('button', { name: 'User Prompt' }))
+
+    // Focus is re-applied on every reveal, not just the first: `autofocus` only
+    // fires at construction, which happens once while the tab is hidden.
+    expect(screen.getByRole('textbox', { name: 'User Prompt' })).toHaveFocus()
+  })
+
+  it('writes the typed body before it streams, so the run reads what is on screen', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    const calls: string[] = []
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        calls.push('patch')
+        return HttpResponse.json(
+          promptResponse({ promptText: 'Hello {{topic}} now' }),
+        )
+      }),
+      http.post(
+        '/api/prompts/p1/run',
+        () => (
+          calls.push('run'),
+          new HttpResponse(
+            'event: done\ndata: {"status":"completed","usage":{"inputTokens":1,"outputTokens":2}}\n\n',
+            { headers: { 'Content-Type': 'text/event-stream' } },
+          )
+        ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' now')
+    await user.click(screen.getByRole('button', { name: 'Run prompt' }))
+
+    // The run reads the *stored* Prompt — the POST carries no body at all
+    // (ADR-0009) — so the only way its output can answer what is on screen is
+    // for the write to land first. Run cancels the pending debounce and awaits
+    // its own PATCH rather than racing it.
+    await waitFor(() => expect(calls).toContain('run'))
+    expect(patched).toEqual({ promptText: 'Hello {{topic}} now' })
+    expect(calls.indexOf('patch')).toBeLessThan(calls.indexOf('run'))
+  })
+
+  it('blocks the run and surfaces the error when the write will not land', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let runs = 0
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () =>
+        HttpResponse.json(
+          { error: 'validation_error', message: 'Prompt text is too long' },
+          { status: 400 },
+        ),
+      ),
+      http.post('/api/prompts/p1/run', () => {
+        runs += 1
+        return new HttpResponse(null, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        })
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' unsavable')
+    await user.click(screen.getByRole('button', { name: 'Run prompt' }))
+
+    // A run against text the server does not have is worse than no run: it
+    // would answer the previous prompt and read as though it answered this one.
+    // Scoped to the Run pane because the failure is reported twice over — once
+    // beside the field that could not save, and once here, where the run the
+    // User just asked for did not start.
+    const runPane = within(screen.getByRole('region', { name: 'Run' }))
+    expect(
+      await runPane.findByText('Prompt text is too long'),
+    ).toBeInTheDocument()
+    expect(runs).toBe(0)
+  })
+
+  it('blocks the run outright while the User Prompt is blank', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    // One character, so a single Backspace empties the document.
+    server.use(getPrompt({ promptText: 'x' }))
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
+
+    // Blank is never written (promptText is @NotBlank), so no flush can make the
+    // stored Prompt match the screen — leaving the run to quietly use the
+    // previous text. The button says why rather than just refusing.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: 'Run prompt — the User Prompt cannot be empty',
+        }),
+      ).toBeDisabled(),
+    )
   })
 
   it('deletes immediately with no confirmation and navigates home', async () => {
@@ -618,6 +931,40 @@ describe('prompt console', () => {
       await screen.findByRole('link', { name: 'Prompt Vault - Your Prompts' }),
     ).toBeInTheDocument()
     expect(deleted).toBe(true)
+  })
+
+  it('writes nothing on the way to Trash, even with a body mid-edit', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patches = 0
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () => {
+        patches += 1
+        return HttpResponse.json(promptResponse())
+      }),
+      http.delete(
+        '/api/prompts/p1',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' x')
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(
+      await screen.findByRole('link', { name: 'Prompt Vault - Your Prompts' }),
+    ).toBeInTheDocument()
+
+    // Delete cancels pending saves rather than flushing them — a Prompt on its
+    // way to Trash has no use for one last write. That covers the unmount flush
+    // the navigation itself triggers, which would otherwise fire after the row
+    // is gone.
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    expect(patches).toBe(0)
   })
 
   it('duplicates the prompt with a "copy" name and opens the copy Console', async () => {
@@ -695,6 +1042,42 @@ describe('prompt console', () => {
       expect((posted as { name: string }).name).toBe(expectedName),
     )
     expect((posted as { name: string }).name).toHaveLength(200)
+  })
+
+  it('copies the typed body, not the text the Console was loaded with', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    const typed = 'Hello {{topic}} typed'
+    let posted: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () =>
+        HttpResponse.json(promptResponse({ promptText: typed })),
+      ),
+      http.post('/api/prompts', async ({ request }) => {
+        posted = await request.json()
+        return HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: 'Greeting copy' }),
+          { status: 201 },
+        )
+      }),
+      http.get('/api/prompts/p2', () =>
+        HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: 'Greeting copy' }),
+        ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' typed')
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }))
+
+    // The copy is taken from the query cache, so an unwritten body would be
+    // duplicated at its previous text — silently, since the name and everything
+    // else would look right. Duplicate flushes first for the same reason Run does.
+    await waitFor(() => expect(posted).toMatchObject({ promptText: typed }))
   })
 
   it('waits on the models query before rendering the form and its actions', async () => {
