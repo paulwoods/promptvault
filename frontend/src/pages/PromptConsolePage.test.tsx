@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -45,6 +45,33 @@ async function editDescription(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
+ * Unlike editName, the User Prompt has no read mode to click through: the
+ * markdown editor is the field. Opening the tab is the whole of it.
+ *
+ * What comes back is CodeMirror's own textarea — a keystroke buffer, not the
+ * document — so it is somewhere to type and not somewhere to read; see
+ * `saveUserPrompt` for reading. It carries the cursor the editor autofocuses,
+ * which sits at the end of the stored prompt, so typing into it appends.
+ * `user.clear` only empties the buffer and leaves the document alone.
+ */
+async function editUserPrompt(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: 'User Prompt' }))
+  return screen.getByRole('textbox', { name: 'User Prompt' })
+}
+
+/**
+ * What the editor is holding, read the only way jsdom allows: by saving it and
+ * looking at what the PATCH carried. CodeMirror keeps its document in an
+ * internal model rather than a form control, and renders it through a viewport
+ * measured off element heights — which jsdom reports as zero, leaving the lines
+ * unrendered. So there is no text on screen here to assert against, and the
+ * request body is the closest thing to the value the user is looking at.
+ */
+async function saveUserPrompt(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Save user prompt' }))
+}
+
+/**
  * Pins the Console's behavior mechanism-by-mechanism: each inline-edited field,
  * the run pane, and the prompt-level actions (Delete, Duplicate).
  */
@@ -75,14 +102,18 @@ describe('prompt console', () => {
       screen.getByRole('button', { name: 'Effort high' }),
     ).toBeInTheDocument()
 
-    // The prompt text and system prompt live on their own tabs.
+    // The two prompt bodies live on their own tabs, and unlike every field
+    // above they are editors on arrival rather than text waiting for a click.
     await user.click(screen.getByRole('button', { name: 'User Prompt' }))
     expect(
-      screen.getByRole('button', { name: 'User Prompt Hello {{topic}}' }),
+      screen.getByRole('textbox', { name: 'User Prompt' }),
     ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /^User Prompt / }),
+    ).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'System Prompt' }))
     expect(
-      screen.getByRole('button', { name: 'System Prompt Be brief' }),
+      screen.getByRole('textbox', { name: 'System Prompt' }),
     ).toBeInTheDocument()
   })
 
@@ -367,6 +398,205 @@ describe('prompt console', () => {
     expect(
       screen.getByRole('button', { name: 'Save name' }),
     ).toBeInTheDocument()
+  })
+
+  it('edits the two prompt fields in a markdown editor, not a plain textarea', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    await editUserPrompt(user)
+
+    // The editor brings a formatting toolbar and a preview toggle — neither of
+    // which a bare textarea has.
+    expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Toggle Preview' }),
+    ).toBeInTheDocument()
+
+    // The System Prompt tab gets the same editor, also without a read mode.
+    await user.click(screen.getByRole('button', { name: 'System Prompt' }))
+    expect(
+      screen.getByRole('textbox', { name: 'System Prompt' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /^System Prompt / }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('writes markdown syntax into the source when the toolbar is used', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    await editUserPrompt(user)
+    await user.click(screen.getByRole('button', { name: 'Bold' }))
+    await saveUserPrompt(user)
+
+    // The prompt runs as stored (ADR-0009), so Bold has to leave the asterisks
+    // in the text rather than styling it and sending something else.
+    await waitFor(() =>
+      expect(patched).toEqual({ promptText: 'Hello {{topic}}****' }),
+    )
+  })
+
+  it('stays an editor after saving rather than dropping to a read mode', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () =>
+        HttpResponse.json(promptResponse({ promptText: 'Hello {{topic}}!' })),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, '!')
+    await saveUserPrompt(user)
+
+    // The save leaves the field where it was, now sitting on the saved value,
+    // with nothing to commit until it is edited again.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Save user prompt' }),
+      ).toBeDisabled(),
+    )
+    expect(
+      screen.getByRole('textbox', { name: 'User Prompt' }),
+    ).toBeInTheDocument()
+  })
+
+  it('types a newline on Enter instead of committing, unlike the one-line fields', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, '{Enter}second line')
+
+    // A markdown prompt is multi-line, so Enter has to reach the editor as a
+    // newline. Nothing was committed by pressing it.
+    expect(patched).toBeUndefined()
+    await saveUserPrompt(user)
+    await waitFor(() =>
+      expect(patched).toEqual({ promptText: 'Hello {{topic}}\nsecond line' }),
+    )
+  })
+
+  it('commits the markdown draft on Ctrl+Enter, the chord that replaces Enter', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse({ promptText: 'Hello!' }))
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, '!')
+
+    // fireEvent rather than user-event: CodeMirror resolves a chord through the
+    // legacy `keyCode`, which user-event no longer sends, so a typed Ctrl+Enter
+    // arrives as an unrecognised key here and nowhere else.
+    fireEvent.keyDown(field, { key: 'Enter', keyCode: 13, ctrlKey: true })
+
+    await waitFor(() =>
+      expect(patched).toEqual({ promptText: 'Hello {{topic}}!' }),
+    )
+  })
+
+  it('commits the markdown draft on the save button', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    // Nothing to save while the draft still matches what is stored.
+    expect(
+      screen.getByRole('button', { name: 'Save user prompt' }),
+    ).toBeDisabled()
+
+    await user.type(field, ' please')
+    await saveUserPrompt(user)
+
+    await waitFor(() =>
+      expect(patched).toEqual({ promptText: 'Hello {{topic}} please' }),
+    )
+  })
+
+  it('puts the stored prompt back on Revert, and offers it only once dirty', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    // Nothing to put back while the draft still matches what is stored.
+    expect(
+      screen.getByRole('button', { name: 'Revert user prompt' }),
+    ).toBeDisabled()
+
+    await user.type(field, ' discarded')
+    await user.click(screen.getByRole('button', { name: 'Revert user prompt' }))
+
+    // The editor stays — only the draft goes back to the stored prompt, which
+    // is what leaves Save with nothing to commit again.
+    expect(
+      screen.getByRole('textbox', { name: 'User Prompt' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Save user prompt' }),
+    ).toBeDisabled()
+  })
+
+  it('ignores Escape in the markdown editor, where it would discard unsaved work', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' still here')
+
+    await user.type(field, '{Escape}')
+    fireEvent.keyDown(field, { key: 'Escape', keyCode: 27 })
+
+    // A read/edit field discards its draft on Escape by leaving edit mode. The
+    // editor has no such mode to leave, so the key does nothing rather than
+    // silently throwing the draft away.
+    expect(
+      screen.getByRole('button', { name: 'Save user prompt' }),
+    ).toBeEnabled()
   })
 
   it('deletes immediately with no confirmation and navigates home', async () => {

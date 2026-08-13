@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
+import { MarkdownEditor } from '../components/MarkdownEditor'
 import type { PromptRequestBody } from '../components/promptFormValues'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
@@ -38,7 +39,11 @@ export function PromptConsolePage() {
 
   return (
     <div className="console-layout">
-      <ConsoleForm promptId={id} prompt={prompt.data} />
+      {/* Keyed so a move to another prompt (Duplicate lands on the copy)
+          rebuilds the form: the live prompt fields seed their drafts from the
+          prompt once, at mount, and would otherwise keep showing the previous
+          prompt's text. */}
+      <ConsoleForm key={id} promptId={id} prompt={prompt.data} />
       <RunPane promptId={id} />
     </div>
   )
@@ -105,10 +110,13 @@ function useInlineField(
   stored: string,
   patch: (draft: string) => Record<string, unknown>,
   optional = false,
+  live = false,
 ) {
   const queryClient = useQueryClient()
-  const [draft, setDraft] = useState('')
-  const [editing, setEditing] = useState(false)
+  // Seeded from the stored value rather than blank: a live field is its own
+  // editor from the first paint, so no beginEditing ever runs to seed it.
+  const [draft, setDraft] = useState(stored)
+  const [editing, setEditing] = useState(live)
 
   const save = useMutation({
     mutationFn: () =>
@@ -121,7 +129,9 @@ function useInlineField(
       // committed.
       queryClient.setQueryData(['prompt', promptId], updated)
       queryClient.invalidateQueries({ queryKey: ['prompts'] })
-      setEditing(false)
+      // A live field has no read mode to drop back to — it stays its own
+      // editor, now sitting on the value the save just returned.
+      setEditing(live)
     },
   })
 
@@ -143,6 +153,7 @@ function useInlineField(
   return {
     value: editing ? draft : stored,
     editing,
+    live,
     committable,
     save,
     commit,
@@ -153,7 +164,10 @@ function useInlineField(
       setEditing(true)
     },
     setDraft,
-    cancel: () => setEditing(false),
+    // Leaving edit mode is what discards the draft for a read/edit field. A
+    // live field never leaves it, so there the draft has to be put back by
+    // hand — same outcome, and the only way to undo an unsaved change.
+    cancel: () => (live ? setDraft(stored) : setEditing(false)),
   }
 }
 
@@ -267,6 +281,8 @@ interface InlineFieldProps {
   numeric?: boolean
   /** Present ⇒ the editor is a <textarea> with this many rows, not an input. */
   rows?: number
+  /** Present ⇒ the editor is the markdown editor, which outranks `rows`. */
+  markdown?: boolean
   /** Present ⇒ the field fills most of the viewport height (prompt editors). */
   fill?: boolean
   /** No legal alternative to the stored value — reads as text, with no editor. */
@@ -289,6 +305,7 @@ function InlineField({
   options,
   numeric,
   rows,
+  markdown,
   fill,
   fixed,
   hideLabel,
@@ -297,9 +314,10 @@ function InlineField({
   const valueId = `${name}-value`
   const noun = label.toLowerCase()
 
-  // Shared by both editors: Enter commits, Escape reverts. Without the
+  // Shared by the plain editors: Enter commits, Escape reverts. Without the
   // preventDefault the outer form submits and the PUT overwrites every other
-  // field from `values`.
+  // field from `values`. The markdown editor binds its own keys instead —
+  // CodeMirror swallows keystrokes before they reach React.
   function onKeyDown(event: { key: string; preventDefault: () => void }) {
     if (event.key === 'Enter') {
       event.preventDefault()
@@ -323,10 +341,13 @@ function InlineField({
         </span>
         {field.editing ? (
           // A text editor draws its own frame around the buttons; a <select>
-          // cannot, since the native dropdown arrow owns its right edge.
+          // cannot, since the native dropdown arrow owns its right edge, and
+          // the markdown editor already brings a frame of its own.
           <div
             className={
-              options ? 'inline-field-row' : 'inline-field-row inline-field-box'
+              options || markdown
+                ? 'inline-field-row'
+                : 'inline-field-row inline-field-box'
             }
           >
             {options ? (
@@ -346,6 +367,13 @@ function InlineField({
                   </option>
                 ))}
               </select>
+            ) : markdown ? (
+              <MarkdownEditor
+                value={field.value}
+                onChange={field.setDraft}
+                label={label}
+                onCommit={field.commit}
+              />
             ) : rows ? (
               <textarea
                 name={name}
@@ -373,7 +401,9 @@ function InlineField({
               type="button"
               className="inline-save"
               aria-label={`Save ${noun}`}
-              title={`Save ${noun}`}
+              // Enter types a newline in the markdown editor rather than
+              // committing, so the chord that does needs somewhere to be said.
+              title={markdown ? `Save ${noun} (Ctrl+Enter)` : `Save ${noun}`}
               disabled={!field.committable || field.save.isPending}
               onClick={field.commit}
             >
@@ -382,8 +412,13 @@ function InlineField({
             <button
               type="button"
               className="inline-cancel"
-              aria-label={`Cancel ${noun} edit`}
-              title={`Cancel ${noun} edit`}
+              // "Cancel edit" names leaving edit mode, which a live field never
+              // does; there the button puts the stored value back instead.
+              aria-label={field.live ? `Revert ${noun}` : `Cancel ${noun} edit`}
+              title={field.live ? `Revert ${noun}` : `Cancel ${noun} edit`}
+              // Nothing to put back until the draft has moved off the stored
+              // value, which is the same test the save button uses.
+              disabled={field.live && !field.committable}
               onClick={field.cancel}
             >
               <XIcon />
@@ -473,13 +508,21 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
   const thinking = useInlineField(promptId, prompt.thinking, (draft) => ({
     thinking: draft,
   }))
-  const promptText = useInlineField(promptId, prompt.promptText, (draft) => ({
-    promptText: draft,
-  }))
+  // The two prompt bodies are live: the markdown editor is the field, switching
+  // between source and preview on its own toolbar, so there is no read mode to
+  // click through first.
+  const promptText = useInlineField(
+    promptId,
+    prompt.promptText,
+    (draft) => ({ promptText: draft }),
+    false,
+    true,
+  )
   const systemPrompt = useInlineField(
     promptId,
     prompt.systemPrompt ?? '',
     (draft) => ({ systemPrompt: draft }),
+    true,
     true,
   )
 
@@ -637,6 +680,7 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
             name="promptText"
             label="User Prompt"
             field={promptText}
+            markdown
             fill
             hideLabel
           />
@@ -646,7 +690,7 @@ function ConsoleForm({ promptId, prompt }: ConsoleFormProps) {
             name="systemPrompt"
             label="System Prompt"
             field={systemPrompt}
-            emptyLabel="Add a system prompt"
+            markdown
             fill
             hideLabel
           />

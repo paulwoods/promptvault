@@ -838,25 +838,140 @@ fieldset > div:last-child {
   align-self: flex-start;
 }
 
-.inline-field-fill textarea {
+/* The EasyMDE editor behind the two prompt fields. It ships its own frame,
+   toolbar and preview, so the rules here only sit it in the inline-field row
+   and pull its light-mode palette onto the app's tokens. */
+.inline-field-row .markdown-editor {
+  /* The row's `input, textarea, select` rule cannot reach this — the editor is
+     a <div> — so it needs its own claim on the space beside the buttons. */
   flex: 1;
+  min-width: 0;
+  /* The editor's own height is set on the panes below; this only stops a long
+     prompt from pushing the row past the field. */
   min-height: 0;
-  resize: vertical;
+  display: flex;
 }
 
-/* Read mode: a tall, clickable area that shows the stored prompt with its
-   newlines preserved. */
-.inline-field-fill .inline-value {
+.markdown-editor .EasyMDEContainer {
   flex: 1;
+  min-width: 0;
+  /* A flex item's default floor is its content; without this the toolbar and a
+     long prompt push the editor past the field instead of scrolling inside it. */
   min-height: 0;
-  align-self: stretch;
-  overflow: auto;
-  white-space: pre-wrap;
-  /* A <button> centers its content vertically; in fill mode that parks the
-     prompt in the middle of a tall box, so anchor it to the top. */
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+}
+
+.markdown-editor .editor-toolbar {
+  flex: none;
+  background: var(--graphite);
+  border-color: var(--border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  opacity: 1;
+}
+
+.markdown-editor .editor-toolbar button {
+  color: var(--fog);
+  border-color: transparent;
+}
+
+.markdown-editor .editor-toolbar button.active,
+.markdown-editor .editor-toolbar button:hover {
+  background: var(--slate);
+  border-color: var(--border);
+  color: var(--paper);
+}
+
+.markdown-editor .editor-toolbar i.separator {
+  border-left-color: var(--border);
+  border-right-color: transparent;
+}
+
+/* The editing pane and the preview both fill what the toolbar leaves, so the
+   field is as tall as its row whichever one is showing. */
+.markdown-editor .CodeMirror,
+.markdown-editor .editor-preview,
+.markdown-editor .editor-preview-side {
+  flex: 1;
+  min-height: 0;
+  background: var(--graphite);
+  border-color: var(--border);
+  color: var(--paper);
+}
+
+.markdown-editor .CodeMirror {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+/* Matches .inline-field-box, so every kind of editor takes the same focus ring. */
+.markdown-editor .CodeMirror-focused {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-dim);
+}
+
+/* Prompt source is read character-by-character, so the editing pane takes the
+   app's mono face rather than the editor's prose one. */
+.markdown-editor .CodeMirror pre.CodeMirror-line,
+.markdown-editor .CodeMirror pre.CodeMirror-line-like {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.markdown-editor .CodeMirror-cursor {
+  border-left-color: var(--paper);
+}
+
+.markdown-editor .CodeMirror-selected {
+  background: var(--gold-dim);
+}
+
+/* This file styles bare <ul>/<li> as the stacked frosted cards the prompt and
+   trash lists are built from, and any list in a prompt renders as one in the
+   preview — so those globals reach in and turn each item into a card. The rules
+   below hand the lists back to the editor's stylesheet; they are resets, not
+   styling. The leading :root is what outranks `:root[data-theme='light'] li`,
+   which the light palette adds on top of the base rule and which would
+   otherwise tie with these and win on being written later in the file. */
+:root .markdown-editor .editor-preview ul,
+:root .markdown-editor .editor-preview ol,
+:root .markdown-editor .editor-preview-side ul,
+:root .markdown-editor .editor-preview-side ol {
+  display: block;
+  gap: 0;
+  padding-left: 2em;
+}
+
+:root .markdown-editor .editor-preview ul,
+:root .markdown-editor .editor-preview-side ul {
+  list-style: disc;
+}
+
+:root .markdown-editor .editor-preview ol,
+:root .markdown-editor .editor-preview-side ol {
+  list-style: decimal;
+}
+
+:root .markdown-editor .editor-preview li,
+:root .markdown-editor .editor-preview li:hover,
+:root .markdown-editor .editor-preview-side li,
+:root .markdown-editor .editor-preview-side li:hover {
+  display: list-item;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* The editor hardcodes a near-white panel behind a fenced block, which is
+   unreadable on the dark palette. Handed back to this file's own `pre`, which
+   is already the vault panel a prompt's code blocks should read as. */
+.markdown-editor .editor-preview pre,
+.markdown-editor .editor-preview-side pre {
+  background: var(--graphite);
 }
 
 .inline-save,

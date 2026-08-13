@@ -21,6 +21,25 @@ const localStorageMock = {
 }
 vi.stubGlobal('localStorage', localStorageMock)
 
+// CodeMirror (under the markdown editor) measures text by putting a Range
+// around it. jsdom leaves the measuring half of Range unimplemented, so these
+// stand in with an empty box — enough for the editor to build without throwing.
+// Nothing here is asserted on: layout is not what jsdom is for.
+const emptyRect = {
+  x: 0,
+  y: 0,
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  width: 0,
+  height: 0,
+  toJSON: () => ({}),
+} as DOMRect
+Range.prototype.getBoundingClientRect = () => emptyRect
+Range.prototype.getClientRects = () =>
+  Object.assign([], { item: () => null }) as unknown as DOMRectList
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 
 afterEach(() => {
