@@ -562,7 +562,7 @@ spends that freedom on the two fields the edit → run → read loop actually tu
   `PromptConsolePage` so `RunPane` can see it. → *verify (RTL + MSW): clicking Run straight after typing `PATCH`es
   before it streams, and the run carries the typed text; a failed flush blocks the run and surfaces the error; Run is
   blocked on a blank User Prompt; Duplicate copies the typed text, not the stored text; Delete fires no `PATCH`.*
-- [ ] **17.7 `beforeunload` guard over every uncommitted Console draft.** Bodies dirty or failed, plus any Details field
+- [x] **17.7 `beforeunload` guard over every uncommitted Console draft.** Bodies dirty or failed, plus any Details field
   open with a draft differing from stored. → *verify (RTL): the handler is registered only while something is
   uncommitted and removed once clean. Browser: closing the tab mid-edit prompts; in-app navigation does not.*
 - [ ] **17.8 Browser verification of what jsdom cannot reach.** Reveal-refresh across tab switches, the `beforeunload`

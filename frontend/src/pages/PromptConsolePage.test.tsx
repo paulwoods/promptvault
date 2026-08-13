@@ -73,6 +73,16 @@ async function editUserPrompt(user: ReturnType<typeof userEvent.setup>) {
 const AUTOSAVED = { timeout: 3000 }
 
 /**
+ * Whether closing the tab right now would warn. Asserted through the event
+ * rather than by spying on addEventListener: a listener that is registered but
+ * never cancels the event guards nothing, and dispatchEvent returns false
+ * exactly when something called preventDefault.
+ */
+function unloadWarned() {
+  return !window.dispatchEvent(new Event('beforeunload', { cancelable: true }))
+}
+
+/**
  * Pins the Console's behavior mechanism-by-mechanism: each inline-edited field,
  * the run pane, and the prompt-level actions (Delete, Duplicate).
  */
@@ -910,6 +920,54 @@ describe('prompt console', () => {
         }),
       ).toBeDisabled(),
     )
+  })
+
+  it('warns before the tab closes while a Details editor holds a changed draft', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const input = await editName(user)
+
+    // An open editor still showing the stored name has nothing to lose.
+    expect(unloadWarned()).toBe(false)
+
+    await user.type(input, '!')
+    expect(unloadWarned()).toBe(true)
+
+    // Escape closes the editor and drops the draft, so the guard goes with it —
+    // this is also the in-app case, where abandoning an edit is the point.
+    await user.keyboard('{Escape}')
+    expect(unloadWarned()).toBe(false)
+  })
+
+  it('warns while a body is unsaved and stops once the autosave lands', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        const body = (await request.json()) as { promptText: string }
+        return HttpResponse.json(
+          promptResponse({ promptText: body.promptText }),
+        )
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+
+    // A body is its own editor from the first paint, so `editing` alone cannot
+    // mean uncommitted work: on arrival the draft is the stored text.
+    expect(unloadWarned()).toBe(false)
+
+    await user.type(field, ' x')
+    expect(unloadWarned()).toBe(true)
+
+    // The debounce writes it, the response becomes the stored text, and the
+    // draft matches again — nothing left for the dialog to protect.
+    await waitFor(() => expect(unloadWarned()).toBe(false), AUTOSAVED)
   })
 
   it('deletes immediately with no confirmation and navigates home', async () => {

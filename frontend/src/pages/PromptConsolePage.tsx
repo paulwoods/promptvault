@@ -240,6 +240,31 @@ interface ConsoleFormBodies {
 }
 
 /**
+ * Warns before the tab closes while there is uncommitted work.
+ *
+ * Registered per field rather than once for the Console: the fields are split
+ * across two components (the bodies sit above the form so Run can flush them),
+ * and any one handler cancelling the event is enough to raise the dialog — so
+ * there is nothing to gain from lifting a boolean through both.
+ *
+ * In-app navigation is deliberately not guarded (ADR-0012): abandoning a
+ * Details edit by navigating away works exactly as it always has, and a body's
+ * pending save is flushed on unmount rather than lost.
+ */
+function useUnloadGuard(uncommitted: boolean) {
+  useEffect(() => {
+    if (!uncommitted) {
+      return
+    }
+    // Cancelling the event is the whole of it — browsers show their own wording
+    // and ignore any message we supply.
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [uncommitted])
+}
+
+/**
  * One inline-edited Prompt field. Read mode renders `stored` — the value from
  * the ['prompt', id] query — and edit mode a local draft, which makes PATCH the
  * field's only writer.
@@ -316,6 +341,12 @@ function useInlineField(
   // live field this is also what *holds* the save rather than sending a request
   // that could only 400.
   const committable = (optional || draft.trim() !== '') && draft !== stored
+
+  // Work the tab would take with it. Wider than `committable` on purpose: a
+  // blank User Prompt is held rather than sent, and a save that failed leaves
+  // the draft ahead of `stored` — both are still the User's typing. A closed
+  // Details editor is not, since its draft is re-seeded the next time it opens.
+  useUnloadGuard(editing && draft !== stored)
 
   // `save` itself is not a dependency anywhere below: its identity changes as
   // the mutation moves through pending, which would re-arm both timers mid-save
