@@ -29,6 +29,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Local issue tracker (agent scratch space — created on first use)
+.scratch/
+
 # IDE / editor
 .idea/
 *.iml
