@@ -950,6 +950,21 @@ fieldset > div:last-child {
   line-height: 1.6;
 }
 
+/* The editor sizes a heading line off the viewport (`calc(1.375rem + 1.5vw)`
+   for an h1) and tightens its line-height, so a `#` line towers over the source
+   around it. This is a source pane: a heading is `#` plus its text, and it
+   reads as the same text as everything else. Weight and colour are left to the
+   editor -- only the scaling goes. */
+.markdown-editor .CodeMirror .cm-header-1,
+.markdown-editor .CodeMirror .cm-header-2,
+.markdown-editor .CodeMirror .cm-header-3,
+.markdown-editor .CodeMirror .cm-header-4,
+.markdown-editor .CodeMirror .cm-header-5,
+.markdown-editor .CodeMirror .cm-header-6 {
+  font-size: inherit;
+  line-height: inherit;
+}
+
 .markdown-editor .CodeMirror-cursor {
   border-left-color: var(--paper);
 }
