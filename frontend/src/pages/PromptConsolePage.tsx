@@ -918,16 +918,16 @@ function ConsoleForm({
           Details
         </button>
         <BodyTab
-          label="User Prompt"
-          status={promptText.status}
-          current={tab === 'userPrompt'}
-          onSelect={() => setTab('userPrompt')}
-        />
-        <BodyTab
           label="System Prompt"
           status={systemPrompt.status}
           current={tab === 'systemPrompt'}
           onSelect={() => setTab('systemPrompt')}
+        />
+        <BodyTab
+          label="User Prompt"
+          status={promptText.status}
+          current={tab === 'userPrompt'}
+          onSelect={() => setTab('userPrompt')}
         />
       </nav>
       <form
@@ -1015,17 +1015,6 @@ function ConsoleForm({
             the only undo there is (ADR-0012), so unmounting one on a trip to
             another tab would throw its history away. `hidden` is also what
             keeps it out of the accessibility tree while it is off screen. */}
-        <div className="console-body" hidden={tab !== 'userPrompt'}>
-          <InlineField
-            name="promptText"
-            label="User Prompt"
-            field={promptText}
-            markdown
-            active={tab === 'userPrompt'}
-            fill
-            hideLabel
-          />
-        </div>
         <div className="console-body" hidden={tab !== 'systemPrompt'}>
           <InlineField
             name="systemPrompt"
@@ -1033,6 +1022,17 @@ function ConsoleForm({
             field={systemPrompt}
             markdown
             active={tab === 'systemPrompt'}
+            fill
+            hideLabel
+          />
+        </div>
+        <div className="console-body" hidden={tab !== 'userPrompt'}>
+          <InlineField
+            name="promptText"
+            label="User Prompt"
+            field={promptText}
+            markdown
+            active={tab === 'userPrompt'}
             fill
             hideLabel
           />
