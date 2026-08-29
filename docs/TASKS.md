@@ -726,6 +726,225 @@ as `null`, matching `system_prompt`; New Prompt starts with both bodies blank.
 - [x] **19.6 The record.** ADR-0013 written; ADR-0012 and Phase 17's blank-asymmetry note annotated as superseded;
   CONTEXT.md's Prompt definition updated. Backend suite 168/168, frontend suite 89/89, typecheck clean.
 
+## Phase 20 — Retire PUT: one write seam for the Prompt *(architecture review 2026-08-28, candidate 3)*
+
+The Prompt has three write doors, and one of them has no caller. `PUT /api/prompts/{id}`
+(`PromptController.java:44-48`) is reached by nothing in the app; it survives as a test-fixture
+convenience in `PromptDeletionTest:191,205`, `PromptReadTest:48,110`, `PromptSearchTest:133` and
+`RunServiceTest:127`, and `PromptConsolePage.test.tsx:319` registers a PUT handler purely to assert the
+Console never calls one.
+
+The review also reported "two validation mechanisms that produce two different error envelopes". Read
+against the code, that is half right and worth stating correctly: `MethodArgumentNotValidException` and
+`DomainValidationException` produce the *same* envelope —
+`{error: "validation_error", message: "Validation failed", details: {field: message}}`
+(`GlobalExceptionHandler.java:26-33` and `:56-60`) — and the frontend already joins however many
+entries it finds (`errorMessage.ts:20-30`). They differ only in **cardinality**: `@Valid` reports every
+violated field, `PromptService.requireMechanicallyValid` reports exactly one. One envelope, two
+cardinality rules.
+
+**Decisions locked (grilling session, 2026-08-29):**
+- **PUT goes, and so does `PromptService.updatePrompt`.** A service method kept alive only for the test
+  suite is the same smell as the endpoint. Fixtures move to PATCH first, then both are deleted.
+- **Validation unifies upward, not downward.** The surviving merged-content pass collects *every* Bean
+  Validation violation rather than reporting one. This moves the user-facing behaviour forward — break
+  two fields in one PATCH today and you are told about one of them — and needs no frontend change.
+- **The domain chain stays fail-fast.** `RunSettingsValidator` is sequential by necessity: effort cannot
+  be judged until the model is known to be real, and adaptive thinking not until that model's
+  capabilities are in hand. Reporting "unsupported model `x`" *and* "invalid effort for model `x`" is
+  one fact stated twice. Collecting applies to the mechanical layer only, which keeps the change inside
+  `PromptService` and leaves every existing `DomainValidationException` caller untouched.
+- **The lowest-property-path tiebreaker disappears as a consequence, not as a goal.** It existed to make
+  a one-error report deterministic; with all violations reported there is nothing left to tiebreak.
+- **The log helpers stay two.** The review counted 30 duplicated lines; the duplication is the eight
+  field *names*, and the logic differs in the one way that matters — only a patch can distinguish an
+  absent field from an empty one (`PromptController.java:102-103`). The dead `operation` parameter goes,
+  since it existed only to name which of two callers was calling.
+- **The write seam earns an ADR.** "Why is there no PUT?" is exactly the question an ADR answers, and
+  nothing currently records that PATCH is the Prompt's only mutating door.
+
+- [ ] **20.1 Migrate the fixtures off PUT.** Rewrite the five MockMvc usages as PATCH with the same body;
+  `RunServiceTest:127` becomes a `patchPrompt` call. → *verify: no test references `put("/api/prompts` or
+  `updatePrompt`; backend suite green at its current count.*
+- [ ] **20.2 Delete the endpoint and the method.** Remove `PUT /api/prompts/{id}` and
+  `PromptService.updatePrompt`, and the frontend MSW handler that existed only to watch for a PUT.
+  → *verify: the route 405s; backend and frontend suites, typecheck and lint green.*
+- [ ] **20.3 One validation pass, every violation.** With PUT gone, `POST` is the last `@Valid` site;
+  route it through the same merged-content pass `PATCH` uses, and have that pass collect all mechanical
+  violations into one `details` map. The `min(propertyPath)` tiebreaker goes with it. → *verify: a create
+  and a patch carrying the same bad value produce byte-identical bodies; a request breaking two fields
+  reports both; `PromptCreateTest`'s expectations move to the single envelope; a bad model still reports
+  once, from the domain layer.*
+- [ ] **20.4 One log helper per shape, minus the dead parameter.** Drop `operation` from `logRequest`
+  (one caller left), keep `logPatch` distinct. → *verify: `ControllerLogLeakTest` and `LeakHygieneTest`
+  stay green; no body or system prompt text reaches a log line.*
+- [ ] **20.5 The record.** New ADR — `docs/adr/0014-prompt-write-seam.md`: POST creates, PATCH changes,
+  validation runs once against merged content, and the full-save shape survives only as the merge
+  target. Add it to `docs/adr/README.md`'s index. Amend
+  ADR-0008's consequence *"`PUT` remains the full-save path and keeps serving Create, Duplicate, and the
+  Console's first iteration"* (`docs/adr/0008-prompt-console.md:33`) — the decision it records stands,
+  only that consequence expires. ADR-0012's concurrency reasoning is PATCH-only and untouched.
+
+**Constraint.** The full-save *shape* survives: `PromptRequest` remains the merge target and the create
+body. This retires a door, not the idea of a complete Prompt.
+
+
+## Phase 21 — One flush seam for the whole Prompt *(architecture review 2026-08-28, candidate 2)*
+
+"What runs is what is on screen" is enforced for the two self-saving bodies and for nothing else. The
+`BodySaves` seam (`PromptConsolePage.tsx:78-86`, built at `:118-135`) covers `promptText` and
+`systemPrompt`; a run reads eight stored fields (`RunService.java:37-52`). Name, Description, Model, Max
+tokens, Effort and Thinking are inline fields whose only writer is a commit click or Enter — so an open
+editor holding an uncommitted Model or Max tokens streams the *previous* value with no indication, and
+Duplicate (`:921-943`) copies from the query cache and so copies the same stale value.
+
+The fix is not more special cases. Every field already exposes `flush()`, `cancelPending()` and
+`committable` from `useInlineField` (`:301-486`). What is missing is one owner holding all eight and one
+seam every action crosses.
+
+**Decisions locked (grilling session, 2026-08-29):**
+- **The seam, not autosave everywhere.** Making the six settings live would supersede ADR-0012 and still
+  would not remove the flush — an autosave is debounced, so a pending window exists either way. It would
+  change how many fields are pending, not whether pending is possible. (The separate UX question of
+  whether picking from a `<select>` should need a save click is worth raising on its own merits, not
+  inside this phase.)
+- **One owner: `usePromptFields(promptId, prompt)`.** It creates all eight `useInlineField`s and returns
+  them plus the seam. `ConsoleForm` receives the six it renders, `RunPane` receives the seam, and neither
+  knows how many fields exist. Not a context-registration scheme — the field set is statically eight, and
+  registration would make "which fields does Run flush?" answerable only at runtime.
+- **Two flush verbs, because the scopes differ permanently.** `flush()` — all eight — for Run,
+  Duplicate and Delete; `flushOnLeave()` — the bodies only — for unmount. Named for intent rather than
+  scope on purpose: the default verb stays unqualified because flushing everything *is* the normal case,
+  and the exception is named for the moment it exists to serve, so the unmount effect reads as
+  deliberate at exactly the site where calling the wrong one causes the bug the next decision describes.
+  (`flushLive` was rejected — "live" is `useInlineField`'s private flag, not domain vocabulary;
+  `flushBodies` names which fields rather than why, asserting as a definition what is only true today.)
+- **Unmount deliberately does not write the six.** ADR-0012 leaves in-app navigation unguarded, and
+  abandoning a Details edit by clicking away is a gesture users rely on — a body has no discard gesture
+  *because* it is always live, so unmount must write it; a Details field's discard gesture *is* leaving.
+  Flushing all eight on unmount would turn backing out into a silent save with no undo.
+- **`discard()` covers all eight** — a no-op for the six, which own no timers. It costs nothing and lets
+  the verb mean one thing: stop everything not yet written. In-flight PATCHes are not aborted; they are
+  already race-guarded by the send/landed sequence (`:314-316`), and a PATCH landing on a Prompt being
+  deleted is harmless.
+- **A held field blocks the Run, with the reason on the button.** Name is required and `committable`
+  refuses to send it blank (`:434-437`), so clearing the Name leaves a field that is uncommitted *and*
+  unsendable. Blocking is the rule the Console already teaches; running against the stored name would let
+  the screen and the stored Prompt disagree silently.
+- **`blockedReason: string | null`, precedence owned by the seam.** The seam holds all eight fields and
+  is the only thing positioned to say which problem to fix first. This does put user-facing copy inside
+  the seam — accepted, because the copy *is* the rule stated in words.
+- **A failed flush names the field.** With eight fields, six of them behind a possibly-closed tab, a bare
+  "couldn't save" tells the user nothing to act on.
+
+- [ ] **21.1 `usePromptFields` owns the field set and the seam.** All eight `useInlineField`s move into
+  one hook that returns them plus *`flush` · `flushOnLeave` · `discard` · `blockedReason`*. `BodySaves`
+  goes. → *verify: the eight fields are declared in one place; `RunPane` receives only the seam;
+  `PromptConsolePage.tsx` shrinks by the moved declarations; suite and typecheck green.*
+- [ ] **21.2 Run crosses `flush`.** `handleRun` flushes every field before it streams. → *verify (RTL
+  + MSW): editing Max tokens and clicking Run without committing PATCHes the new value before the run
+  POST, and the run streams against it.*
+- [ ] **21.3 Duplicate crosses `flush`.** The copy is taken only after every field has landed.
+  → *verify (RTL + MSW): an uncommitted Model is written before the POST and the copy carries it, not the
+  stored one.*
+- [ ] **21.4 Delete discards eight; unmount flushes two.** `discard()` cancels pending saves across all
+  eight; the unmount effect calls `flushOnLeave()` and keeps its best-effort `console.error` on
+  rejection, with the discard-gesture reasoning in a comment above it.
+  → *verify: deleting with a pending edit sends no PATCH after the DELETE; leaving the Console with an
+  uncommitted Description does **not** write it, while a pending body edit still does.*
+- [ ] **21.5 One blocked rule, one reason.** The both-blank rule becomes one held reason among several;
+  `RunPane` renders `blockedReason` rather than computing it (`:193-198`). → *verify: both-blank and
+  blank-Name each disable Run with their own reason on the button; precedence between them is pinned by
+  a test; a single filled body re-enables Run either way around.*
+- [ ] **21.6 A failed flush says which field failed.** The seam's rejection carries the field name and
+  `RunPane`'s alert uses it. → *verify (RTL + MSW): a PATCH that 500s on Max tokens blocks the run and
+  names Max tokens in the alert.*
+- [ ] **21.7 The record.** ADR-0012 gains the unmount asymmetry in its consequences — bodies are flushed
+  on leaving, Details drafts are discarded by leaving, and why the two differ. Note that the
+  content-vs-settings split itself is unchanged: this phase sharpens *when* a settings field is written,
+  not whether it autosaves. PATCH still narrows each clobber to the fields a tab touched (ADR-0008).
+
+**Constraint.** No field starts autosaving as a side effect of this phase.
+
+
+## Phase 22 — Give the Run one module *(architecture review 2026-08-28, candidate 1)*
+
+The review drew this candidate against a pre-18.5 codebase, and 18.5 has since absorbed most of what
+made three fragments read as one leaky module: `streamRun` takes an `AbortSignal`, skips a malformed
+frame in place, tolerates CRLF across a chunk boundary, and shares one
+`clearAndAnnounceUnauthorized()` with the JSON client, while `useRunStream` owns Stop and the
+unmount abort. Three defects survive.
+
+- **A stream that closes without a terminal frame leaves the run `running` forever.** The reader loop
+  breaks on `done` and resolves (`streamRun.ts:60-83`); `useRunStream`'s `.catch` never fires, so nothing
+  moves the status. The Stop button stays up, Run stays disabled, and only a navigation clears it.
+- **A lib hook owns a route.** `useRunStream` calls `navigate('/settings/api-key')` on `no_api_key`
+  (`useRunStream.ts:79-82`), so `lib/` knows the app's URL map.
+- **The failure category is parsed and discarded.** The `error` frame carries `{category, message}` and
+  `streamRun` hands both to `onError`, but only `info.message` is kept (`useRunStream.ts:65-70`) —
+  nothing downstream can tell `RATE_LIMIT` from `AUTH` from `NETWORK`.
+
+**Decisions locked (grilling session, 2026-08-29):**
+- **No scheduled collapse.** The three defects are each fixable without moving a file. Introduce the test
+  seam (22.4) and let *that* decide whether a `lib/run/` folder appears — a move made for a reason you
+  can point at, rather than because a diagram drawn before 18.5 showed three boxes.
+- **Close-without-terminal resolves to `failed`.** A stream that ends mid-run *is* a failure: the key was
+  spent and the answer is cut off. `failed` already keeps the partial output on screen beside an alert
+  (`PromptConsolePage.tsx:245-246`), which is the right rendering. A fifth `truncated` state would differ
+  from `failed` only in wording a message can carry; `completed` would present a truncated answer as
+  whole.
+- **Pre-stream and mid-stream failures normalise to one `{category, message}`.** Today a pre-stream
+  failure throws an `ApiError` (`streamRun.ts:41-51`) and a mid-stream one fires `onError`. The Console's
+  question — what went wrong, what should the user do — has the same answer either way, and two shapes
+  means two `if` ladders that agree until one is edited. No escape hatch to the raw envelope: nothing
+  needs `details` or `status`, and an unused one is how the second shape grows back.
+- **The Console owns the routing.** With one failure shape, the route decision is a lookup from category
+  to destination, performed in `PromptConsolePage` — `lib/` stops importing `useNavigate`.
+- **The category drives wording *and* affordance.** The categories exist because the backend already
+  decided these failures differ in what the user should do: `RATE_LIMIT` and `OVERLOADED` are transient
+  and get a Retry; `AUTH` gets the same API-key destination as the pre-stream `no_api_key`. Carrying the
+  category without branching on it would stop one step short of the reason for carrying it.
+- **Retry calls the same `handleRun`.** One path to "start a run". Skipping the flush on the assumption
+  that nothing changed is false in the obvious case — a rate-limited user waits, edits, then retries.
+- **No cooldown on Retry.** The failure mode that would justify one needs automation, and there is none:
+  every run is a deliberate click and the control is disabled while streaming. A cooldown would be a
+  timer and a countdown label built to stop a person clicking twice. (`retry-after` is not carried across
+  the `ClaudeException` seam and is not worth widening it for.)
+- **The test seam injects the fetch**, not frames and not parsed events. It is the narrowest cut that
+  keeps the subtlest code under test — the carriage-hold for a CRLF split across chunks
+  (`streamRun.ts:55-75`) and the malformed-frame skip (`:105-113`), both written for 18.5 — and handing
+  back a `Response` keeps the status and content-type checks covered too.
+- **One MSW test survives**, asserting the real wiring: `POST /api/prompts/{id}/run` with the Bearer
+  header. The injected transport is the production default, and nothing else proves that URL.
+
+- [ ] **22.1 Close-without-terminal has an owner.** A stream ending with neither `done` nor `error`
+  resolves to `failed` with a message naming the truncation. → *verify (RTL + MSW): a stream closed after
+  two token frames and no terminal frame leaves the tokens visible, hides Stop, re-enables Run, and
+  reports the truncation; the happy path is unchanged.*
+- [ ] **22.2 One failure shape, and the Console routes it.** Pre-stream `ApiError`s and mid-stream error
+  frames normalise to `{category, message}` before the Console sees them; `no_api_key` maps into the
+  `AUTH` family. `PromptConsolePage` performs the navigation. → *verify: no `useNavigate` or route
+  literal remains in the run module; RTL still lands on `/settings/api-key` when the run endpoint answers
+  `no_api_key`, and now also on a mid-stream `AUTH` frame.*
+- [ ] **22.3 The category earns its keep.** Alert wording is chosen by category, and transient categories
+  render a Retry that calls `handleRun`. → *verify: an `error` frame with `category: "rate_limit"` renders
+  its own wording plus a Retry; clicking Retry re-flushes and re-runs; an `AUTH` frame offers the key
+  page instead; the category is asserted, not just the message.*
+- [ ] **22.4 Tests cross an injected transport.** The module takes a `(promptId, signal) =>
+  Promise<Response>`; frame-level tests hand back a canned `Response` and stop touching MSW. Exactly one
+  MSW test remains, asserting method, URL and Bearer header. → *verify: the frame-level cases run without
+  MSW and without real timers; the malformed-frame, CRLF-split, comment/id/retry and 401 cases all still
+  execute; the suite gets no slower.*
+- [ ] **22.5 Collapse only if the seam asked for it.** Once 22.4 exists, decide whether `streamRun` and
+  `useRunStream` want to be one `lib/run/` module — and record the answer either way. → *verify: whichever
+  way it goes, the decision is written down rather than left to the next reader.*
+
+**Constraint.** One-shot, no Run id, no reconnection stays true (ADR-0007): Stop is the client pulling an
+abort the server already implements, Retry is a new run rather than a resumption, and a terminal state on
+close is a *client* conclusion about a stream that ended — nothing is retried automatically and nothing
+is persisted.
+
+
 ---
 
 ### Out of scope (do **not** build — from the PRD)

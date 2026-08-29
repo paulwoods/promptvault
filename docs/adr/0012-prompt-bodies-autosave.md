@@ -1,5 +1,7 @@
 # Prompt bodies autosave; Details fields commit explicitly
 
+> **Amended by [ADR-0013](0013-either-prompt-body-may-be-empty.md).** The decision stands — the bodies still autosave and the Details fields still commit explicitly. Its "a blank prompt text becomes a state the app must name" consequence is void: prompt text is optional too, blank autosaves for both bodies, the *Can't be empty* state is gone, and save status is four states again. Only a Prompt with *both* bodies blank cannot run.
+
 The [Console](0008-prompt-console.md)'s two prompt bodies — a [Prompt](../CONTEXT.md#prompt)'s **prompt text** and its
 **system prompt**, labelled *User Prompt* and *System Prompt* in the UI — save themselves as the User types: a `PATCH`
 one second after typing stops, and at least every ten seconds under unbroken typing. Their per-field commit and revert

@@ -16,4 +16,5 @@ Superseded and amended ADRs are kept, never deleted or rewritten — a reversed 
 - [0009 — Remove Variables from Prompts](0009-remove-variables.md)
 - [0010 — Console absorbs View and Duplicate — the sole prompt surface](0010-console-absorbs-view-and-duplicate.md)
 - [0011 — Google sign-in via ID token, linked by verified email](0011-google-sign-in-verified-email-linking.md)
-- [0012 — Prompt bodies autosave; Details fields commit explicitly](0012-prompt-bodies-autosave.md)
+- [0012 — Prompt bodies autosave; Details fields commit explicitly](0012-prompt-bodies-autosave.md) — *amended by 0013*
+- [0013 — Either prompt body may be empty; both-blank is saveable but not runnable](0013-either-prompt-body-may-be-empty.md)
