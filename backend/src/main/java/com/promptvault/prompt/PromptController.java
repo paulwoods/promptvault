@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,12 +38,6 @@ public class PromptController {
         logRequest("createPrompt", null, request);
         Prompt prompt = promptService.createPrompt(currentUser.userId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(PromptResponse.from(prompt));
-    }
-
-    @PutMapping("/{promptId}")
-    public PromptResponse updatePrompt(@PathVariable UUID promptId, @Valid @RequestBody PromptRequest request) {
-        logRequest("updatePrompt", promptId, request);
-        return PromptResponse.from(promptService.updatePrompt(currentUser.userId(), promptId, request));
     }
 
     /** Partial edit: only the fields present in the body change. Validated once merged, in the service. */

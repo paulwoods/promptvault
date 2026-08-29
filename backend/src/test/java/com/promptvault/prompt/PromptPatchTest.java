@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -54,6 +55,19 @@ class PromptPatchTest extends IntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
+    }
+
+    /** PATCH is the Prompt's only mutating door; the full-save PUT is retired (ADR-0014). */
+    @Test
+    void putIsNotAWriteDoor() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "no-put@example.com", "password123");
+        String promptId = createPrompt(token);
+
+        mockMvc.perform(put("/api/prompts/" + promptId)
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(FULL_BODY))
+                .andExpect(status().isMethodNotAllowed());
     }
 
     @Test

@@ -51,32 +51,10 @@ public class PromptService {
     }
 
     /**
-     * Overwrites the caller's prompt with the full content (covers edit and
-     * rename). The previous content is not recoverable (ADR-0007). Concurrent
-     * saves are last-write-wins. Cross-user or Trashed (ADR-0004) -> 404.
-     */
-    @Transactional
-    public Prompt updatePrompt(UUID userId, UUID promptId, PromptRequest request) {
-        Prompt prompt = prompts.findByIdAndUserIdAndDeletedAtIsNull(promptId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Prompt not found"));
-        Validated validated = validate(request);
-        prompt.update(
-                validated.name(),
-                validated.description(),
-                validated.promptText(),
-                request.model(),
-                validated.systemPrompt(),
-                request.maxTokens(),
-                request.effort(),
-                request.thinking());
-        return prompt;
-    }
-
-    /**
      * Applies a partial edit to the caller's prompt. Supplied fields are laid
      * over the stored content and the merged result goes through exactly the
-     * same validation and overwrite as {@link #updatePrompt} — a patch cannot
-     * produce a Prompt a full save could not. Omitted fields are untouched;
+     * same validation and overwrite a create gets — a patch cannot produce a
+     * Prompt a full save could not. Omitted fields are untouched;
      * ADR-0007 still applies to whatever the patch does change. Cross-user or
      * Trashed (ADR-0004) -> 404.
      */

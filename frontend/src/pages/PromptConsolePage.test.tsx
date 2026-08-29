@@ -312,14 +312,9 @@ describe('prompt console', () => {
   it('commits on Enter without submitting the outer form', async () => {
     const user = userEvent.setup()
     setToken('t')
-    let put = false
     let patched: unknown
     server.use(
       getPrompt(),
-      http.put('/api/prompts/p1', () => {
-        put = true
-        return HttpResponse.json(promptResponse())
-      }),
       http.patch('/api/prompts/p1', async ({ request }) => {
         patched = await request.json()
         return HttpResponse.json(promptResponse({ name: 'Renamed' }))
@@ -331,9 +326,9 @@ describe('prompt console', () => {
     await user.clear(nameField)
     await user.type(nameField, 'Renamed{Enter}')
 
+    // Enter commits the inline field, and PATCH is the only write door it can
+    // reach — the outer form has nothing to submit to (ADR-0014).
     await waitFor(() => expect(patched).toEqual({ name: 'Renamed' }))
-    // Enter commits the inline field; it must not fall through to anything else.
-    expect(put).toBe(false)
   })
 
   it('reverts to the stored name on Escape', async () => {

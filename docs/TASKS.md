@@ -766,7 +766,7 @@ cardinality rules.
 - [x] **20.1 Migrate the fixtures off PUT.** Rewrite the five MockMvc usages as PATCH with the same body;
   `RunServiceTest:127` becomes a `patchPrompt` call. → *verify: no test references `put("/api/prompts` or
   `updatePrompt`; backend suite green at its current count.*
-- [ ] **20.2 Delete the endpoint and the method.** Remove `PUT /api/prompts/{id}` and
+- [x] **20.2 Delete the endpoint and the method.** Remove `PUT /api/prompts/{id}` and
   `PromptService.updatePrompt`, and the frontend MSW handler that existed only to watch for a PUT.
   → *verify: the route 405s; backend and frontend suites, typecheck and lint green.*
 - [ ] **20.3 One validation pass, every violation.** With PUT gone, `POST` is the last `@Valid` site;
