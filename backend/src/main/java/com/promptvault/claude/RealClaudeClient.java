@@ -9,17 +9,25 @@ import com.anthropic.errors.AnthropicServiceException;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.RawMessageStreamEvent;
 import com.anthropic.models.messages.TextDelta;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
  * Real {@link ClaudeClient} over the official Anthropic Java SDK. A client is
  * built per call from the decrypted key (never shared). Answer-text deltas are
  * pushed to the sink; usage is reported on completion. SDK exceptions are
- * translated to categorized, safe {@link ClaudeException}s. A refusal returns a
- * normal (empty-content) stream that simply completes — it is not a failure.
+ * translated to categorized, safe {@link ClaudeException}s — safe meaning the
+ * User is told a category, not the SDK's words. The cause is logged here
+ * because that translation is lossy and nothing downstream sees it: without
+ * this line a 400 from the API is indistinguishable, from the outside, from
+ * any other OTHER. A refusal returns a normal (empty-content) stream that
+ * simply completes — it is not a failure.
  */
 @Component
 public class RealClaudeClient implements ClaudeClient {
+
+    private static final Logger log = LoggerFactory.getLogger(RealClaudeClient.class);
 
     private final ClaudeRequestMapper mapper;
 
@@ -51,10 +59,13 @@ public class RealClaudeClient implements ClaudeClient {
             sink.onComplete(new Usage(Math.toIntExact(inputTokens[0]), Math.toIntExact(outputTokens[0])));
         } catch (AnthropicServiceException e) {
             ErrorCategory category = categoryFor(e.statusCode());
+            log.warn("Claude call failed with status {} ({})", e.statusCode(), category, e);
             sink.onError(new ClaudeException(category, safeMessage(category), e));
         } catch (AnthropicIoException e) {
+            log.warn("Claude call failed before a response was read (NETWORK)", e);
             sink.onError(new ClaudeException(ErrorCategory.NETWORK, "Network error contacting Claude", e));
         } catch (AnthropicException e) {
+            log.warn("Claude call failed (OTHER)", e);
             sink.onError(new ClaudeException(ErrorCategory.OTHER, "Claude request failed", e));
         } finally {
             client.close();

@@ -6,8 +6,16 @@ rather than a held edit. A Prompt with *neither* body filled is still saveable �
 the backend refuses the run with a `400`, and the Console disables Run with the reason on the button.
 
 A run with a system prompt but no prompt text is legal, so it must reach the API — but the Messages API rejects an
-empty text block and requires at least one message. The mapper therefore sends a **single space** as the user message in
-that case: the least-said thing the API will accept. New Prompts begin with both bodies empty.
+empty text block and requires at least one message. The mapper therefore sends a **single period** as the user message in
+that case: the least-said thing the API will accept.
+
+> **Corrected 2026-08-29.** This decision originally sent a **single space**, on the premise that a space was the
+> least-said thing the API would accept. That premise was wrong: the Messages API rejects a text block that is
+> whitespace-only exactly as it rejects an empty one, with `400 invalid_request_error` — *"text content blocks must
+> contain non-whitespace text"*. Every run of a Prompt with no prompt text therefore failed, surfacing to the User as
+> the uncategorized *"Claude request failed"* (a 400 maps to `ErrorCategory.OTHER`). The substitute must contain
+> non-whitespace, which makes the *"visible placeholder text"* option below — rejected at the time as steering the
+> model — the only one of the considered options that works. It is now the decision. New Prompts begin with both bodies empty.
 
 This **amends [ADR-0012](0012-prompt-bodies-autosave.md)**, whose consequences pinned the asymmetry this removes.
 
@@ -30,7 +38,9 @@ thing forbidden.
 - **Omit the user message when the prompt text is empty** — impossible: the Messages API requires at least one
   message.
 - **Send visible placeholder text instead of a space** — `'.'` or `'(empty)'` is more honest on the wire but steers
-  the model more than a space does. Rejected on that difference.
+  the model more than a space does. Rejected on that difference — **and later adopted** (see the correction above),
+  since a space is not something the API accepts at all. `'.'` is the least steering text that clears the
+  non-whitespace bar.
 
 ## Consequences
 
@@ -41,7 +51,7 @@ thing forbidden.
   (`promptText`: "A run needs a prompt text or a system prompt") from `RunService` before anything streams — reachable
   from the API in the small, and from the Console not at all, since the run button is disabled (with the reason on it)
   while both drafts are blank. The check is defence in depth against API callers, not the UI's plan A.
-- **The mapper speaks for the absent prompt text.** The single-space substitution lives only in `ClaudeRequestMapper`,
+- **The mapper speaks for the absent prompt text.** The single-period substitution lives only in `ClaudeRequestMapper`,
   commented with why it exists; everywhere else empty stays `null` and means *nothing was written*. ADR-0009's "sent
   verbatim" contract survives: what a body holds is what the wire carries, and a body holding nothing is the one
   declared exception.

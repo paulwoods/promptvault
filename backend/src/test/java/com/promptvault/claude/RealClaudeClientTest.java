@@ -7,6 +7,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.core.read.ListAppender;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.core.ObjectMappers;
 import com.anthropic.core.http.StreamResponse;
@@ -26,14 +29,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.slf4j.LoggerFactory;
 
 /**
  * Contract test for the Anthropic adapter driving the SDK wire (no network,
  * no key): the stream event loop forwards text deltas verbatim, thinking deltas
  * stay behind the seam, exactly one sink callback is terminal, each SDK
  * exception surfaces as its category with a safe message, a refusal-shaped
- * (empty) stream still completes, the client is built per call from the key it
- * was handed, and the client closes on every exit path. The production client
+ * (empty) stream still completes, the failure's cause is logged (the safe
+ * message is lossy and nothing downstream sees the cause) without carrying the
+ * key into the logs, the client is built per call from the key it was handed,
+ * and the client closes on every exit path. The production client
  * construction stands in via a subclass; the SDK messages endpoint is a mock,
  * which is where every exception below surfaces from.
  */
@@ -189,6 +195,48 @@ class RealClaudeClientTest {
         assertThat(sink.errors.get(0).getMessage()).isEqualTo("Claude request failed");
         sink.assertExactlyOneTerminalCallback();
         verify(client).close();
+    }
+
+    /**
+     * The cause is logged so a failure is diagnosable server-side — the User
+     * only ever sees the category's safe message, so without this a 400 is
+     * indistinguishable from any other OTHER.
+     */
+    @Test
+    void aFailureLogsItsCauseWithoutTheKey() {
+        String canaryKey = "sk-ant-CANARY-do-not-leak";
+        ch.qos.logback.classic.Logger root =
+                (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        root.addAppender(appender);
+        try {
+            sdkThrows(new AnthropicException("text content blocks must contain non-whitespace text"));
+
+            claude.stream(request(), canaryKey, new RecordingSink());
+
+            String logs = capturedLogs(appender);
+            assertThat(logs).contains("text content blocks must contain non-whitespace text");
+            assertThat(logs).doesNotContain(canaryKey);
+        } finally {
+            root.detachAppender(appender);
+        }
+    }
+
+    private static String capturedLogs(ListAppender<ILoggingEvent> appender) {
+        StringBuilder text = new StringBuilder();
+        for (ILoggingEvent event : appender.list) {
+            text.append(event.getFormattedMessage()).append('\n');
+            IThrowableProxy throwable = event.getThrowableProxy();
+            while (throwable != null) {
+                text.append(throwable.getClassName())
+                        .append(": ")
+                        .append(throwable.getMessage())
+                        .append('\n');
+                throwable = throwable.getCause();
+            }
+        }
+        return text.toString();
     }
 
     /** One stream call, one client: built from that call's key, closed once, even on failure. */

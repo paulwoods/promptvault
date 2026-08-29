@@ -85,18 +85,23 @@ class ClaudeRequestMapperTest {
 
     /**
      * A Prompt with no prompt text (legal since ADR-0013) cannot be sent as an
-     * empty text block — the API rejects one — so the user message becomes a
-     * single space: the least-said thing the API accepts.
+     * empty text block — the API rejects one — nor as a whitespace-only one,
+     * which it rejects the same way. The substitute must therefore contain
+     * non-whitespace; a space made every such run fail with a 400 the User saw
+     * only as "Claude request failed".
      */
     @Test
-    void aBlankUserMessageGoesOutAsASingleSpace() {
+    void aBlankUserMessageGoesOutAsNonWhitespaceText() {
         MessageCreateParams nullText =
                 mapper.toParams(new ClaudeRequest("claude-opus-4-8", "sys", null, 100, "medium", "off"));
         MessageCreateParams whitespaceText =
                 mapper.toParams(new ClaudeRequest("claude-opus-4-8", "sys", "  ", 100, "medium", "off"));
 
-        assertThat(nullText.messages().get(0).content().string()).hasValue(" ");
-        assertThat(whitespaceText.messages().get(0).content().string()).hasValue(" ");
+        assertThat(nullText.messages().get(0).content().string()).hasValue(".");
+        assertThat(whitespaceText.messages().get(0).content().string()).hasValue(".");
+        // The point of the substitute, independent of which character it is.
+        assertThat(nullText.messages().get(0).content().string()).get().asString().isNotBlank();
+        assertThat(whitespaceText.messages().get(0).content().string()).get().asString().isNotBlank();
     }
 
     @Test

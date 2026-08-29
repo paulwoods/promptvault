@@ -21,11 +21,21 @@ import org.springframework.util.StringUtils;
  * the stored value) and as the stored value for every other model. The prompt
  * text is sent verbatim as the user message (ADR-0009); the system prompt is
  * sent separately. A Prompt with no prompt text (legal since ADR-0013) is sent
- * as a single space: the API rejects an empty text block and requires at least
- * one message, so the space is the least-said thing it will accept.
+ * as a single period: the API requires at least one message and rejects a text
+ * block that is empty <em>or whitespace-only</em>, so a period is the
+ * least-said thing it will actually accept.
  */
 @Component
 public class ClaudeRequestMapper {
+
+    /**
+     * What an absent prompt text becomes on the wire. Not a space: the API
+     * rejects a whitespace-only text block the same way it rejects an empty
+     * one (400, "text content blocks must contain non-whitespace text"), so a
+     * space made every such run fail. A period is the least steering thing
+     * that clears that bar.
+     */
+    static final String EMPTY_PROMPT_TEXT = ".";
 
     private final ModelCatalog catalog;
 
@@ -38,9 +48,10 @@ public class ClaudeRequestMapper {
                 .model(request.model())
                 .maxTokens(request.maxTokens())
                 // Blank reaches here as null (PromptService normalizes), but
-                // the hasText guard makes the space-substitution true however
-                // an empty prompt text arrives.
-                .addUserMessage(StringUtils.hasText(request.userMessage()) ? request.userMessage() : " ");
+                // the hasText guard makes the substitution true however an
+                // empty prompt text arrives.
+                .addUserMessage(
+                        StringUtils.hasText(request.userMessage()) ? request.userMessage() : EMPTY_PROMPT_TEXT);
         if (request.systemPrompt() != null) {
             builder.system(request.systemPrompt());
         }

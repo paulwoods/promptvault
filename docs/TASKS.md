@@ -703,7 +703,7 @@ genuinely unsafe end of an empty body was a *run*, so that is now the only thing
 built to work around the rule (the held blank save, the *Can't be empty* status, the always-blocked run) goes with it.
 
 **Decisions locked (grilling session, 2026-08-29):** either body may be empty, per-field — the combination of both
-blank is the invalid state, and it is invalid at *run*, not at save; a system-prompt-only run sends a **single space**
+blank is the invalid state, and it is invalid at *run*, not at save; a system-prompt-only run sends a **single period**
 as the user message (the API rejects an empty text block and requires at least one message); the Console keeps the
 disabled Run button with the reason on it, no dialog; blank autosaves symmetrically for both bodies; empty is stored
 as `null`, matching `system_prompt`; New Prompt starts with both bodies blank.
