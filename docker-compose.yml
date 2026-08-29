@@ -12,7 +12,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-#      - promptvault-pgdata:/var/lib/postgresql
+      # Named volume so dev data survives a plain `docker compose down`
+      # (only `down -v` starts the database over).
+      - promptvault-pgdata:/var/lib/postgresql
       - ./init-app-db.sh:/docker-entrypoint-initdb.d/init-app-db.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
@@ -20,3 +22,5 @@ services:
       timeout: 5s
       retries: 10
 
+volumes:
+  promptvault-pgdata:
