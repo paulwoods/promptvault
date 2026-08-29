@@ -69,9 +69,35 @@ export interface StreamHandlers {
   onError: (failure: RunFailure) => void
 }
 
+/**
+ * How the run's HTTP request is made. Injected so the frame parsing below —
+ * the carriage hold, the malformed-frame skip, the content-type and status
+ * checks — can be exercised against a `Response` a test builds by hand,
+ * without a mock server in between. Handing back a whole `Response` rather
+ * than frames or parsed events is what keeps those checks under test too.
+ */
+export type RunTransport = (
+  promptId: string,
+  signal?: AbortSignal,
+) => Promise<Response>
+
+/** The production transport: a Bearer POST to the run endpoint. */
+export const fetchRun: RunTransport = (promptId, signal) => {
+  const token = getToken()
+  return fetch(`/api/prompts/${promptId}/run`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    signal,
+  })
+}
+
 export interface StreamOptions {
   /** Cancels the run: the reader rejects and no further tokens are consumed. */
   signal?: AbortSignal
+  /** Defaults to {@link fetchRun}; tests hand back a canned `Response`. */
+  transport?: RunTransport
 }
 
 /**
@@ -86,14 +112,8 @@ export async function streamRun(
   handlers: StreamHandlers,
   options: StreamOptions = {},
 ): Promise<void> {
-  const token = getToken()
-  const response = await fetch(`/api/prompts/${promptId}/run`, {
-    method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    signal: options.signal,
-  })
+  const transport = options.transport ?? fetchRun
+  const response = await transport(promptId, options.signal)
 
   const contentType = response.headers.get('content-type') ?? ''
   if (

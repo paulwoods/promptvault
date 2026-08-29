@@ -930,7 +930,7 @@ unmount abort. Three defects survive.
   render a Retry that calls `handleRun`. → *verify: an `error` frame with `category: "rate_limit"` renders
   its own wording plus a Retry; clicking Retry re-flushes and re-runs; an `AUTH` frame offers the key
   page instead; the category is asserted, not just the message.*
-- [ ] **22.4 Tests cross an injected transport.** The module takes a `(promptId, signal) =>
+- [x] **22.4 Tests cross an injected transport.** The module takes a `(promptId, signal) =>
   Promise<Response>`; frame-level tests hand back a canned `Response` and stop touching MSW. Exactly one
   MSW test remains, asserting method, URL and Bearer header. → *verify: the frame-level cases run without
   MSW and without real timers; the malformed-frame, CRLF-split, comment/id/retry and 401 cases all still
