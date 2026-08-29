@@ -837,7 +837,7 @@ seam every action crosses.
 - **A failed flush names the field.** With eight fields, six of them behind a possibly-closed tab, a bare
   "couldn't save" tells the user nothing to act on.
 
-- [ ] **21.1 `usePromptFields` owns the field set and the seam.** All eight `useInlineField`s move into
+- [x] **21.1 `usePromptFields` owns the field set and the seam.** All eight `useInlineField`s move into
   one hook that returns them plus *`flush` · `flushOnLeave` · `discard` · `blockedReason`*. `BodySaves`
   goes. → *verify: the eight fields are declared in one place; `RunPane` receives only the seam;
   `PromptConsolePage.tsx` shrinks by the moved declarations; suite and typecheck green.*

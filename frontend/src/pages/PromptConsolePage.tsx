@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { LoadError } from '../components/LoadError'
@@ -11,6 +11,13 @@ import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
 import { useRunStream } from '../lib/useRunStream'
 import type { ModelsResponse, PromptResponse } from '../lib/types'
+import type {
+  FlushSeam,
+  PromptField,
+  PromptFields,
+  SaveStatus,
+} from './promptFields'
+import { usePromptFields } from './promptFields'
 
 const THINKING = ['off', 'adaptive']
 
@@ -19,20 +26,6 @@ const THINKING = ['off', 'adaptive']
 // cap on PromptRequest.name -- otherwise duplicating a near-ceiling name 400s.
 const COPY_SUFFIX = ' copy'
 const NAME_MAX_LENGTH = 200
-
-// A live field saves itself (ADR-0012): one PATCH a second after the typing
-// stops, and one every ten seconds if it never stops — a plain debounce never
-// fires for a fast continuous typist, so a body typed into without a pause
-// would otherwise never be written at all.
-const AUTOSAVE_IDLE_MS = 1000
-const AUTOSAVE_CEILING_MS = 10000
-
-/**
- * Where a self-saving field stands. Blank is a legal stored value for both
- * bodies (ADR-0013), so there is no "empty" state to name: a blank body reads
- * as `saved` and a blank draft autosaves like anything else.
- */
-type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'failed'
 
 const STATUS_LABEL: Record<SaveStatus, string> = {
   saved: 'Saved',
@@ -73,74 +66,27 @@ export function PromptConsolePage() {
 }
 
 /**
- * What both halves of the Console need to agree on: whether the bodies are
- * safe to run against, and how to make them so.
- */
-interface BodySaves {
-  /** Both bodies are blank — saveable but not runnable (ADR-0013). */
-  blocked: boolean
-  /** Writes both bodies and resolves once they have landed. Rejects if one fails. */
-  flush: () => Promise<void>
-  /** Drops pending saves and stops any later flush — for a Prompt being deleted. */
-  discard: () => void
-}
-
-/**
  * The Console proper, mounted only once the Prompt has loaded.
  *
- * The two self-saving bodies are held here rather than inside the form because
- * the Run pane depends on them: a run reads the *stored* Prompt (ADR-0009), so
- * Run has to write what is on screen before it streams, and only a component
- * above both can hand it the means to.
+ * The field set is held here rather than inside the form because the Run pane
+ * depends on it: a run reads the *stored* Prompt (ADR-0009), so Run has to
+ * write what is on screen before it streams, and only a component above both
+ * can hand it the means to.
  */
 function Console({ promptId, prompt }: ConsoleFormProps) {
-  const promptText = useInlineField(
-    promptId,
-    prompt.promptText ?? '',
-    (draft) => ({ promptText: draft }),
-    // Optional like the System Prompt since ADR-0013: blank is how the body is
-    // cleared, and it autosaves rather than being held.
-    true,
-    true,
-  )
-  const systemPrompt = useInlineField(
-    promptId,
-    prompt.systemPrompt ?? '',
-    (draft) => ({ systemPrompt: draft }),
-    true,
-    true,
-  )
+  const fields = usePromptFields(promptId, prompt)
 
-  // Set by Delete. A discarded Console must not write on the way out, and its
-  // unmount flush below runs after the navigation that Delete triggers.
-  const discarded = useRef(false)
-
-  const bodies: BodySaves = {
-    // Read from the drafts (for these live fields, `value` *is* the draft), so
-    // typing the last character away disables Run before the autosave lands —
-    // the backend would refuse the same run with a 400.
-    blocked: promptText.value.trim() === '' && systemPrompt.value.trim() === '',
-    flush: async () => {
-      if (discarded.current) {
-        return
-      }
-      await Promise.all([promptText.flush(), systemPrompt.flush()])
-    },
-    discard: () => {
-      discarded.current = true
-      promptText.cancelPending()
-      systemPrompt.cancelPending()
-    },
-  }
-
-  // Leaving the Console in-app writes whatever is pending, best-effort: the
-  // mutation outlives the unmount, and nothing here waits on it. A failed
-  // final write cannot surface in a page that is gone, but it is still logged
-  // rather than swallowed — the failure should be findable, not silent.
-  // beforeunload covers closing the tab instead — this cannot.
-  const flushOnLeave = useRef(bodies.flush)
+  // Leaving the Console in-app writes whatever the bodies have pending,
+  // best-effort: the mutation outlives the unmount, and nothing here waits on
+  // it. A failed final write cannot surface in a page that is gone, but it is
+  // still logged rather than swallowed — the failure should be findable, not
+  // silent. beforeunload covers closing the tab instead — this cannot.
+  //
+  // Deliberately `flushOnLeave` and not `flush`: the six Details fields are
+  // discarded by leaving, which is their cancel gesture (ADR-0012).
+  const flushOnLeave = useRef(fields.flushOnLeave)
   useEffect(() => {
-    flushOnLeave.current = bodies.flush
+    flushOnLeave.current = fields.flushOnLeave
   })
   useEffect(
     () => () => {
@@ -153,14 +99,8 @@ function Console({ promptId, prompt }: ConsoleFormProps) {
 
   return (
     <div className="console-layout">
-      <ConsoleForm
-        promptId={promptId}
-        prompt={prompt}
-        promptText={promptText}
-        systemPrompt={systemPrompt}
-        bodies={bodies}
-      />
-      <RunPane promptId={promptId} bodies={bodies} />
+      <ConsoleForm promptId={promptId} prompt={prompt} fields={fields} />
+      <RunPane promptId={promptId} seam={fields} />
     </div>
   )
 }
@@ -172,13 +112,7 @@ function Console({ promptId, prompt }: ConsoleFormProps) {
  * (ADR-0009) — there are no per-run values to collect — so the prompt stays
  * editable on the left while the result accumulates here.
  */
-function RunPane({
-  promptId,
-  bodies,
-}: {
-  promptId: string
-  bodies: BodySaves
-}) {
+function RunPane({ promptId, seam }: { promptId: string; seam: FlushSeam }) {
   const { status, output, failure, run, stop } = useRunStream(promptId)
   const [flushError, setFlushError] = useState<string | null>(null)
   const [flushing, setFlushing] = useState(false)
@@ -189,7 +123,7 @@ function RunPane({
     try {
       // The backend reads the stored Prompt, so the only way to make the output
       // match the screen is to make the screen the stored Prompt first.
-      await bodies.flush()
+      await seam.flush()
     } catch (error) {
       // A run against text the server does not have is worse than no run.
       setFlushError(errorMessage(error))
@@ -202,8 +136,8 @@ function RunPane({
 
   const running = status === 'running'
   const busy = running || flushing
-  const label = bodies.blocked
-    ? 'Run prompt — add a System Prompt or User Prompt first'
+  const label = seam.blockedReason
+    ? `Run prompt — ${seam.blockedReason}`
     : busy
       ? 'Running…'
       : 'Run prompt'
@@ -215,7 +149,7 @@ function RunPane({
           type="button"
           className="run-button button-gold"
           onClick={handleRun}
-          disabled={busy || bodies.blocked}
+          disabled={busy || seam.blockedReason !== null}
           aria-label={label}
           title={label}
         >
@@ -253,234 +187,8 @@ interface ConsoleFormProps {
   prompt: PromptResponse
 }
 
-interface ConsoleFormBodies {
-  promptText: ReturnType<typeof useInlineField>
-  systemPrompt: ReturnType<typeof useInlineField>
-  bodies: BodySaves
-}
-
-/**
- * Warns before the tab closes while there is uncommitted work.
- *
- * Registered per field rather than once for the Console: the fields are split
- * across two components (the bodies sit above the form so Run can flush them),
- * and any one handler cancelling the event is enough to raise the dialog — so
- * there is nothing to gain from lifting a boolean through both.
- *
- * In-app navigation is deliberately not guarded (ADR-0012): abandoning a
- * Details edit by navigating away works exactly as it always has, and a body's
- * pending save is flushed on unmount rather than lost.
- */
-function useUnloadGuard(uncommitted: boolean) {
-  useEffect(() => {
-    if (!uncommitted) {
-      return
-    }
-    // Cancelling the event is the whole of it — browsers show their own wording
-    // and ignore any message we supply.
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [uncommitted])
-}
-
-/**
- * One inline-edited Prompt field. Read mode renders `stored` — the value from
- * the ['prompt', id] query — and edit mode a local draft, which makes PATCH the
- * field's only writer.
- *
- * Console-local rather than the shared useEditableField, which fits Profile and
- * not this: that hook PUTs a dedicated single-field endpoint, invalidates one
- * query key where this needs two of different prefixes, and gets Enter-to-commit
- * from each Profile field owning a <form> — which cannot nest inside ConsoleForm's.
- *
- * `patch` builds the request body from the draft, rather than the hook assuming
- * `{field: draft}`: Max tokens is a number, and Model has to carry a Thinking
- * correction when the model it moves to cannot do adaptive thinking.
- */
-function useInlineField(
-  promptId: string,
-  stored: string,
-  patch: (draft: string) => Record<string, unknown>,
-  optional = false,
-  live = false,
-) {
-  const queryClient = useQueryClient()
-  // Seeded from the stored value rather than blank: a live field is its own
-  // editor from the first paint, so no beginEditing ever runs to seed it.
-  const [draft, setDraft] = useState(stored)
-  const [editing, setEditing] = useState(live)
-  // Bumped every time a save is sent. It is what re-arms the ceiling timer
-  // below, which is otherwise deliberately blind to the typing.
-  const [sends, setSends] = useState(0)
-
-  // A timer fires outside the render that scheduled it, so it reads the draft
-  // through a ref rather than through a closure that has since gone stale.
-  const draftRef = useRef(draft)
-
-  // Two saves can be in flight at once — the ceiling firing while a debounced
-  // save is still on the wire — and the slower can land last. Each response
-  // carries the order its request went out in, and only one newer than the last
-  // applied is allowed to write the cache.
-  const sent = useRef(0)
-  const landed = useRef(0)
-
-  const save = useMutation({
-    mutationFn: async (value: string) => {
-      sent.current += 1
-      const sequence = sent.current
-      const updated = await apiClient.patch<PromptResponse>(
-        `/api/prompts/${promptId}`,
-        patch(value),
-      )
-      return { sequence, updated }
-    },
-    onSuccess: ({ sequence, updated }) => {
-      if (sequence < landed.current) {
-        return
-      }
-      landed.current = sequence
-      // Written straight in rather than invalidated: the response is already the
-      // authoritative new state, and an invalidate-only refetch would leave
-      // `stored` stale for the round-trip — long enough for the field, which
-      // sources its read-mode value from the query, to revert the edit just
-      // committed.
-      queryClient.setQueryData(['prompt', promptId], updated)
-      // Marks the list stale without refetching it: it is unmounted while the
-      // Console is open, which is what makes a save cheap enough to debounce.
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
-      // A live field has no read mode to drop back to — it stays its own
-      // editor, now sitting on the value the save just returned.
-      setEditing(live)
-    },
-  })
-
-  // A required field holds a blank save rather than sending a request the
-  // server's @NotBlank could only 400. Name is the only one that can reach
-  // that state by typing — the other required fields are selects and a number.
-  // An optional field has no such rule: its blank string is how the stored
-  // column is cleared, which since ADR-0013 means both prompt bodies as well
-  // as Description, so neither live field is ever held.
-  const committable = (optional || draft.trim() !== '') && draft !== stored
-
-  // Work the tab would take with it. Wider than `committable` on purpose: a
-  // blank Name is held rather than sent, and a save that failed leaves the
-  // draft ahead of `stored` — both are still the User's typing. A closed
-  // Details editor is not, since its draft is re-seeded the next time it opens.
-  useUnloadGuard(editing && draft !== stored)
-
-  // `save` itself is not a dependency anywhere below: its identity changes as
-  // the mutation moves through pending, which would re-arm both timers mid-save
-  // and write the field twice for one edit.
-  const saveRef = useRef(save)
-
-  // Kept current in an effect rather than assigned during render: a timer only
-  // ever reads these after the commit that scheduled it, so there is nothing to
-  // gain from writing them earlier.
-  useEffect(() => {
-    draftRef.current = draft
-    saveRef.current = save
-  })
-
-  const send = useCallback(() => {
-    // Sent untrimmed: the PUT path does not trim, and trimming only here would
-    // make the two writers disagree about the same field.
-    saveRef.current.mutate(draftRef.current)
-    setSends((count) => count + 1)
-  }, [])
-
-  // Both timers are also held in refs so Run, Duplicate and Delete can reach
-  // in and stop them — an effect cleanup only fires when React decides to
-  // re-run the effect, which is too late for a click that has to write, or
-  // must not write, right now.
-  const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const ceilingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
-
-  // Reset by every keystroke, so it fires once the typing settles.
-  useEffect(() => {
-    if (!live || !committable) {
-      return
-    }
-    idleTimer.current = setTimeout(send, AUTOSAVE_IDLE_MS)
-    return () => clearTimeout(idleTimer.current)
-  }, [live, committable, draft, sends, send])
-
-  // Deliberately not keyed on `draft`: this one has to survive the keystrokes
-  // that keep resetting the timer above. It re-arms on `sends` instead, so an
-  // unbroken hour of typing is written every ten seconds rather than once.
-  useEffect(() => {
-    if (!live || !committable) {
-      return
-    }
-    ceilingTimer.current = setTimeout(send, AUTOSAVE_CEILING_MS)
-    return () => clearTimeout(ceilingTimer.current)
-  }, [live, committable, sends, send])
-
-  // Drops whatever was scheduled without writing it. Nothing re-arms until the
-  // next keystroke, which is what makes this safe for Delete.
-  const cancelPending = useCallback(() => {
-    clearTimeout(idleTimer.current)
-    clearTimeout(ceilingTimer.current)
-  }, [])
-
-  /**
-   * Writes the draft now and resolves when it has landed, so a caller that
-   * reads the stored Prompt afterwards reads what is on screen. Rejects if the
-   * PATCH does — the caller decides what a failed write means.
-   */
-  async function flush() {
-    cancelPending()
-    if (!committable) {
-      return
-    }
-    await save.mutateAsync(draft)
-  }
-
-  function commit() {
-    if (committable) {
-      if (!save.isPending) {
-        send()
-      }
-    } else if (!live && draft === stored) {
-      // Nothing to write: Enter on an unchanged draft reads as "done", so it
-      // closes the editor. A blank draft fails the `draft === stored` test and
-      // stays held — closing would discard the typing that got it there.
-      setEditing(false)
-    }
-  }
-
-  // Ordered by what the User can do about it: pending outranks the last
-  // failure so a retry does not still read as broken while it is in flight.
-  const status: SaveStatus = save.isPending
-    ? 'saving'
-    : save.isError
-      ? 'failed'
-      : committable
-        ? 'unsaved'
-        : 'saved'
-
-  return {
-    value: editing ? draft : stored,
-    editing,
-    live,
-    committable,
-    status,
-    save,
-    commit,
-    flush,
-    cancelPending,
-    // Only reachable from read mode — the editor replaces the trigger that
-    // calls it — so it needs no already-editing guard.
-    beginEditing: () => {
-      setDraft(stored)
-      setEditing(true)
-    },
-    setDraft,
-    // Leaving edit mode is what discards the draft. A live field never leaves
-    // it and has no cancel gesture left to reach this (ADR-0012 deleted the
-    // revert button along with the commit one); its undo is the editor's own.
-    cancel: () => setEditing(false),
-  }
+interface ConsoleFormFields {
+  fields: PromptFields
 }
 
 function CheckIcon() {
@@ -600,7 +308,7 @@ interface InlineFieldProps {
   name: string
   /** Displayed beside the value, and the stem of every accessible name here. */
   label: string
-  field: ReturnType<typeof useInlineField>
+  field: PromptField
   /** Read-mode stand-in for a blank value; only an optional field can need one. */
   emptyLabel?: string
   /** Present ⇒ the editor is a <select> over these; absent ⇒ a text input. */
@@ -844,10 +552,18 @@ function BodyTab({
 function ConsoleForm({
   promptId,
   prompt,
-  promptText,
-  systemPrompt,
-  bodies,
-}: ConsoleFormProps & ConsoleFormBodies) {
+  fields,
+}: ConsoleFormProps & ConsoleFormFields) {
+  const {
+    name,
+    description,
+    model,
+    maxTokens,
+    effort,
+    thinking,
+    systemPrompt,
+    promptText,
+  } = fields
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -858,53 +574,6 @@ function ConsoleForm({
   const [tab, setTab] = useState<'details' | 'userPrompt' | 'systemPrompt'>(
     'details',
   )
-  // Every field below is inline-edited: each one's value comes from the query
-  // and PATCH is its only writer. Description and System Prompt are optional:
-  // '' is a value they can hold, and the blank string is what clears the
-  // stored column.
-  const name = useInlineField(promptId, prompt.name, (draft) => ({
-    name: draft,
-  }))
-  const description = useInlineField(
-    promptId,
-    prompt.description ?? '',
-    (draft) => ({ description: draft }),
-    true,
-  )
-  const model = useInlineField(promptId, prompt.model, (draft) => {
-    // Moving to a model whose capabilities exclude what the Prompt currently
-    // carries — adaptive thinking on one that lacks it, an effort level the
-    // target does not accept — has to carry the corrections in the same
-    // request: the server validates the merged result, so there is no order
-    // in which two separate patches are each valid.
-    const next = models.data?.models.find((entry) => entry.id === draft)
-    if (!next) {
-      return { model: draft }
-    }
-    const corrections: { model: string; effort?: string; thinking?: string } = {
-      model: draft,
-    }
-    if (prompt.thinking === 'adaptive' && !next.supportsAdaptiveThinking) {
-      corrections.thinking = 'off'
-    }
-    if (!next.effortLevels.includes(prompt.effort)) {
-      // 'medium' — the app default (new prompts are born with it) and the one
-      // level the catalog guarantees every model accepts.
-      corrections.effort = 'medium'
-    }
-    return corrections
-  })
-  const maxTokens = useInlineField(
-    promptId,
-    String(prompt.maxTokens),
-    (draft) => ({ maxTokens: Number(draft) }),
-  )
-  const effort = useInlineField(promptId, prompt.effort, (draft) => ({
-    effort: draft,
-  }))
-  const thinking = useInlineField(promptId, prompt.thinking, (draft) => ({
-    thinking: draft,
-  }))
   // Fires immediately on click — no confirmation dialog, matching the app's
   // existing convention (ADR-0004): safe because Trash + restore make it low-stakes.
   const deletePrompt = useMutation({
@@ -920,10 +589,10 @@ function ConsoleForm({
   // No confirmation, matching Delete (ADR-0004): the copy is trivial to remove.
   const duplicatePrompt = useMutation({
     mutationFn: async () => {
-      // The copy is taken from the query cache, so an unwritten body would be
-      // duplicated at its previous text. Writing first is what makes the copy
+      // The copy is taken from the query cache, so an unwritten field would be
+      // duplicated at its previous value. Writing first is what makes the copy
       // match the screen — the same reason Run flushes.
-      await bodies.flush()
+      await fields.flush()
       const source =
         queryClient.getQueryData<PromptResponse>(['prompt', promptId]) ?? prompt
       return apiClient.post<PromptResponse>('/api/prompts', {
@@ -1050,7 +719,7 @@ function ConsoleForm({
                 // Cancels rather than flushes: a Prompt on its way to Trash has
                 // no use for one last write of what was being typed.
                 onClick={() => {
-                  bodies.discard()
+                  fields.discard()
                   deletePrompt.mutate()
                 }}
                 aria-label="Delete"
