@@ -1078,8 +1078,13 @@ fieldset > div:last-child {
   min-height: 240px;
 }
 
+.run-controls {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+}
+
 .run-button {
-  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1087,6 +1092,10 @@ fieldset > div:last-child {
   height: 32px;
   padding: 0;
   font-size: 14px;
+}
+
+.run-stop {
+  border-color: var(--border);
 }
 
 .button-gold {

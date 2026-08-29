@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { setToken } from '../lib/auth'
 import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
@@ -1241,5 +1241,41 @@ describe('prompt console', () => {
     expect(
       screen.queryByRole('button', { name: 'Duplicate' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('logs a final save on leaving that failed rather than swallowing it', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () =>
+        HttpResponse.json(
+          { error: 'internal_error', message: 'writedown refused' },
+          { status: 500 },
+        ),
+      ),
+    )
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    // The unmount flush is fire-and-forget: the page is gone when it settles,
+    // so its rejection has nowhere to render — which is why it is logged.
+    const app = renderApp('/prompts/p1/console')
+    const field = await editUserPrompt(user)
+    await user.type(field, ' final')
+    app.unmount()
+
+    // Matched by message rather than first call: MSW logs its own
+    // console.error for requests (like /api/me) that have no handler in the
+    // file's local server.use set, and that log can land on this spy first.
+    await vi.waitFor(
+      () =>
+        expect(
+          errorSpy.mock.calls.some((call) =>
+            String(call[0]).includes('Final Console save'),
+          ),
+        ).toBe(true),
+      AUTOSAVED,
+    )
+    errorSpy.mockRestore()
   })
 })

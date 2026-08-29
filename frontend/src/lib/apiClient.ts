@@ -25,6 +25,16 @@ export async function toApiError(response: Response): Promise<ApiError> {
   )
 }
 
+/**
+ * The one thing a 401 means anywhere in the app, including the streaming Run
+ * endpoint: the session is over. Clears the token and announces it so the
+ * AuthListener routes to /login.
+ */
+export function clearAndAnnounceUnauthorized(): void {
+  clearToken()
+  window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -43,8 +53,7 @@ async function request<T>(
   })
 
   if (response.status === 401) {
-    clearToken()
-    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+    clearAndAnnounceUnauthorized()
     throw await toApiError(response)
   }
   if (!response.ok) {

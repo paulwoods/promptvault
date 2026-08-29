@@ -134,7 +134,9 @@ function Console({ promptId, prompt }: ConsoleFormProps) {
   }
 
   // Leaving the Console in-app writes whatever is pending, best-effort: the
-  // mutation outlives the unmount, and nothing here waits on it or reports it.
+  // mutation outlives the unmount, and nothing here waits on it. A failed
+  // final write cannot surface in a page that is gone, but it is still logged
+  // rather than swallowed — the failure should be findable, not silent.
   // beforeunload covers closing the tab instead — this cannot.
   const flushOnLeave = useRef(bodies.flush)
   useEffect(() => {
@@ -142,7 +144,9 @@ function Console({ promptId, prompt }: ConsoleFormProps) {
   })
   useEffect(
     () => () => {
-      void flushOnLeave.current().catch(() => {})
+      void flushOnLeave.current().catch((error: unknown) => {
+        console.error('Final Console save on leaving was rejected', error)
+      })
     },
     [],
   )
@@ -175,7 +179,7 @@ function RunPane({
   promptId: string
   bodies: BodySaves
 }) {
-  const { status, output, failure, run } = useRunStream(promptId)
+  const { status, output, failure, run, stop } = useRunStream(promptId)
   const [flushError, setFlushError] = useState<string | null>(null)
   const [flushing, setFlushing] = useState(false)
 
@@ -196,7 +200,8 @@ function RunPane({
     run()
   }
 
-  const busy = status === 'running' || flushing
+  const running = status === 'running'
+  const busy = running || flushing
   const label = bodies.blocked
     ? 'Run prompt — the User Prompt cannot be empty'
     : busy
@@ -205,16 +210,32 @@ function RunPane({
 
   return (
     <section className="run-pane" aria-label="Run">
-      <button
-        type="button"
-        className="run-button button-gold"
-        onClick={handleRun}
-        disabled={busy || bodies.blocked}
-        aria-label={label}
-        title={label}
-      >
-        <PlayIcon />
-      </button>
+      <div className="run-controls">
+        <button
+          type="button"
+          className="run-button button-gold"
+          onClick={handleRun}
+          disabled={busy || bodies.blocked}
+          aria-label={label}
+          title={label}
+        >
+          <PlayIcon />
+        </button>
+        {/* Rendered only while a stream is live — the one time it can do
+            anything, and the one time the User is looking for it. A stopped
+            run's output stays; a failed one reports below. */}
+        {running && (
+          <button
+            type="button"
+            className="run-button run-stop"
+            onClick={stop}
+            aria-label="Stop run"
+            title="Stop run"
+          >
+            <StopIcon />
+          </button>
+        )}
+      </div>
       <textarea
         className="run-output"
         aria-label="Run output"
@@ -489,6 +510,22 @@ function PlayIcon() {
       focusable="false"
     >
       <path d="M7 5l13 7-13 7z" />
+    </svg>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   )
 }
