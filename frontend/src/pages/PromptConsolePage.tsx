@@ -17,7 +17,7 @@ import type {
   PromptFields,
   SaveStatus,
 } from './promptFields'
-import { usePromptFields } from './promptFields'
+import { FieldSaveError, usePromptFields } from './promptFields'
 
 const THINKING = ['off', 'adaptive']
 
@@ -125,8 +125,13 @@ function RunPane({ promptId, seam }: { promptId: string; seam: FlushSeam }) {
       // match the screen is to make the screen the stored Prompt first.
       await seam.flush()
     } catch (error) {
-      // A run against text the server does not have is worse than no run.
-      setFlushError(errorMessage(error))
+      // A run against content the server does not have is worse than no run.
+      // Named, because the field that failed may be behind a closed tab.
+      setFlushError(
+        error instanceof FieldSaveError
+          ? `Could not save ${error.field}: ${errorMessage(error.cause)}`
+          : errorMessage(error),
+      )
       return
     } finally {
       setFlushing(false)

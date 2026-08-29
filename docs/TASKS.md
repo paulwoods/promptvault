@@ -856,7 +856,7 @@ seam every action crosses.
   `RunPane` renders `blockedReason` rather than computing it (`:193-198`). → *verify: both-blank and
   blank-Name each disable Run with their own reason on the button; precedence between them is pinned by
   a test; a single filled body re-enables Run either way around.*
-- [ ] **21.6 A failed flush says which field failed.** The seam's rejection carries the field name and
+- [x] **21.6 A failed flush says which field failed.** The seam's rejection carries the field name and
   `RunPane`'s alert uses it. → *verify (RTL + MSW): a PATCH that 500s on Max tokens blocks the run and
   names Max tokens in the alert.*
 - [ ] **21.7 The record.** ADR-0012 gains the unmount asymmetry in its consequences — bodies are flushed

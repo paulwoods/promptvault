@@ -189,7 +189,15 @@ export function usePromptFields(
     if (discarded.current) {
       return
     }
-    await Promise.all(fields.map((field) => field.flush()))
+    await Promise.all(
+      fields.map(async (field) => {
+        try {
+          await field.flush()
+        } catch (cause) {
+          throw new FieldSaveError(field.label, cause)
+        }
+      }),
+    )
   }
 
   return {
@@ -210,6 +218,21 @@ export function usePromptFields(
       all.forEach((field) => field.cancelPending())
     },
     blockedReason: blockedReason(all, promptText, systemPrompt),
+  }
+}
+
+/**
+ * A flush that failed, and which field failed it. With eight fields, six of
+ * them behind a possibly-closed tab, a bare "couldn't save" tells the User
+ * nothing to act on.
+ */
+export class FieldSaveError extends Error {
+  readonly field: string
+
+  constructor(field: string, cause: unknown) {
+    super(`Could not save ${field}`, { cause })
+    this.name = 'FieldSaveError'
+    this.field = field
   }
 }
 

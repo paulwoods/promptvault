@@ -1051,7 +1051,48 @@ describe('prompt console', () => {
     // User just asked for did not start.
     const runPane = within(screen.getByRole('region', { name: 'Run' }))
     expect(
-      await runPane.findByText('Prompt text is too long'),
+      await runPane.findByText(
+        'Could not save User Prompt: Prompt text is too long',
+      ),
+    ).toBeInTheDocument()
+    expect(runs).toBe(0)
+  })
+
+  it('names the field a failed flush failed on, even behind a closed tab', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let runs = 0
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () =>
+        HttpResponse.json(
+          { error: 'internal_error', message: 'writedown refused' },
+          { status: 500 },
+        ),
+      ),
+      http.post('/api/prompts/p1/run', () => {
+        runs += 1
+        return new HttpResponse(null, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        })
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(
+      await screen.findByRole('button', { name: /^Max tokens / }),
+    )
+    const maxTokens = screen.getByRole('spinbutton', { name: 'Max tokens' })
+    await user.clear(maxTokens)
+    await user.type(maxTokens, '4096')
+    // Off to another tab, so the field that is about to fail is not on screen:
+    // a bare "couldn't save" would leave nothing to act on.
+    await user.click(screen.getByRole('button', { name: 'System Prompt' }))
+    await user.click(screen.getByRole('button', { name: 'Run prompt' }))
+
+    const runPane = within(screen.getByRole('region', { name: 'Run' }))
+    expect(
+      await runPane.findByText('Could not save Max tokens: writedown refused'),
     ).toBeInTheDocument()
     expect(runs).toBe(0)
   })
