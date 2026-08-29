@@ -980,6 +980,45 @@ describe('prompt console', () => {
     expect(calls.indexOf('patch')).toBeLessThan(calls.indexOf('run'))
   })
 
+  it('writes an uncommitted Details field before the run streams', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    const calls: string[] = []
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        calls.push('patch')
+        patched = await request.json()
+        return HttpResponse.json(promptResponse({ maxTokens: 4096 }))
+      }),
+      http.post('/api/prompts/p1/run', () => {
+        calls.push('run')
+        return new HttpResponse(
+          'event: done\ndata: {"status":"completed","usage":{"inputTokens":1,"outputTokens":2}}\n\n',
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        )
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(
+      await screen.findByRole('button', { name: /^Max tokens / }),
+    )
+    const maxTokens = screen.getByRole('spinbutton', { name: 'Max tokens' })
+    await user.clear(maxTokens)
+    await user.type(maxTokens, '4096')
+
+    // No commit click: the editor is still open holding 4096 while the stored
+    // Prompt says 2048. Before the seam, the run streamed against 2048 with
+    // nothing on screen to say so.
+    await user.click(screen.getByRole('button', { name: 'Run prompt' }))
+
+    await waitFor(() => expect(calls).toContain('run'))
+    expect(patched).toEqual({ maxTokens: 4096 })
+    expect(calls.indexOf('patch')).toBeLessThan(calls.indexOf('run'))
+  })
+
   it('blocks the run and surfaces the error when the write will not land', async () => {
     const user = userEvent.setup()
     setToken('t')
@@ -1272,6 +1311,52 @@ describe('prompt console', () => {
     // duplicated at its previous text — silently, since the name and everything
     // else would look right. Duplicate flushes first for the same reason Run does.
     await waitFor(() => expect(posted).toMatchObject({ promptText: typed }))
+  })
+
+  it('copies an uncommitted Model, not the stored one', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    const calls: string[] = []
+    let patched: unknown
+    let posted: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        calls.push('patch')
+        patched = await request.json()
+        return HttpResponse.json(promptResponse({ model: 'claude-haiku-4-5' }))
+      }),
+      http.post('/api/prompts', async ({ request }) => {
+        calls.push('post')
+        posted = await request.json()
+        return HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: 'Greeting copy' }),
+          { status: 201 },
+        )
+      }),
+      http.get('/api/prompts/p2', () =>
+        HttpResponse.json(
+          promptResponse({ promptId: 'p2', name: 'Greeting copy' }),
+        ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: /^Model / }))
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Model' }),
+      'claude-haiku-4-5',
+    )
+
+    // The pick is not committed — the editor is still open on it. Duplicate
+    // reads the query cache, so without the flush the copy would carry the
+    // stored model and look entirely correct doing it.
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }))
+
+    await waitFor(() => expect(calls).toContain('post'))
+    expect(patched).toEqual({ model: 'claude-haiku-4-5' })
+    expect(posted).toMatchObject({ model: 'claude-haiku-4-5' })
+    expect(calls.indexOf('patch')).toBeLessThan(calls.indexOf('post'))
   })
 
   it('waits on the models query before rendering the form and its actions', async () => {

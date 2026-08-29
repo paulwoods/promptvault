@@ -841,10 +841,10 @@ seam every action crosses.
   one hook that returns them plus *`flush` · `flushOnLeave` · `discard` · `blockedReason`*. `BodySaves`
   goes. → *verify: the eight fields are declared in one place; `RunPane` receives only the seam;
   `PromptConsolePage.tsx` shrinks by the moved declarations; suite and typecheck green.*
-- [ ] **21.2 Run crosses `flush`.** `handleRun` flushes every field before it streams. → *verify (RTL
+- [x] **21.2 Run crosses `flush`.** `handleRun` flushes every field before it streams. → *verify (RTL
   + MSW): editing Max tokens and clicking Run without committing PATCHes the new value before the run
   POST, and the run streams against it.*
-- [ ] **21.3 Duplicate crosses `flush`.** The copy is taken only after every field has landed.
+- [x] **21.3 Duplicate crosses `flush`.** The copy is taken only after every field has landed.
   → *verify (RTL + MSW): an uncommitted Model is written before the POST and the copy carries it, not the
   stored one.*
 - [ ] **21.4 Delete discards eight; unmount flushes two.** `discard()` cancels pending saves across all
