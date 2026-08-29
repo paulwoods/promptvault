@@ -935,7 +935,7 @@ unmount abort. Three defects survive.
   MSW test remains, asserting method, URL and Bearer header. → *verify: the frame-level cases run without
   MSW and without real timers; the malformed-frame, CRLF-split, comment/id/retry and 401 cases all still
   execute; the suite gets no slower.*
-- [ ] **22.5 Collapse only if the seam asked for it.** Once 22.4 exists, decide whether `streamRun` and
+- [x] **22.5 Collapse only if the seam asked for it.** Once 22.4 exists, decide whether `streamRun` and
   `useRunStream` want to be one `lib/run/` module — and record the answer either way. → *verify: whichever
   way it goes, the decision is written down rather than left to the next reader.*
 

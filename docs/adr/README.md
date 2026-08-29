@@ -19,3 +19,4 @@ Superseded and amended ADRs are kept, never deleted or rewritten — a reversed 
 - [0012 — Prompt bodies autosave; Details fields commit explicitly](0012-prompt-bodies-autosave.md) — *amended by 0013*
 - [0013 — Either prompt body may be empty; both-blank is saveable but not runnable](0013-either-prompt-body-may-be-empty.md)
 - [0014 — One write seam for the Prompt: POST creates, PATCH changes](0014-prompt-write-seam.md)
+- [0015 — The run's client stays two files in `lib/`, not a `lib/run/` folder](0015-run-client-stays-two-files.md)

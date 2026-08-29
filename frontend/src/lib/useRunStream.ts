@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RunFailure } from './streamRun'
 import { streamRun, toRunFailure } from './streamRun'
 
+// The run's public surface: callers take the hook and the failure vocabulary
+// from here and never reach past it to the wire. `streamRun.ts` is the frame
+// parser and the transport — two files, one module (ADR-0015).
+export type { RunFailure, RunFailureCategory } from './streamRun'
+
 export type RunStatus = 'idle' | 'running' | 'completed' | 'failed' | 'stopped'
 
 interface RunStreamState {

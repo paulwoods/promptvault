@@ -9,7 +9,7 @@ import type { PromptRequestBody } from '../components/promptFormValues'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
-import type { RunFailureCategory } from '../lib/streamRun'
+import type { RunFailureCategory } from '../lib/useRunStream'
 import { useRunStream } from '../lib/useRunStream'
 import type { ModelsResponse, PromptResponse } from '../lib/types'
 import type {
