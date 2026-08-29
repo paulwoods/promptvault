@@ -498,6 +498,8 @@ spends that freedom on the two fields the edit → run → read loop actually tu
 - **Blank is two different things.** `promptText` is `@NotBlank`, so an empty body holds the save rather than sending a
   request that must `400` — and blocks Run, because a flush that writes nothing would let Run fall through to the
   previous stored text. `systemPrompt` has no constraint; blank is a legitimate save that clears the column.
+  ***Superseded by Phase 19 / ADR-0013:*** blank is one thing now — both bodies treat it as a legitimate save that
+  clears the column, and only a both-blank Prompt blocks the run.
 - **Five status states** — *Saved*, *Saving…*, *Unsaved changes*, *Can't be empty*, *Couldn't save* — shown in the
   active field, with a dirty/error marker on each tab so the body you are not looking at is not silent. Rejected: a
   single Console-level aggregate (cannot say *which* field is stuck) and status in the active field only (a System
@@ -691,6 +693,38 @@ impact *(all nine built 2026-08-28/29 — notes under each; grilling is a later 
   declaration reinstated. Verified against the live stack the API-level way: a Prompt POSTed before `down` still reads
   back with its original timestamps after `up` — persistence, not a re-seed, since the init script runs only on an empty
   volume.*
+
+
+## Phase 19 — Either prompt body may be empty *(grilled 2026-08-29, ADR-0013)*
+
+A Prompt's **prompt text** and **system prompt** may each be empty, independently; a Prompt with both empty is
+saveable but not runnable. The `@NotBlank` on prompt text predated ADR-0012 and no ADR ever argued it — the only
+genuinely unsafe end of an empty body was a *run*, so that is now the only thing forbidden, and everything Phase 17
+built to work around the rule (the held blank save, the *Can't be empty* status, the always-blocked run) goes with it.
+
+**Decisions locked (grilling session, 2026-08-29):** either body may be empty, per-field — the combination of both
+blank is the invalid state, and it is invalid at *run*, not at save; a system-prompt-only run sends a **single space**
+as the user message (the API rejects an empty text block and requires at least one message); the Console keeps the
+disabled Run button with the reason on it, no dialog; blank autosaves symmetrically for both bodies; empty is stored
+as `null`, matching `system_prompt`; New Prompt starts with both bodies blank.
+
+- [x] **19.1 `promptText` drops `@NotBlank`; `prompt_text` drops `NOT NULL`.** V13 relaxes the column, and
+  `PromptService` normalizes blank → null for both bodies, so empty has one representation. → *verify: a PATCH with
+  blank `promptText` stores null (PromptPatchTest).*
+- [x] **19.2 Both-blank is not runnable.** `RunService.run` throws `DomainValidationException` (`promptText`) when
+  neither body has text, before anything streams. → *verify: RunServiceTest 400s a both-blank Prompt and runs a
+  single-filled-body one.*
+- [x] **19.3 The mapper speaks for an absent prompt text.** `ClaudeRequestMapper` sends `' '` when the user message
+  would otherwise be blank. → *verify: ClaudeRequestMapperTest pins null and whitespace both going out as one space.*
+- [x] **19.4 The Console treats blank as a value.** The User Prompt editor flips to optional (blank autosaves, as the
+  System Prompt's always has); the *Can't be empty* status is deleted (unreachable — both live fields are optional, so
+  save status is four states again); Run is disabled while both drafts are blank, with
+  *"add a System Prompt or User Prompt first"* on the button. → *verify: PromptConsolePage.test pins a blank body
+  autosaving, a single filled body re-enabling Run either way around, and the both-blank block.*
+- [x] **19.5 New Prompt starts empty.** Both bodies are blank on creation — the canonical draft state. → *verify:
+  HomePage.test's default body carries two empty strings.*
+- [x] **19.6 The record.** ADR-0013 written; ADR-0012 and Phase 17's blank-asymmetry note annotated as superseded;
+  CONTEXT.md's Prompt definition updated. Backend suite 168/168, frontend suite 89/89, typecheck clean.
 
 ---
 

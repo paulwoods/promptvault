@@ -71,7 +71,9 @@ loop that ADR-0008 exists to shorten.
   saved; the save is held rather than sent to be rejected, and Run is blocked, because a flush that writes nothing would
   let Run fall through to the previous stored text. `systemPrompt` has no such rule — blank is how it is cleared — so
   the two bodies behave differently at empty. Save status therefore has five states: *Saved*, *Saving…*, *Unsaved
-  changes*, *Can't be empty*, *Couldn't save*.
+  changes*, *Can't be empty*, *Couldn't save*. ***Superseded by [ADR-0013](0013-either-prompt-body-may-be-empty.md):***
+  prompt text is optional too, blank autosaves for both bodies, the *Can't be empty* state is gone, and only a
+  both-blank Prompt cannot run.
 - **Failure is visible and inert.** A failed autosave is reported and not retried. The next keystroke restarts the
   debounce and Run flushes, so the ordinary paths recover; walking away from a failure loses the work. Automatic retry
   was rejected because a `400` can never succeed and a give-up rule is another decision.

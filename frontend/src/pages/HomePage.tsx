@@ -22,14 +22,16 @@ import type {
 } from '../lib/types'
 
 // The defaults a New Prompt is created with. The Console opens on the created
-// prompt, so every field is one inline-edit away from something useful. Model
-// is deliberately absent: it is the one field the backend catalogue owns, and
-// copying its default here would drift the moment the catalogue renames one.
+// prompt, so every field is one inline-edit away from something useful. Both
+// prompt bodies start blank: empty is a first-class state (ADR-0013), so a new
+// prompt begins that way. Model is deliberately absent: it is the one field
+// the backend catalogue owns, and copying its default here would drift the
+// moment the catalogue renames one.
 const NEW_PROMPT_BODY: Omit<PromptRequestBody, 'model'> = {
   name: 'New prompt',
   description: '',
-  promptText: 'hi',
-  systemPrompt: 'you are a helpful assistant',
+  promptText: '',
+  systemPrompt: '',
   maxTokens: 1000,
   effort: 'medium',
   thinking: 'adaptive',

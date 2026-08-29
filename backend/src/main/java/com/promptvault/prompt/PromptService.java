@@ -41,7 +41,7 @@ public class PromptService {
                 userId,
                 validated.name(),
                 validated.description(),
-                request.promptText(),
+                validated.promptText(),
                 request.model(),
                 validated.systemPrompt(),
                 request.maxTokens(),
@@ -63,7 +63,7 @@ public class PromptService {
         prompt.update(
                 validated.name(),
                 validated.description(),
-                request.promptText(),
+                validated.promptText(),
                 request.model(),
                 validated.systemPrompt(),
                 request.maxTokens(),
@@ -90,7 +90,7 @@ public class PromptService {
         prompt.update(
                 validated.name(),
                 validated.description(),
-                merged.promptText(),
+                validated.promptText(),
                 merged.model(),
                 validated.systemPrompt(),
                 merged.maxTokens(),
@@ -180,14 +180,19 @@ public class PromptService {
                 .toList();
     }
 
-    /** Run Settings validation, plus blank-to-null normalization. */
+    /**
+     * Run Settings validation, plus blank-to-null normalization. Both prompt
+     * bodies may be empty (ADR-0013); null is how empty is stored, so blank
+     * never survives past here.
+     */
     private Validated validate(PromptRequest request) {
         runSettingsValidator.validate(request);
         return new Validated(
                 request.name().trim(),
                 StringUtils.hasText(request.description()) ? request.description() : null,
+                StringUtils.hasText(request.promptText()) ? request.promptText() : null,
                 StringUtils.hasText(request.systemPrompt()) ? request.systemPrompt() : null);
     }
 
-    private record Validated(String name, String description, String systemPrompt) {}
+    private record Validated(String name, String description, String promptText, String systemPrompt) {}
 }

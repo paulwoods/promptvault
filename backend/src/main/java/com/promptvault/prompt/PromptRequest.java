@@ -14,7 +14,7 @@ import jakarta.validation.constraints.Size;
 public record PromptRequest(
         @NotBlank @Size(max = 200) String name,
         @Size(max = 2000) String description,
-        @NotBlank @Size(max = 100_000) String promptText,
+        @Size(max = 100_000) String promptText,
         @NotBlank String model,
         String systemPrompt,
         @NotNull @Min(1) @Max(64_000) Integer maxTokens,

@@ -4,7 +4,8 @@ package com.promptvault.prompt;
  * A partial edit to a Prompt: every field is optional and an omitted (or null)
  * field leaves the stored value untouched. Clearing an optional field follows
  * the same convention as a full save — send a blank string for
- * {@code description} or {@code systemPrompt}.
+ * {@code description}, {@code promptText}, or {@code systemPrompt} (either
+ * prompt body may be empty, ADR-0013).
  *
  * <p>No constraints are declared here: the patch is merged onto the stored
  * Prompt and the <em>merged</em> content is validated with the same rules as

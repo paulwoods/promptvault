@@ -1,11 +1,13 @@
 package com.promptvault.run;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.promptvault.AbstractDatabaseTest;
 import com.promptvault.apikey.ApiKeyService;
 import com.promptvault.claude.FakeClaudeClient;
 import com.promptvault.claude.Usage;
+import com.promptvault.error.DomainValidationException;
 import com.promptvault.prompt.Prompt;
 import com.promptvault.prompt.PromptRequest;
 import com.promptvault.prompt.PromptService;
@@ -95,6 +97,43 @@ class RunServiceTest extends AbstractDatabaseTest {
         assertThat(usage.outputTokens()).isEqualTo(6);
         // The seam received the prompt text verbatim (ADR-0009): {{name}} is ordinary text now.
         assertThat(fake.capturedRequest().userMessage()).isEqualTo("Say hi to {{name}}");
+    }
+
+    /** Both bodies blank is saveable but not runnable (ADR-0013): the run 400s before anything streams. */
+    @Test
+    void aPromptWithNeitherBodyFilledIsNotRunnable() throws InterruptedException {
+        UUID userId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "insert into users (id, email, password_hash, name) values (?, ?, ?, ?)",
+                userId,
+                "runservice-empty-" + userId + "@example.com",
+                "hash",
+                "Run Service Test");
+        apiKeyService.save(userId, "sk-ant-test-key");
+
+        Prompt prompt = promptService.createPrompt(
+                userId,
+                new PromptRequest(
+                        "Empty", null, "", "claude-opus-4-8", null, 1000, "medium", "off"));
+        assertThat(prompt.getPromptText()).isNull();
+
+        RunStreamer streamer = new RunStreamer(new FakeClaudeClient(), tokenUsageRecorder, objectMapper);
+        RunService runService = new RunService(apiKeyService, promptService, streamer);
+
+        assertThatThrownBy(() -> runService.run(userId, prompt.getId()))
+                .isInstanceOf(DomainValidationException.class);
+
+        // A single filled body is enough — this run reaches the fake client.
+        promptService.updatePrompt(
+                userId,
+                prompt.getId(),
+                new PromptRequest(
+                        "Empty", null, "", "claude-opus-4-8", "Be brief", 1000, "medium", "off"));
+        runService.run(userId, prompt.getId());
+
+        // Outlives the assertion on purpose: the usage row landing is also what
+        // keeps the cleanup from racing the streaming thread's write.
+        awaitUsage(userId);
     }
 
     /** Polls because the streaming half settles on its own virtual thread. */

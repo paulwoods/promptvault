@@ -358,6 +358,55 @@ describe('prompt console', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('closes the editor on Enter when the name is unchanged', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched = false
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () => {
+        patched = true
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const nameField = await editName(user)
+    await user.type(nameField, '{Enter}')
+
+    // No change means nothing to write: Enter just leaves edit mode.
+    expect(
+      screen.getByRole('button', { name: 'Name Greeting' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('textbox', { name: 'Name' }),
+    ).not.toBeInTheDocument()
+    expect(patched).toBe(false)
+  })
+
+  it('holds a blank name on Enter rather than closing the editor', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched = false
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', () => {
+        patched = true
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    const nameField = await editName(user)
+    await user.clear(nameField)
+    await user.type(nameField, '{Enter}')
+
+    // Blank matches the server's @NotBlank, so it is held, not discarded: the
+    // editor stays open and nothing is sent.
+    expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument()
+    expect(patched).toBe(false)
+  })
+
   it('reverts to the stored name on the cancel button', async () => {
     const user = userEvent.setup()
     setToken('t')
@@ -571,14 +620,13 @@ describe('prompt console', () => {
     ).toBeInTheDocument()
   })
 
-  it('names where the save has got to, in all five states', async () => {
+  it('names where the save has got to, in all four states', async () => {
     const user = userEvent.setup()
     setToken('t')
     let reject = false
     server.use(
-      // One character, so a single Backspace empties the document.
-      getPrompt({ promptText: 'x' }),
-      http.patch('/api/prompts/p1', async () => {
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
         if (reject) {
           return HttpResponse.json(
             { error: 'validation_error', message: 'Validation failed' },
@@ -586,7 +634,11 @@ describe('prompt console', () => {
           )
         }
         await delay(400)
-        return HttpResponse.json(promptResponse({ promptText: 'xy' }))
+        // Echoed back, so the save landing makes the draft the stored text.
+        const body = (await request.json()) as { promptText: string }
+        return HttpResponse.json(
+          promptResponse({ promptText: body.promptText }),
+        )
       }),
     )
 
@@ -608,12 +660,8 @@ describe('prompt console', () => {
     )
     await waitFor(() => expect(status()).toHaveTextContent('Saved'), AUTOSAVED)
 
-    // Blank is the state the User has to act on: promptText is @NotBlank, so
-    // the save is held rather than sent to be rejected.
-    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
-    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
-    await waitFor(() => expect(status()).toHaveTextContent("Can't be empty"))
-
+    // There is no "empty" state for a body: blank is a legal save (ADR-0013),
+    // so the last failure state is reachable straight from a clean one.
     reject = true
     await user.type(field, 'z')
     await waitFor(
@@ -727,16 +775,16 @@ describe('prompt console', () => {
     )
   })
 
-  it('holds the save while the User Prompt is blank rather than sending a 400', async () => {
+  it('clears the User Prompt on blank and autosaves it, since blank is how it is cleared', async () => {
     const user = userEvent.setup()
     setToken('t')
-    let patches = 0
+    let patched: unknown
     server.use(
       // One character, so a single Backspace empties the document.
       getPrompt({ promptText: 'x' }),
-      http.patch('/api/prompts/p1', () => {
-        patches += 1
-        return HttpResponse.json(promptResponse())
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(promptResponse({ promptText: null }))
       }),
     )
 
@@ -746,13 +794,9 @@ describe('prompt console', () => {
     // legacy `keyCode`, which user-event no longer sends.
     fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
 
-    // promptText is @NotBlank, so an empty body is held rather than sent to be
-    // rejected. Typing again releases it.
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    expect(patches).toBe(0)
-
-    await user.type(field, 'y')
-    await waitFor(() => expect(patches).toBe(1), AUTOSAVED)
+    // Since ADR-0013 the User Prompt behaves exactly like the System Prompt:
+    // the blank body is a legitimate save, not a held one.
+    await waitFor(() => expect(patched).toEqual({ promptText: '' }), AUTOSAVED)
   })
 
   it('lets a blank System Prompt save, since blank is how it is cleared', async () => {
@@ -774,8 +818,7 @@ describe('prompt console', () => {
     const field = screen.getByRole('textbox', { name: 'System Prompt' })
     fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
 
-    // Unlike promptText it carries no @NotBlank, so the blank string is a
-    // legitimate save and is what clears the column.
+    // The blank string is a legitimate save and is what clears the column.
     await waitFor(
       () => expect(patched).toEqual({ systemPrompt: '' }),
       AUTOSAVED,
@@ -979,26 +1022,45 @@ describe('prompt console', () => {
     expect(runs).toBe(0)
   })
 
-  it('blocks the run outright while the User Prompt is blank', async () => {
+  it('blocks the run while both prompt bodies are blank — and only then', async () => {
     const user = userEvent.setup()
     setToken('t')
-    // One character, so a single Backspace empties the document.
-    server.use(getPrompt({ promptText: 'x' }))
+    server.use(getPrompt({ promptText: null, systemPrompt: null }))
 
     renderApp('/prompts/p1/console')
-    const field = await editUserPrompt(user)
-    fireEvent.keyDown(field, { key: 'Backspace', keyCode: 8 })
+    await editUserPrompt(user)
 
-    // Blank is never written (promptText is @NotBlank), so no flush can make the
-    // stored Prompt match the screen — leaving the run to quietly use the
-    // previous text. The button says why rather than just refusing.
+    // Both blank is saveable but not runnable (ADR-0013). The button says why
+    // rather than just refusing.
+    expect(
+      screen.getByRole('button', {
+        name: 'Run prompt — add a System Prompt or User Prompt first',
+      }),
+    ).toBeDisabled()
+
+    // A single filled body is enough, filled either way around.
+    await user.type(screen.getByRole('textbox', { name: 'User Prompt' }), 'hi')
+    expect(screen.getByRole('button', { name: 'Run prompt' })).toBeEnabled()
+
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'User Prompt' }), {
+      key: 'Backspace',
+      keyCode: 8,
+    })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'User Prompt' }), {
+      key: 'Backspace',
+      keyCode: 8,
+    })
     await waitFor(() =>
       expect(
         screen.getByRole('button', {
-          name: 'Run prompt — the User Prompt cannot be empty',
+          name: 'Run prompt — add a System Prompt or User Prompt first',
         }),
       ).toBeDisabled(),
     )
+
+    await user.click(screen.getByRole('button', { name: 'System Prompt' }))
+    await user.type(screen.getByRole('textbox', { name: 'System Prompt' }), 'x')
+    expect(screen.getByRole('button', { name: 'Run prompt' })).toBeEnabled()
   })
 
   it('warns before the tab closes while a Details editor holds a changed draft', async () => {

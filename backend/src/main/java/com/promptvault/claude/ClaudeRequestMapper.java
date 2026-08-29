@@ -8,6 +8,7 @@ import com.promptvault.prompt.ModelCapability;
 import com.promptvault.prompt.ModelCatalog;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 /**
  * Maps an SDK-agnostic {@link ClaudeRequest} to the SDK's MessageCreateParams.
@@ -19,7 +20,9 @@ import org.springframework.stereotype.Component;
  * rejects a disabled config, so its required adaptive form is sent whatever
  * the stored value) and as the stored value for every other model. The prompt
  * text is sent verbatim as the user message (ADR-0009); the system prompt is
- * sent separately.
+ * sent separately. A Prompt with no prompt text (legal since ADR-0013) is sent
+ * as a single space: the API rejects an empty text block and requires at least
+ * one message, so the space is the least-said thing it will accept.
  */
 @Component
 public class ClaudeRequestMapper {
@@ -34,7 +37,10 @@ public class ClaudeRequestMapper {
         MessageCreateParams.Builder builder = MessageCreateParams.builder()
                 .model(request.model())
                 .maxTokens(request.maxTokens())
-                .addUserMessage(request.userMessage());
+                // Blank reaches here as null (PromptService normalizes), but
+                // the hasText guard makes the space-substitution true however
+                // an empty prompt text arrives.
+                .addUserMessage(StringUtils.hasText(request.userMessage()) ? request.userMessage() : " ");
         if (request.systemPrompt() != null) {
             builder.system(request.systemPrompt());
         }

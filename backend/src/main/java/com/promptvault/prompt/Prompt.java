@@ -29,7 +29,8 @@ public class Prompt {
     @Column
     private String description;
 
-    @Column(name = "prompt_text", nullable = false)
+    /** Nullable: either prompt body may be empty (ADR-0013); null means empty. */
+    @Column(name = "prompt_text")
     private String promptText;
 
     @Column(nullable = false)

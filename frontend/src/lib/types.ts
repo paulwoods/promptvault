@@ -18,7 +18,8 @@ export interface PromptResponse {
   promptId: string
   name: string
   description?: string | null
-  promptText: string
+  /** Null means empty (ADR-0013) — either prompt body may be blank. */
+  promptText?: string | null
   model: string
   systemPrompt?: string | null
   maxTokens: number

@@ -28,18 +28,16 @@ const AUTOSAVE_IDLE_MS = 1000
 const AUTOSAVE_CEILING_MS = 10000
 
 /**
- * Where a self-saving field stands. `empty` is separate from `unsaved` because
- * it is the one state the User has to act on: promptText is @NotBlank, so the
- * save is held rather than sent to be rejected, and it stays held until there
- * is something to write.
+ * Where a self-saving field stands. Blank is a legal stored value for both
+ * bodies (ADR-0013), so there is no "empty" state to name: a blank body reads
+ * as `saved` and a blank draft autosaves like anything else.
  */
-type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'empty' | 'failed'
+type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'failed'
 
 const STATUS_LABEL: Record<SaveStatus, string> = {
   saved: 'Saved',
   saving: 'Saving…',
   unsaved: 'Unsaved changes',
-  empty: "Can't be empty",
   failed: "Couldn't save",
 }
 
@@ -49,7 +47,6 @@ const STATUS_NEEDS_ATTENTION: Record<SaveStatus, boolean> = {
   saved: false,
   saving: false,
   unsaved: true,
-  empty: true,
   failed: true,
 }
 
@@ -80,7 +77,7 @@ export function PromptConsolePage() {
  * safe to run against, and how to make them so.
  */
 interface BodySaves {
-  /** A run would read the wrong text, and no write can fix it. */
+  /** Both bodies are blank — saveable but not runnable (ADR-0013). */
   blocked: boolean
   /** Writes both bodies and resolves once they have landed. Rejects if one fails. */
   flush: () => Promise<void>
@@ -99,9 +96,11 @@ interface BodySaves {
 function Console({ promptId, prompt }: ConsoleFormProps) {
   const promptText = useInlineField(
     promptId,
-    prompt.promptText,
+    prompt.promptText ?? '',
     (draft) => ({ promptText: draft }),
-    false,
+    // Optional like the System Prompt since ADR-0013: blank is how the body is
+    // cleared, and it autosaves rather than being held.
+    true,
     true,
   )
   const systemPrompt = useInlineField(
@@ -117,9 +116,10 @@ function Console({ promptId, prompt }: ConsoleFormProps) {
   const discarded = useRef(false)
 
   const bodies: BodySaves = {
-    // A blank User Prompt is never written (it is @NotBlank), so a flush would
-    // leave the previous text stored and the run would quietly use that.
-    blocked: promptText.status === 'empty',
+    // Read from the drafts (for these live fields, `value` *is* the draft), so
+    // typing the last character away disables Run before the autosave lands —
+    // the backend would refuse the same run with a 400.
+    blocked: promptText.value.trim() === '' && systemPrompt.value.trim() === '',
     flush: async () => {
       if (discarded.current) {
         return
@@ -203,7 +203,7 @@ function RunPane({
   const running = status === 'running'
   const busy = running || flushing
   const label = bodies.blocked
-    ? 'Run prompt — the User Prompt cannot be empty'
+    ? 'Run prompt — add a System Prompt or User Prompt first'
     : busy
       ? 'Running…'
       : 'Run prompt'
@@ -436,24 +436,27 @@ function useInlineField(
   }
 
   function commit() {
-    if (committable && !save.isPending) {
-      send()
+    if (committable) {
+      if (!save.isPending) {
+        send()
+      }
+    } else if (!live && draft === stored) {
+      // Nothing to write: Enter on an unchanged draft reads as "done", so it
+      // closes the editor. A blank draft fails the `draft === stored` test and
+      // stays held — closing would discard the typing that got it there.
+      setEditing(false)
     }
   }
 
-  // Ordered by what the User can do about it. Blank comes first because it is
-  // why nothing is being sent; pending outranks the last failure so a retry
-  // does not still read as broken while it is in flight.
-  const status: SaveStatus =
-    !optional && draft.trim() === ''
-      ? 'empty'
-      : save.isPending
-        ? 'saving'
-        : save.isError
-          ? 'failed'
-          : committable
-            ? 'unsaved'
-            : 'saved'
+  // Ordered by what the User can do about it: pending outranks the last
+  // failure so a retry does not still read as broken while it is in flight.
+  const status: SaveStatus = save.isPending
+    ? 'saving'
+    : save.isError
+      ? 'failed'
+      : committable
+        ? 'unsaved'
+        : 'saved'
 
   return {
     value: editing ? draft : stored,
@@ -641,7 +644,8 @@ function InlineField({
   const valueId = `${name}-value`
   const noun = label.toLowerCase()
 
-  // Shared by the plain editors: Enter commits, Escape reverts. Without the
+  // Shared by the plain editors: Enter commits — or, on an unchanged draft,
+  // closes the editor — Escape reverts. Without the
   // preventDefault the outer form submits and the PUT overwrites every other
   // field from `values`. The markdown editor binds its own keys instead —
   // CodeMirror swallows keystrokes before they reach React.
@@ -926,7 +930,7 @@ function ConsoleForm({
           source.name.slice(0, NAME_MAX_LENGTH - COPY_SUFFIX.length) +
           COPY_SUFFIX,
         description: source.description ?? null,
-        promptText: source.promptText,
+        promptText: source.promptText ?? null,
         systemPrompt: source.systemPrompt ?? null,
         model: source.model,
         maxTokens: source.maxTokens,

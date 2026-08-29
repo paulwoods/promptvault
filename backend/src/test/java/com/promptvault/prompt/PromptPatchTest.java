@@ -89,15 +89,16 @@ class PromptPatchTest extends IntegrationTest {
                 .andExpect(jsonPath("$.promptText").value("Hello {{who}}"));
     }
 
-    /** Same convention as a full save: blank clears an optional field. */
+    /** Same convention as a full save: blank clears an optional field — both prompt bodies included (ADR-0013). */
     @Test
     void aBlankOptionalFieldClearsIt() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "clearer@example.com", "password123");
         String promptId = createPrompt(token);
 
-        patchPrompt(token, promptId, "{\"description\": \"\", \"systemPrompt\": \"\"}")
+        patchPrompt(token, promptId, "{\"description\": \"\", \"promptText\": \"  \", \"systemPrompt\": \"\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.description").value(nullValue()))
+                .andExpect(jsonPath("$.promptText").value(nullValue()))
                 .andExpect(jsonPath("$.systemPrompt").value(nullValue()))
                 .andExpect(jsonPath("$.name").value("Original"));
     }
@@ -118,7 +119,11 @@ class PromptPatchTest extends IntegrationTest {
                 .andExpect(jsonPath("$.details.effort").exists());
     }
 
-    /** Bean Validation still applies to the merged content, so a patch cannot blank a required field. */
+    /**
+     * Bean Validation still applies to the merged content, so a patch cannot
+     * blank a required field. The prompt text is not one since ADR-0013 — the
+     * required survivors are name and the Run Settings.
+     */
     @Test
     void patchCannotBlankARequiredField() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "blanker@example.com", "password123");
