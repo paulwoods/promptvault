@@ -778,7 +778,7 @@ cardinality rules.
 - [x] **20.4 One log helper per shape, minus the dead parameter.** Drop `operation` from `logRequest`
   (one caller left), keep `logPatch` distinct. → *verify: `ControllerLogLeakTest` and `LeakHygieneTest`
   stay green; no body or system prompt text reaches a log line.*
-- [ ] **20.5 The record.** New ADR — `docs/adr/0014-prompt-write-seam.md`: POST creates, PATCH changes,
+- [x] **20.5 The record.** New ADR — `docs/adr/0014-prompt-write-seam.md`: POST creates, PATCH changes,
   validation runs once against merged content, and the full-save shape survives only as the merge
   target. Add it to `docs/adr/README.md`'s index. Amend
   ADR-0008's consequence *"`PUT` remains the full-save path and keeps serving Create, Duplicate, and the
