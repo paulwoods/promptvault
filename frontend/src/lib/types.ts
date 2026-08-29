@@ -37,7 +37,9 @@ export interface TrashedPromptSummary {
 export interface ModelCapability {
   id: string
   supportsEffort: boolean
+  effortLevels: string[]
   supportsAdaptiveThinking: boolean
+  alwaysThinking: boolean
 }
 
 export interface ModelsResponse {

@@ -12,7 +12,6 @@ import { usePageTitle } from '../lib/pageTitle'
 import { useRunStream } from '../lib/useRunStream'
 import type { ModelsResponse, PromptResponse } from '../lib/types'
 
-const EFFORTS = ['low', 'medium', 'high']
 const THINKING = ['off', 'adaptive']
 
 // Appended to a prompt's name when duplicating it. The source name is
@@ -831,14 +830,27 @@ function ConsoleForm({
     true,
   )
   const model = useInlineField(promptId, prompt.model, (draft) => {
-    // Adaptive thinking on a model that lacks it is the one combination the
-    // server rejects outright, so moving to such a model has to carry the
-    // correction in the same request — there is no order in which two separate
-    // patches are both valid.
+    // Moving to a model whose capabilities exclude what the Prompt currently
+    // carries — adaptive thinking on one that lacks it, an effort level the
+    // target does not accept — has to carry the corrections in the same
+    // request: the server validates the merged result, so there is no order
+    // in which two separate patches are each valid.
     const next = models.data?.models.find((entry) => entry.id === draft)
-    return next?.supportsAdaptiveThinking || prompt.thinking !== 'adaptive'
-      ? { model: draft }
-      : { model: draft, thinking: 'off' }
+    if (!next) {
+      return { model: draft }
+    }
+    const corrections: { model: string; effort?: string; thinking?: string } = {
+      model: draft,
+    }
+    if (prompt.thinking === 'adaptive' && !next.supportsAdaptiveThinking) {
+      corrections.thinking = 'off'
+    }
+    if (!next.effortLevels.includes(prompt.effort)) {
+      // 'medium' — the app default (new prompts are born with it) and the one
+      // level the catalog guarantees every model accepts.
+      corrections.effort = 'medium'
+    }
+    return corrections
   })
   const maxTokens = useInlineField(
     promptId,
@@ -902,6 +914,7 @@ function ConsoleForm({
   )
   const supportsEffort = capability?.supportsEffort ?? false
   const supportsAdaptive = capability?.supportsAdaptiveThinking ?? false
+  const alwaysThinking = capability?.alwaysThinking ?? false
 
   if (models.isPending) {
     return <Loading />
@@ -962,18 +975,20 @@ function ConsoleForm({
                 name="effort"
                 label="Effort"
                 field={effort}
-                options={EFFORTS}
+                options={capability?.effortLevels ?? []}
               />
             )}
-            <InlineField
-              name="thinking"
-              label="Thinking"
-              field={thinking}
-              options={THINKING}
-              // Off is the only legal value on a model without adaptive thinking,
-              // so the field reads as text there instead of offering the choice.
-              fixed={!supportsAdaptive}
-            />
+            {!alwaysThinking && (
+              <InlineField
+                name="thinking"
+                label="Thinking"
+                field={thinking}
+                options={THINKING}
+                // Off is the only legal value on a model without adaptive thinking,
+                // so the field reads as text there instead of offering the choice.
+                fixed={!supportsAdaptive}
+              />
+            )}
 
             <div className="actions">
               <button

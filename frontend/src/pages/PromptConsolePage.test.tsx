@@ -173,6 +173,85 @@ describe('prompt console', () => {
     expect(screen.getByText('off')).toBeInTheDocument()
   })
 
+  it('carries effort back to the app default when the target model cannot accept it', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let patched: unknown
+    server.use(
+      getPrompt({ effort: 'max' }),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(
+          promptResponse({ model: 'claude-haiku-4-5', effort: 'medium' }),
+        )
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    expect(
+      await screen.findByRole('button', { name: 'Effort max' }),
+    ).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Model claude-opus-4-8' }),
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Model' }),
+      'claude-haiku-4-5',
+    )
+    await user.click(screen.getByRole('button', { name: 'Save model' }))
+
+    // An effort the target model does not list is the same merged-result trap
+    // as thinking: no ordering makes two separate patches both valid.
+    await waitFor(() =>
+      expect(patched).toEqual({
+        model: 'claude-haiku-4-5',
+        effort: 'medium',
+      }),
+    )
+    expect(
+      screen.queryByRole('button', { name: /^Effort / }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers the model effort levels, extended ones included', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Effort high' }))
+
+    const effort = screen.getByRole('combobox', { name: 'Effort' })
+    for (const level of ['low', 'medium', 'high', 'xhigh', 'max']) {
+      expect(
+        within(effort).getByRole('option', { name: level }),
+      ).toBeInTheDocument()
+    }
+  })
+
+  it('offers no thinking control on an always-thinking model', async () => {
+    setToken('t')
+    server.use(
+      getPrompt({
+        model: 'claude-fable-5',
+        effort: 'xhigh',
+        thinking: 'adaptive',
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+
+    // The wider effort levels still render; thinking does not — there is no
+    // off on Fable 5, so the choice would be false.
+    expect(
+      await screen.findByRole('button', { name: 'Effort xhigh' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /^Thinking / }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('adaptive')).not.toBeInTheDocument()
+  })
+
   it('committing PATCHes the name alone and takes the new value from the response', async () => {
     const user = userEvent.setup()
     setToken('t')

@@ -88,6 +88,30 @@ class RunSettingsValidationTest extends IntegrationTest {
     }
 
     @Test
+    void thinkingOffStaysLegalOnAlwaysThinkingFable() throws Exception {
+        // 18.1's save side: off is stored and legal on Fable 5 — the run path
+        // sends the model's required adaptive form (pinned over the mapper in
+        // ClaudeRequestMapperTest.everySavedSettingReachesTheWireAsItsModelRequires).
+        submit(body("claude-fable-5", 1000, "high", "off", "")).andExpect(status().isCreated());
+    }
+
+    @Test
+    void extendedEffortLevelsAcceptedOnModelsThatSupportThem() throws Exception {
+        submit(body("claude-opus-4-8", 1000, "xhigh", "off", "")).andExpect(status().isCreated());
+        submit(body("claude-fable-5", 1000, "max", "adaptive", "")).andExpect(status().isCreated());
+    }
+
+    @Test
+    void extendedEffortLevelsRejectedOnModelsThatLackThem() throws Exception {
+        submit(body("claude-sonnet-4-6", 1000, "xhigh", "off", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.effort").exists());
+        submit(body("claude-haiku-4-5", 1000, "xhigh", "off", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.effort").exists());
+    }
+
+    @Test
     void noTemperatureFieldAccepted() throws Exception {
         submit(body("claude-opus-4-8", 1000, "medium", "off", ",\n  \"temperature\": 0.9"))
                 .andExpect(status().isCreated())

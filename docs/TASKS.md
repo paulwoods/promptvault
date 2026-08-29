@@ -571,6 +571,75 @@ spends that freedom on the two fields the edit → run → read loop actually tu
 
 ---
 
+## Phase 18 — Codebase review findings *(full-stack review, 2026-08-28)*
+
+Findings from a full-stack codebase review. All suites were green under review (frontend: 74/74 tests, typecheck, lint;
+backend: 149 tests), and the items below are the defects and debts the review surfaced around that. Ordered by
+impact; none built or grilled yet *(18.1 built 2026-08-28; the rest remain so)*.
+
+- [x] **18.1 Run Settings can claim a capability the run rejects: Fable 5 + `thinking: off`.** `RunSettingsValidator`
+  gates only `thinking=adaptive` against the model→capabilities map (`RunSettingsValidator.java:37`), while
+  `ClaudeRequestMapper` sends `ThinkingConfigDisabled` for every non-adaptive Prompt (`ClaudeRequestMapper.java:49`) —
+  so a Prompt saved as `model=claude-fable-5, thinking=off` passes save-time validation and fails at run time,
+  contradicting the validator's own javadoc that saved settings are "trusted as legal everywhere downstream". Probe the
+  live API first; then either omit `thinking` for always-thinking models in the mapper or reject the combination in the
+  validator/catalog. Related, lower impact: `effort` is limited to `low|medium|high` while `claude-fable-5` and
+  `claude-opus-4-8` also accept `xhigh`/`max`. → *verify: anything the save accepts, a run accepts — pinned by a
+  live-API probe or a per-model contract test over the mapper.*
+  → *Done (2026-08-28), resolved mapper-side per Phase 5's locked "Fable 5 is always-on (send the model's required form)":
+  `ModelCapability` gained `effortLevels` + `alwaysThinking` (opus-4-8 and fable-5 widen to `xhigh`/`max`; haiku keeps
+  `low|medium|high` as its stored set though it forwards none — the old global enum could only ever store those three, so
+  no legacy row is stranded); the validator checks effort against the model's levels; the mapper sends the required
+  adaptive form for an always-thinking model and never `ThinkingConfigDisabled` there. The Console takes its effort
+  options from the model, hides thinking on an always-thinking model, and carries the effort correction in the
+  model-change PATCH (same merged-result trap as thinking). No live-API probe was possible — no real Anthropic key in
+  the environment — so the contract is pinned the verify line's other way, by the per-model mapper test
+  (`ClaudeRequestMapperTest.everySavedSettingReachesTheWireAsItsModelRequires`).*
+- [ ] **18.2 Test `RealClaudeClient` — the only untested Anthropic-SDK class.** The adapter owning the stream event
+  loop, exception translation (AUTH/RATE_LIMIT/OVERLOADED/NETWORK/OTHER), and per-call client construction and closing
+  has no test; only `ClaudeRequestMapper` is covered. → *verify: tests pin deltas forwarded verbatim, exactly one
+  terminal callback, each SDK exception mapped to its category, and the client closed on every exit path.*
+- [ ] **18.3 Hermetic test profile.** Sourcing `.env` per the README quickstart before `./mvnw verify` leaks the real
+  `GOOGLE_CLIENT_ID` into the test JVM: a review run failed 2/149 in `GoogleSignInDisabledTest` (config echoed the dev
+  client id; the disabled sign-in path returned 401 rather than 503) and passed 3/3 with the variable unset — green,
+  but only against an unpopulated `.env`. → *verify: `set -a; . ./.env; set +a && ./mvnw verify` passes; the test
+  profile pins the integration-relevant env-derived properties (`GOOGLE_CLIENT_ID` at minimum).*
+- [ ] **18.4 Enable TypeScript `strict`.** `"strict": true` is absent from all three tsconfigs, so implicit `any`,
+  nullable dereferences, and uninitialised properties all pass `tsc`. Given the codebase's rigour this reads as a lost
+  Vite-template default rather than a choice; it is the highest-leverage tooling fix available. → *verify: `strict` on
+  in `tsconfig.json`/`tsconfig.app.json`/`tsconfig.node.json` and `npm run typecheck` green after fixing what it
+  surfaces; suites still green.*
+- [ ] **18.5 Runs can be stopped and can survive a malformed frame — neither is true.** `streamRun.ts` has no
+  `AbortController` and the RunPane has no Stop control, so a running stream cannot be stopped and leaving the Console
+  leaves the fetch and its state updates going. `JSON.parse(data)` at `streamRun.ts:79` has no try/catch, so one
+  malformed frame throws out of the reader loop and discards everything already streamed. Harden in one pass: a stop
+  path (Stop button + abort on unmount), per-frame parse tolerance, and the ignored protocol details
+  (`id:`/`retry:`/comment lines, CRLF). Include the unmount flush's silent `.catch(() => {})`
+  (`PromptConsolePage.tsx:144-149`) — a failed save on leaving is lost with no recourse — and cover the in-stream 401
+  path, which duplicates `apiClient`'s clear-and-dispatch logic and is untested. → *verify (RTL + MSW): Stop aborts the
+  fetch; a malformed frame is skipped without losing prior tokens; leaving mid-run does not keep streaming into an
+  unmounted hook; a mid-stream 401 clears the token and routes to login.*
+- [ ] **18.6 Drop `spring-boot-devtools` from the production jar.** Declared as a direct `runtime` dependency in the
+  production `pom.xml` (`backend/pom.xml:118-122`, oddly space-indented) and ships in the built artifact. → *verify:
+  the dependency is gone and `./mvnw verify` stays green.*
+- [ ] **18.7 "New Prompt" stops hard-coding the default model.** `NEW_PROMPT_BODY.model = 'claude-sonnet-4-6'`
+  (`HomePage.tsx:27`) duplicates the backend catalogue by hand, when `GET /api/models` already returns `defaultModel`
+  and the Console already fetches it — a backend model rename silently breaks Prompt creation. → *verify (RTL + MSW):
+  creating a Prompt uses the catalog's `defaultModel` rather than a frontend literal.*
+- [ ] **18.8 Dead-code sweep.** Backend: `Page.from` (`common/Page.java:12`, no callers — `PromptService` builds
+  `Page` by hand), `AuthPrincipal.email()` (parsed and carried per request, never read), `ApiKey.getEncKeyVersion()`
+  (keep the `enc_key_version` column — ADR-0002 rotation scaffolding — but drop the unread getter or wire rotation).
+  Frontend: the 0-byte tracked `src/App.tsx`, the unreferenced `public/icons.svg` sprite, the stray `src/node_modules/`
+  vitest cache directory, and the dead CSS — `.variable-add`/`.variable-remove` (`index.css:697-715`,
+  ADR-0009 leftovers), `.button-link-outline` (`:660-664`), `.status-current`, `.prompt-columns`/`.settings-columns`
+  (`:1388-1394`), and the stale "version/run metadata" comment (`:1179`). → *verify: a reference-grep proves each
+  removal; backend and frontend suites, typecheck, and lint stay green.*
+- [ ] **18.9 Give the dev Postgres its volume back.** The `promptvault-pgdata` named-volume mount is commented out of
+  `docker-compose.yml`, so dev data dies with `docker compose down`. Restore it — or decide reset-on-down is deliberate
+  and say so in the README. → *verify: Prompts survive a `down`/`up` cycle.*
+
+---
+
 ### Out of scope (do **not** build — from the PRD)
 
 Multi-turn/conversational Runs · shared server key or billing beyond per-User attribution · draft-vs-published Versions · sharing/teams/roles · folders/tags/favorites · editing or deleting Versions/Runs · temperature/top_p/top_k · `PROMPTVAULT_ENC_KEY` rotation tooling · deployment/CI/CD/infra · rate limiting · security headers/TLS/production CORS · request tracing/metrics/APM · account lockout/password reset/email verification (see Phase 8 scope fence). Registration policy resolved to **open self-serve signup** (Phase 2). *Note: "search" was also originally on this list; Phase 9.1 subsequently scoped in a narrow name/description substring search — folders/tags/favorites (prompt organization) remain out of scope. "OAuth/SSO/social login" was likewise removed: Phase 16 scoped in Google sign-in as a second Login Method (ADR-0011) — SSO, other providers, and teams/roles remain out of scope.*

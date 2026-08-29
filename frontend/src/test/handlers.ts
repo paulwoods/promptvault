@@ -13,12 +13,23 @@ export const handlers = [
         {
           id: 'claude-opus-4-8',
           supportsEffort: true,
+          effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
           supportsAdaptiveThinking: true,
+          alwaysThinking: false,
         },
         {
           id: 'claude-haiku-4-5',
           supportsEffort: false,
+          effortLevels: ['low', 'medium', 'high'],
           supportsAdaptiveThinking: false,
+          alwaysThinking: false,
+        },
+        {
+          id: 'claude-fable-5',
+          supportsEffort: true,
+          effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+          supportsAdaptiveThinking: true,
+          alwaysThinking: true,
         },
       ],
       defaultModel: 'claude-opus-4-8',

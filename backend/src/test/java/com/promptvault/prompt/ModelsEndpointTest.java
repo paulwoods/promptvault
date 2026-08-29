@@ -30,7 +30,15 @@ class ModelsEndpointTest extends IntegrationTest {
                 .andExpect(jsonPath("$.models[?(@.id == 'claude-haiku-4-5')].supportsAdaptiveThinking")
                         .value(false))
                 .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-4-8')].supportsAdaptiveThinking")
-                        .value(true));
+                        .value(true))
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-4-8')].effortLevels",
+                        Matchers.hasItem(Matchers.hasItem("xhigh"))))
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-sonnet-4-6')].effortLevels",
+                        Matchers.hasItem(Matchers.not(Matchers.hasItem("xhigh")))))
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-fable-5')].alwaysThinking")
+                        .value(true))
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-4-8')].alwaysThinking")
+                        .value(false));
     }
 
     @Test
