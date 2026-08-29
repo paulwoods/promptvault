@@ -1097,6 +1097,85 @@ describe('prompt console', () => {
     expect(runs).toBe(0)
   })
 
+  it('words a rate limit its own way and offers a Retry that re-runs', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    const calls: string[] = []
+    let patched: unknown
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patched = await request.json()
+        calls.push('patch')
+        return HttpResponse.json(promptResponse({ maxTokens: 4096 }))
+      }),
+      http.post('/api/prompts/p1/run', () => {
+        calls.push('run')
+        return new HttpResponse(
+          // Lower case on the wire on purpose: the category is a category
+          // whatever the casing, and the client's union is what is asserted.
+          'event: error\ndata: {"status":"failed","category":"rate_limit","message":"Claude rate limit exceeded"}\n\n',
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        )
+      }),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Run prompt' }))
+
+    // The wording is the category's, not the server's: `RATE_LIMIT` is why the
+    // category is carried at all — it says what the User can do next.
+    const runPane = within(screen.getByRole('region', { name: 'Run' }))
+    expect(
+      await runPane.findByText(
+        /Claude is rate limiting this API key\. Wait a moment, then run again\./,
+      ),
+    ).toBeInTheDocument()
+    expect(runPane.queryByText(/Claude rate limit exceeded/)).toBeNull()
+
+    // Retry is the Run button's own handler, flush and all: a rate-limited
+    // User waits, edits, and only then clicks again.
+    await user.click(
+      await screen.findByRole('button', { name: /^Max tokens / }),
+    )
+    const maxTokens = screen.getByRole('spinbutton', { name: 'Max tokens' })
+    await user.clear(maxTokens)
+    await user.type(maxTokens, '4096')
+    await user.click(runPane.getByRole('button', { name: 'Retry run' }))
+
+    await waitFor(() =>
+      expect(calls.filter((call) => call === 'run')).toHaveLength(2),
+    )
+    expect(patched).toEqual({ maxTokens: 4096 })
+    expect(calls.indexOf('patch')).toBeLessThan(calls.lastIndexOf('run'))
+  })
+
+  it('offers no Retry for a failure that running again cannot fix', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.post(
+        '/api/prompts/p1/run',
+        () =>
+          new HttpResponse('event: token\ndata: {"text":"half"}\n\n', {
+            headers: { 'Content-Type': 'text/event-stream' },
+          }),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Run prompt' }))
+
+    // A truncation is reported in its own words and left there: Run is already
+    // enabled again, so a second button saying the same thing is noise.
+    const runPane = within(screen.getByRole('region', { name: 'Run' }))
+    expect(
+      await runPane.findByText(/ended before it finished/),
+    ).toBeInTheDocument()
+    expect(runPane.queryByRole('button', { name: 'Retry run' })).toBeNull()
+  })
+
   it('sends the User to the key page when the run endpoint has no API key', async () => {
     const user = userEvent.setup()
     setToken('t')

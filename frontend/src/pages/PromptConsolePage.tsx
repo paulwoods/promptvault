@@ -29,6 +29,28 @@ const FAILURE_DESTINATION: Partial<Record<RunFailureCategory, string>> = {
   AUTH: '/settings/api-key',
 }
 
+// What a failed run says, by category. The backend's own message names the
+// failure; these name what the User can do about it, which is why the category
+// is carried at all. TRUNCATED and OTHER are absent on purpose: the first
+// already arrives phrased for the User, and the second is whatever the server
+// said — inventing wording for a failure we have not classified would say less.
+const FAILURE_WORDING: Partial<Record<RunFailureCategory, string>> = {
+  AUTH: 'Claude would not accept this API key.',
+  RATE_LIMIT:
+    'Claude is rate limiting this API key. Wait a moment, then run again.',
+  OVERLOADED:
+    'Claude is temporarily overloaded. Try the run again in a moment.',
+  NETWORK:
+    'The run could not reach Claude. Check your connection and try again.',
+}
+
+// The categories that say "this would have worked a minute ago": running again
+// is the whole of the fix, so the alert carries the button that does it.
+const TRANSIENT: Partial<Record<RunFailureCategory, true>> = {
+  RATE_LIMIT: true,
+  OVERLOADED: true,
+}
+
 // Appended to a prompt's name when duplicating it. The source name is
 // truncated first so the result stays under the backend's @Size(max = 200)
 // cap on PromptRequest.name -- otherwise duplicating a near-ceiling name 400s.
@@ -203,7 +225,19 @@ function RunPane({ promptId, seam }: { promptId: string; seam: FlushSeam }) {
         value={output}
       />
       {flushError && <ErrorAlert>{flushError}</ErrorAlert>}
-      {failure && <ErrorAlert>{failure.message}</ErrorAlert>}
+      {failure && (
+        <ErrorAlert>
+          {FAILURE_WORDING[failure.category] ?? failure.message}
+          {TRANSIENT[failure.category] && (
+            // The same handler the Run button uses, flush included: a
+            // rate-limited User waits, edits, and then retries, so assuming
+            // nothing changed since the failure is wrong in the ordinary case.
+            <button type="button" className="run-retry" onClick={handleRun}>
+              Retry run
+            </button>
+          )}
+        </ErrorAlert>
+      )}
     </section>
   )
 }

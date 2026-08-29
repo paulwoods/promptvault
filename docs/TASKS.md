@@ -926,7 +926,7 @@ unmount abort. Three defects survive.
   `AUTH` family. `PromptConsolePage` performs the navigation. → *verify: no `useNavigate` or route
   literal remains in the run module; RTL still lands on `/settings/api-key` when the run endpoint answers
   `no_api_key`, and now also on a mid-stream `AUTH` frame.*
-- [ ] **22.3 The category earns its keep.** Alert wording is chosen by category, and transient categories
+- [x] **22.3 The category earns its keep.** Alert wording is chosen by category, and transient categories
   render a Retry that calls `handleRun`. → *verify: an `error` frame with `category: "rate_limit"` renders
   its own wording plus a Retry; clicking Retry re-flushes and re-runs; an `AUTH` frame offers the key
   page instead; the category is asserted, not just the message.*

@@ -1045,6 +1045,14 @@ fieldset > div:last-child {
   border-color: var(--border);
 }
 
+/* Sits inside the failure alert, on the same line as the sentence telling the
+   User to try again — the button is that sentence's verb. */
+.run-retry {
+  margin-left: var(--space-8);
+  padding: 2px var(--space-8);
+  font-size: 0.9em;
+}
+
 .button-gold {
   background: var(--gold);
   color: var(--carbon);
