@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.promptvault</groupId>
 	<artifactId>backend</artifactId>
-	<version>0.1.10</version>
+	<version>0.1.11</version>
 	<name>backend</name>
 	<description>Prompt Vault backend</description>
 	<url/>
