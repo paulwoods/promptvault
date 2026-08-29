@@ -769,13 +769,13 @@ cardinality rules.
 - [x] **20.2 Delete the endpoint and the method.** Remove `PUT /api/prompts/{id}` and
   `PromptService.updatePrompt`, and the frontend MSW handler that existed only to watch for a PUT.
   → *verify: the route 405s; backend and frontend suites, typecheck and lint green.*
-- [ ] **20.3 One validation pass, every violation.** With PUT gone, `POST` is the last `@Valid` site;
+- [x] **20.3 One validation pass, every violation.** With PUT gone, `POST` is the last `@Valid` site;
   route it through the same merged-content pass `PATCH` uses, and have that pass collect all mechanical
   violations into one `details` map. The `min(propertyPath)` tiebreaker goes with it. → *verify: a create
   and a patch carrying the same bad value produce byte-identical bodies; a request breaking two fields
   reports both; `PromptCreateTest`'s expectations move to the single envelope; a bad model still reports
   once, from the domain layer.*
-- [ ] **20.4 One log helper per shape, minus the dead parameter.** Drop `operation` from `logRequest`
+- [x] **20.4 One log helper per shape, minus the dead parameter.** Drop `operation` from `logRequest`
   (one caller left), keep `logPatch` distinct. → *verify: `ControllerLogLeakTest` and `LeakHygieneTest`
   stay green; no body or system prompt text reaches a log line.*
 - [ ] **20.5 The record.** New ADR — `docs/adr/0014-prompt-write-seam.md`: POST creates, PATCH changes,

@@ -1,5 +1,6 @@
 package com.promptvault.prompt;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -164,6 +165,61 @@ class PromptPatchTest extends IntegrationTest {
         mockMvc.perform(get("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Original"));
+    }
+
+    /**
+     * One validation pass, one envelope: create and patch reaching the same bad
+     * value answer with byte-identical bodies (ADR-0014).
+     */
+    @Test
+    void createAndPatchReportTheSameBadValueIdentically() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "one-envelope@example.com", "password123");
+        String promptId = createPrompt(token);
+
+        String fromCreate = mockMvc.perform(post("/api/prompts")
+                        .header(HttpHeaders.AUTHORIZATION, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(FULL_BODY.replace("\"maxTokens\": 1000", "\"maxTokens\": 999999")))
+                .andExpect(status().isBadRequest())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String fromPatch = patchPrompt(token, promptId, "{\"maxTokens\": 999999}")
+                .andExpect(status().isBadRequest())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(fromCreate).isEqualTo(fromPatch);
+    }
+
+    /** The mechanical pass collects: break two fields and both are named. */
+    @Test
+    void everyMechanicalViolationIsReported() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "two-bad@example.com", "password123");
+        String promptId = createPrompt(token);
+
+        patchPrompt(token, promptId, "{\"name\": \"   \", \"maxTokens\": 999999}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("validation_error"))
+                .andExpect(jsonPath("$.details.name").exists())
+                .andExpect(jsonPath("$.details.maxTokens").exists());
+    }
+
+    /**
+     * The domain chain stays fail-fast: an unsupported model is one fact, and
+     * reporting the effort that could not be judged against it would state it
+     * twice.
+     */
+    @Test
+    void aBadModelIsReportedOnce() throws Exception {
+        String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "one-domain@example.com", "password123");
+        String promptId = createPrompt(token);
+
+        patchPrompt(token, promptId, "{\"model\": \"not-a-model\", \"effort\": \"nonsense\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.length()").value(1))
+                .andExpect(jsonPath("$.details.model").exists());
     }
 
     /** Trashed prompts are invisible to editing (ADR-0004), patch included. */

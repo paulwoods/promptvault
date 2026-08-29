@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DomainValidationException.class)
     public ResponseEntity<ApiError> handleDomainValidation(DomainValidationException ex) {
         return ResponseEntity.badRequest()
-                .body(new ApiError("validation_error", "Validation failed", Map.of(ex.getField(), ex.getMessage())));
+                .body(new ApiError("validation_error", "Validation failed", ex.getDetails()));
     }
 
     @ExceptionHandler(NoApiKeyException.class)

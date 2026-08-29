@@ -2,7 +2,6 @@ package com.promptvault.prompt;
 
 import com.promptvault.common.Page;
 import com.promptvault.security.CurrentUser;
-import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -34,8 +33,8 @@ public class PromptController {
     }
 
     @PostMapping
-    public ResponseEntity<PromptResponse> createPrompt(@Valid @RequestBody PromptRequest request) {
-        logRequest("createPrompt", null, request);
+    public ResponseEntity<PromptResponse> createPrompt(@RequestBody PromptRequest request) {
+        logCreate(request);
         Prompt prompt = promptService.createPrompt(currentUser.userId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(PromptResponse.from(prompt));
     }
@@ -97,13 +96,11 @@ public class PromptController {
     }
 
     /** Shapes and lengths only — never the prompt text or system prompt themselves (leak hygiene). */
-    private void logRequest(String operation, UUID promptId, PromptRequest request) {
+    private void logCreate(PromptRequest request) {
         log.debug(
-                "{}(userId={}, promptId={}, name={}, model={}, maxTokens={}, effort={}, thinking={},"
+                "createPrompt(userId={}, name={}, model={}, maxTokens={}, effort={}, thinking={},"
                         + " promptText.len={}, systemPrompt.len={})",
-                operation,
                 currentUser.userId(),
-                promptId,
                 request.name(),
                 request.model(),
                 request.maxTokens(),

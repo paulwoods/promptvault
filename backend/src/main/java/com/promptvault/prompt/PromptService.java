@@ -8,9 +8,12 @@ import com.promptvault.error.ResourceNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,9 +35,10 @@ public class PromptService {
         this.validator = validator;
     }
 
-    /** Creates a Prompt from the full content. */
+    /** Creates a Prompt from the full content, through the same two validation passes a patch crosses. */
     @Transactional
     public Prompt createPrompt(UUID userId, PromptRequest request) {
+        requireMechanicallyValid(request);
         Validated validated = validate(request);
         Prompt prompt = new Prompt(
                 UuidCreator.getTimeOrderedEpoch(),
@@ -78,20 +82,26 @@ public class PromptService {
     }
 
     /**
-     * The Bean Validation pass a full save gets from {@code @Valid} on the
-     * controller argument. A patch is validated only once merged, so it runs
-     * here instead, reported through the same envelope as the domain
-     * validators. Lowest property path first, so a request with several
-     * problems always reports the same one.
+     * The Bean Validation pass over a complete Prompt — the create body, or a
+     * patch merged onto what is stored. It runs here rather than from
+     * {@code @Valid} on the controller argument because a patch is only whole
+     * once merged, and one call site means create and patch cannot drift
+     * (ADR-0014). Every violation is reported, so a request breaking two fields
+     * is told about both.
      */
-    private void requireMechanicallyValid(PromptRequest merged) {
-        Optional<ConstraintViolation<PromptRequest>> violation = validator.validate(merged).stream()
-                .min(Comparator.comparing(v -> v.getPropertyPath().toString()));
-        if (violation.isPresent()) {
-            throw new DomainValidationException(
-                    violation.get().getPropertyPath().toString(),
-                    violation.get().getMessage());
+    private void requireMechanicallyValid(PromptRequest content) {
+        Set<ConstraintViolation<PromptRequest>> violations = validator.validate(content);
+        if (violations.isEmpty()) {
+            return;
         }
+        Map<String, String> details = violations.stream()
+                .sorted(Comparator.comparing(v -> v.getPropertyPath().toString()))
+                .collect(Collectors.toMap(
+                        v -> v.getPropertyPath().toString(),
+                        ConstraintViolation::getMessage,
+                        (first, second) -> first,
+                        LinkedHashMap::new));
+        throw new DomainValidationException(details);
     }
 
     /**
