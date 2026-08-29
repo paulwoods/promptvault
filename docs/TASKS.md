@@ -852,7 +852,7 @@ seam every action crosses.
   rejection, with the discard-gesture reasoning in a comment above it.
   → *verify: deleting with a pending edit sends no PATCH after the DELETE; leaving the Console with an
   uncommitted Description does **not** write it, while a pending body edit still does.*
-- [ ] **21.5 One blocked rule, one reason.** The both-blank rule becomes one held reason among several;
+- [x] **21.5 One blocked rule, one reason.** The both-blank rule becomes one held reason among several;
   `RunPane` renders `blockedReason` rather than computing it (`:193-198`). → *verify: both-blank and
   blank-Name each disable Run with their own reason on the button; precedence between them is pinned by
   a test; a single filled body re-enables Run either way around.*

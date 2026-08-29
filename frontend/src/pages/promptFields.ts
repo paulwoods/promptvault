@@ -209,14 +209,40 @@ export function usePromptFields(
       // verb mean one thing: stop everything not yet written.
       all.forEach((field) => field.cancelPending())
     },
-    // Read from the drafts (for the live bodies, `value` *is* the draft), so
-    // typing the last character away disables Run before the autosave lands —
-    // the backend would refuse the same run with a 400.
-    blockedReason:
-      promptText.value.trim() === '' && systemPrompt.value.trim() === ''
-        ? 'add a System Prompt or User Prompt first'
-        : null,
+    blockedReason: blockedReason(all, promptText, systemPrompt),
   }
+}
+
+/**
+ * Why Run is refused, or null. The seam owns this because it is the only thing
+ * holding all eight fields, and so the only thing positioned to say which
+ * problem to fix first. That puts user-facing copy in here, which is accepted:
+ * the copy *is* the rule stated in words.
+ *
+ * A held field outranks the both-blank rule. A held field is one the User has
+ * typed into and the field refuses to send — clearing the Name is the reachable
+ * case — so the screen and the stored Prompt disagree about it and no flush can
+ * reconcile them; running would quietly use the stored value. Both-blank is a
+ * rule about content the User has not written yet, and its message would read
+ * as nonsense while a field above it is unsendable. Among held fields the first
+ * declared wins, which is the one nearest the top of the Details tab.
+ */
+function blockedReason(
+  all: PromptField[],
+  promptText: PromptField,
+  systemPrompt: PromptField,
+): string | null {
+  const held = all.find((field) => field.held)
+  if (held) {
+    return `${held.label} can't be empty`
+  }
+  // Read from the drafts (for the live bodies, `value` *is* the draft), so
+  // typing the last character away disables Run before the autosave lands —
+  // the backend would refuse the same run with a 400.
+  if (promptText.value.trim() === '' && systemPrompt.value.trim() === '') {
+    return 'add a System Prompt or User Prompt first'
+  }
+  return null
 }
 
 /**

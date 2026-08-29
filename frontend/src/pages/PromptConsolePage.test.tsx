@@ -1097,6 +1097,49 @@ describe('prompt console', () => {
     expect(screen.getByRole('button', { name: 'Run prompt' })).toBeEnabled()
   })
 
+  it('blocks the run while a required field is held blank, and says which', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt())
+
+    renderApp('/prompts/p1/console')
+    const name = await editName(user)
+    await user.clear(name)
+
+    // A blank Name is uncommitted *and* unsendable — no flush can reconcile
+    // it, so running would use the stored name while the screen shows nothing.
+    expect(
+      screen.getByRole('button', { name: "Run prompt — Name can't be empty" }),
+    ).toBeDisabled()
+
+    await user.type(name, 'Renamed')
+    expect(screen.getByRole('button', { name: 'Run prompt' })).toBeEnabled()
+  })
+
+  it('names the held field ahead of the both-blank rule', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(getPrompt({ promptText: null, systemPrompt: null }))
+
+    renderApp('/prompts/p1/console')
+    const name = await editName(user)
+    await user.clear(name)
+
+    // Both rules apply at once. The held field wins: it is the one the User has
+    // already typed into, and "add a System Prompt or User Prompt first" would
+    // read as nonsense while the Name above it cannot be sent.
+    expect(
+      screen.getByRole('button', { name: "Run prompt — Name can't be empty" }),
+    ).toBeDisabled()
+
+    await user.type(name, 'Renamed')
+    expect(
+      screen.getByRole('button', {
+        name: 'Run prompt — add a System Prompt or User Prompt first',
+      }),
+    ).toBeDisabled()
+  })
+
   it('warns before the tab closes while a Details editor holds a changed draft', async () => {
     const user = userEvent.setup()
     setToken('t')
