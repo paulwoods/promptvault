@@ -917,7 +917,7 @@ unmount abort. Three defects survive.
 - **One MSW test survives**, asserting the real wiring: `POST /api/prompts/{id}/run` with the Bearer
   header. The injected transport is the production default, and nothing else proves that URL.
 
-- [ ] **22.1 Close-without-terminal has an owner.** A stream ending with neither `done` nor `error`
+- [x] **22.1 Close-without-terminal has an owner.** A stream ending with neither `done` nor `error`
   resolves to `failed` with a message naming the truncation. → *verify (RTL + MSW): a stream closed after
   two token frames and no terminal frame leaves the tokens visible, hides Stop, re-enables Run, and
   reports the truncation; the happy path is unchanged.*

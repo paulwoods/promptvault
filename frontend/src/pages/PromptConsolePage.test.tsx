@@ -1097,6 +1097,71 @@ describe('prompt console', () => {
     expect(runs).toBe(0)
   })
 
+  it('reports a stream that closes without a terminal frame', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.post(
+        '/api/prompts/p1/run',
+        () =>
+          new HttpResponse(
+            'event: token\ndata: {"text":"half an "}\n\n' +
+              'event: token\ndata: {"text":"answer"}\n\n',
+            { headers: { 'Content-Type': 'text/event-stream' } },
+          ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Run prompt' }))
+
+    // The stream stopped mid-answer with no `done` and no `error`. Before
+    // this, the run sat at `running` forever: Stop up, Run disabled, and only
+    // a navigation to clear it.
+    const runPane = within(screen.getByRole('region', { name: 'Run' }))
+    expect(
+      await runPane.findByText(
+        'The run ended before it finished. The answer above is partial.',
+      ),
+    ).toBeInTheDocument()
+    expect(runPane.getByRole('textbox', { name: 'Run output' })).toHaveValue(
+      'half an answer',
+    )
+    expect(
+      runPane.queryByRole('button', { name: 'Stop run' }),
+    ).not.toBeInTheDocument()
+    expect(runPane.getByRole('button', { name: 'Run prompt' })).toBeEnabled()
+  })
+
+  it('says nothing about truncation when the run completes', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.post(
+        '/api/prompts/p1/run',
+        () =>
+          new HttpResponse(
+            'event: token\ndata: {"text":"a whole answer"}\n\n' +
+              'event: done\ndata: {"status":"completed","usage":{"inputTokens":1,"outputTokens":2}}\n\n',
+            { headers: { 'Content-Type': 'text/event-stream' } },
+          ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Run prompt' }))
+
+    const runPane = within(screen.getByRole('region', { name: 'Run' }))
+    await waitFor(() =>
+      expect(runPane.getByRole('textbox', { name: 'Run output' })).toHaveValue(
+        'a whole answer',
+      ),
+    )
+    expect(runPane.queryByText(/ended before it finished/)).toBeNull()
+  })
+
   it('blocks the run while both prompt bodies are blank — and only then', async () => {
     const user = userEvent.setup()
     setToken('t')

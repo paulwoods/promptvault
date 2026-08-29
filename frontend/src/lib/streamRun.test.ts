@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 import type { RunUsage, StreamHandlers } from './streamRun'
-import { streamRun } from './streamRun'
+import { streamRun, TRUNCATED } from './streamRun'
 import { UNAUTHORIZED_EVENT } from './apiClient'
 import { getToken, setToken } from './auth'
 import { server } from '../test/server'
@@ -119,6 +119,53 @@ describe('streamRun frame parsing', () => {
     expect(tokens).toEqual(['quiet'])
     expect(completions).toEqual([{ inputTokens: 1, outputTokens: 2 }])
     expect(errors).toEqual([])
+  })
+})
+
+describe('streamRun truncation', () => {
+  it('reports a close with no terminal frame as an error', async () => {
+    const stream = sseStream()
+    serve(stream.stream)
+    const { tokens, completions, errors, sink } = recordingSink()
+
+    stream.push('event:token\ndata:{"text":"half an "}\n\n')
+    stream.push('event:token\ndata:{"text":"answer"}\n\n')
+    stream.close()
+
+    await streamRun('p1', sink)
+
+    // The tokens stand — the answer is partial, not absent — but the run has
+    // to be told it is over, or nothing downstream ever moves off `running`.
+    expect(tokens).toEqual(['half an ', 'answer'])
+    expect(completions).toEqual([])
+    expect(errors).toEqual([
+      {
+        category: TRUNCATED,
+        message:
+          'The run ended before it finished. The answer above is partial.',
+      },
+    ])
+  })
+
+  it('says nothing extra when the stream ended on an error frame', async () => {
+    const stream = sseStream()
+    serve(stream.stream)
+    const { errors, sink } = recordingSink()
+
+    stream.push(
+      'event:error\ndata:{"status":"failed","category":"RATE_LIMIT","message":"Claude rate limit exceeded"}\n\n',
+    )
+    stream.close()
+
+    await streamRun('p1', sink)
+
+    expect(errors).toEqual([
+      {
+        status: 'failed',
+        category: 'RATE_LIMIT',
+        message: 'Claude rate limit exceeded',
+      },
+    ])
   })
 })
 

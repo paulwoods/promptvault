@@ -1,6 +1,12 @@
 import { clearAndAnnounceUnauthorized, toApiError } from './apiClient'
 import { getToken } from './auth'
 
+/**
+ * A stream that stopped mid-answer. Not a category the backend can send — it
+ * is this client's conclusion about a body that ended without saying why.
+ */
+export const TRUNCATED = 'TRUNCATED'
+
 export interface RunUsage {
   inputTokens: number
   outputTokens: number
@@ -52,6 +58,9 @@ export async function streamRun(
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
+  // A `done` or `error` frame is the stream saying how it ended. Without one,
+  // the end of the body is the only thing left to conclude from — see below.
+  let terminated = false
   // Holds a trailing \r that may be the first half of a CRLF continuing in the
   // next chunk — without the hold, a split pair would normalise into a blank
   // line, closing a frame at exactly the wrong place.
@@ -75,14 +84,25 @@ export async function streamRun(
     buffer = buffer.replace(/\r\n?/g, '\n')
     let boundary = buffer.indexOf('\n\n')
     while (boundary !== -1) {
-      dispatch(buffer.slice(0, boundary), handlers)
+      terminated = dispatch(buffer.slice(0, boundary), handlers) || terminated
       buffer = buffer.slice(boundary + 2)
       boundary = buffer.indexOf('\n\n')
     }
   }
+  // The body ended with neither terminal frame: the key was spent and the
+  // answer is cut off, which is a failure. Reported rather than resolved
+  // quietly, because a silent resolve leaves the run `running` forever — the
+  // caller has no other signal that the stream is over.
+  if (!terminated) {
+    handlers.onError({
+      category: TRUNCATED,
+      message: 'The run ended before it finished. The answer above is partial.',
+    })
+  }
 }
 
-function dispatch(rawEvent: string, handlers: StreamHandlers): void {
+/** Dispatches one frame; returns whether it was a terminal one. */
+function dispatch(rawEvent: string, handlers: StreamHandlers): boolean {
   let eventName = 'message'
   const dataLines: string[] = []
   for (const line of rawEvent.split('\n')) {
@@ -100,7 +120,7 @@ function dispatch(rawEvent: string, handlers: StreamHandlers): void {
   }
   const data = dataLines.join('\n')
   if (data === '') {
-    return
+    return false
   }
   let payload: unknown
   try {
@@ -109,21 +129,21 @@ function dispatch(rawEvent: string, handlers: StreamHandlers): void {
     // One frame we cannot read is skipped in place: throwing out of the reader
     // loop would discard everything already streamed, and a re-read is not an
     // option on a one-shot stream.
-    return
+    return false
   }
   switch (eventName) {
     case 'token':
       handlers.onToken((payload as { text: string }).text)
-      break
+      return false
     case 'done':
       handlers.onDone((payload as { status: string; usage: RunUsage }).usage)
-      break
+      return true
     case 'error':
       handlers.onError(
         payload as { status: string; category: string; message: string },
       )
-      break
+      return true
     default:
-      break
+      return false
   }
 }
