@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
-import type { RunUsage, StreamHandlers } from './streamRun'
-import { streamRun, TRUNCATED } from './streamRun'
+import type { RunFailure, RunUsage, StreamHandlers } from './streamRun'
+import { streamRun } from './streamRun'
 import { UNAUTHORIZED_EVENT } from './apiClient'
 import { getToken, setToken } from './auth'
 import { server } from '../test/server'
@@ -26,7 +26,7 @@ function sseStream() {
 function recordingSink() {
   const tokens: string[] = []
   const completions: RunUsage[] = []
-  const errors: { category: string; message: string }[] = []
+  const errors: RunFailure[] = []
   const sink: StreamHandlers = {
     onToken: (text) => tokens.push(text),
     onDone: (usage) => completions.push(usage),
@@ -140,7 +140,7 @@ describe('streamRun truncation', () => {
     expect(completions).toEqual([])
     expect(errors).toEqual([
       {
-        category: TRUNCATED,
+        category: 'TRUNCATED',
         message:
           'The run ended before it finished. The answer above is partial.',
       },
@@ -159,12 +159,10 @@ describe('streamRun truncation', () => {
 
     await streamRun('p1', sink)
 
+    // The wire's envelope does not escape: `status` is dropped and the
+    // category is this client's own union, not whatever string arrived.
     expect(errors).toEqual([
-      {
-        status: 'failed',
-        category: 'RATE_LIMIT',
-        message: 'Claude rate limit exceeded',
-      },
+      { category: 'RATE_LIMIT', message: 'Claude rate limit exceeded' },
     ])
   })
 })

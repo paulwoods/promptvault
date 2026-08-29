@@ -1097,6 +1097,54 @@ describe('prompt console', () => {
     expect(runs).toBe(0)
   })
 
+  it('sends the User to the key page when the run endpoint has no API key', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.post('/api/prompts/p1/run', () =>
+        HttpResponse.json(
+          { error: 'no_api_key', message: 'No API key saved' },
+          { status: 400 },
+        ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Run prompt' }))
+
+    // The run module says only that the failure was AUTH; which page that
+    // means is the app's own knowledge, held here.
+    expect(
+      await screen.findByLabelText('Anthropic API key'),
+    ).toBeInTheDocument()
+  })
+
+  it('sends the User to the key page on a mid-stream AUTH frame too', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    server.use(
+      getPrompt(),
+      http.post(
+        '/api/prompts/p1/run',
+        () =>
+          new HttpResponse(
+            'event: error\ndata: {"status":"failed","category":"AUTH","message":"Authentication with Claude failed"}\n\n',
+            { headers: { 'Content-Type': 'text/event-stream' } },
+          ),
+      ),
+    )
+
+    renderApp('/prompts/p1/console')
+    await user.click(await screen.findByRole('button', { name: 'Run prompt' }))
+
+    // Failing before the stream opened and failing part-way through it are the
+    // same failure to the User, so they reach the same destination.
+    expect(
+      await screen.findByLabelText('Anthropic API key'),
+    ).toBeInTheDocument()
+  })
+
   it('reports a stream that closes without a terminal frame', async () => {
     const user = userEvent.setup()
     setToken('t')

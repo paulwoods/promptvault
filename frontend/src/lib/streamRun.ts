@@ -1,11 +1,62 @@
+import { ApiError } from './ApiError'
 import { clearAndAnnounceUnauthorized, toApiError } from './apiClient'
 import { getToken } from './auth'
+import { errorMessage } from './errorMessage'
 
 /**
- * A stream that stopped mid-answer. Not a category the backend can send — it
- * is this client's conclusion about a body that ended without saying why.
+ * How a run failed, in the terms the backend already decided these failures
+ * differ by (`ErrorCategory`), plus `TRUNCATED` — not a category the backend
+ * can send, but this client's conclusion about a body that ended without
+ * saying why. The Console branches on it for both wording and affordance.
  */
-export const TRUNCATED = 'TRUNCATED'
+export type RunFailureCategory =
+  | 'AUTH'
+  | 'RATE_LIMIT'
+  | 'OVERLOADED'
+  | 'NETWORK'
+  | 'TRUNCATED'
+  | 'OTHER'
+
+/**
+ * The one shape a failed run takes, whether it failed before the stream opened
+ * or part-way through it. The Console's question — what went wrong, what
+ * should the User do — has the same answer either way, and two shapes would
+ * mean two `if` ladders that agree until one of them is edited.
+ */
+export interface RunFailure {
+  category: RunFailureCategory
+  message: string
+}
+
+const CATEGORIES: readonly RunFailureCategory[] = [
+  'AUTH',
+  'RATE_LIMIT',
+  'OVERLOADED',
+  'NETWORK',
+  'TRUNCATED',
+  'OTHER',
+]
+
+/** A category we know, or OTHER — an unrecognised one is still a failure. */
+function toCategory(raw: unknown): RunFailureCategory {
+  const named = typeof raw === 'string' ? raw.toUpperCase() : ''
+  return (
+    CATEGORIES.find((category) => category === named) ??
+    ('OTHER' as RunFailureCategory)
+  )
+}
+
+/**
+ * Normalises a pre-stream rejection into the same shape a mid-stream `error`
+ * frame arrives in. Only `no_api_key` joins the AUTH family: a 401 on our own
+ * token is the app's session expiring, which the AuthListener already routes.
+ */
+export function toRunFailure(error: unknown): RunFailure {
+  if (error instanceof ApiError && error.code === 'no_api_key') {
+    return { category: 'AUTH', message: errorMessage(error) }
+  }
+  return { category: 'OTHER', message: errorMessage(error) }
+}
 
 export interface RunUsage {
   inputTokens: number
@@ -15,7 +66,7 @@ export interface RunUsage {
 export interface StreamHandlers {
   onToken: (text: string) => void
   onDone: (usage: RunUsage) => void
-  onError: (info: { category: string; message: string }) => void
+  onError: (failure: RunFailure) => void
 }
 
 export interface StreamOptions {
@@ -95,7 +146,7 @@ export async function streamRun(
   // caller has no other signal that the stream is over.
   if (!terminated) {
     handlers.onError({
-      category: TRUNCATED,
+      category: 'TRUNCATED',
       message: 'The run ended before it finished. The answer above is partial.',
     })
   }
@@ -138,11 +189,15 @@ function dispatch(rawEvent: string, handlers: StreamHandlers): boolean {
     case 'done':
       handlers.onDone((payload as { status: string; usage: RunUsage }).usage)
       return true
-    case 'error':
-      handlers.onError(
-        payload as { status: string; category: string; message: string },
-      )
+    case 'error': {
+      const frame = payload as { category?: unknown; message?: unknown }
+      handlers.onError({
+        category: toCategory(frame.category),
+        message:
+          typeof frame.message === 'string' ? frame.message : 'The run failed.',
+      })
       return true
+    }
     default:
       return false
   }

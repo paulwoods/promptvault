@@ -921,7 +921,7 @@ unmount abort. Three defects survive.
   resolves to `failed` with a message naming the truncation. → *verify (RTL + MSW): a stream closed after
   two token frames and no terminal frame leaves the tokens visible, hides Stop, re-enables Run, and
   reports the truncation; the happy path is unchanged.*
-- [ ] **22.2 One failure shape, and the Console routes it.** Pre-stream `ApiError`s and mid-stream error
+- [x] **22.2 One failure shape, and the Console routes it.** Pre-stream `ApiError`s and mid-stream error
   frames normalise to `{category, message}` before the Console sees them; `no_api_key` maps into the
   `AUTH` family. `PromptConsolePage` performs the navigation. → *verify: no `useNavigate` or route
   literal remains in the run module; RTL still lands on `/settings/api-key` when the run endpoint answers

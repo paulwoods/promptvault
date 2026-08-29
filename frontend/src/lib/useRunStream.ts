@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { ApiError } from './ApiError'
-import { errorMessage } from './errorMessage'
-import { streamRun } from './streamRun'
+import type { RunFailure } from './streamRun'
+import { streamRun, toRunFailure } from './streamRun'
 
 export type RunStatus = 'idle' | 'running' | 'completed' | 'failed' | 'stopped'
 
 interface RunStreamState {
   status: RunStatus
   output: string
-  failure: string | null
+  failure: RunFailure | null
 }
 
 const IDLE_STATE: RunStreamState = {
@@ -34,11 +32,13 @@ function isAbort(error: unknown): boolean {
  * navigating away discards it. Resets to idle when promptId changes even though
  * the caller (the Console's RunPane) isn't remounted for a route-param-only
  * navigation — the cleanup effect below covers both leaving and switching.
- * A missing API key redirects to the settings page instead of failing the run.
+ *
+ * Every failure leaves as one {@link RunFailure}, whether it happened before
+ * the stream opened or part-way through it. What to do about a category —
+ * which wording, which destination — is the Console's call, not a lib hook's:
+ * nothing here knows the app's URL map.
  */
 export function useRunStream(promptId: string) {
-  const navigate = useNavigate()
-
   const [state, setState] = useState<RunStreamState>(IDLE_STATE)
 
   // The run in flight, if any. Holding the controller is what makes `stop` and
@@ -62,12 +62,8 @@ export function useRunStream(promptId: string) {
           })),
         onDone: () =>
           setState((current) => ({ ...current, status: 'completed' })),
-        onError: (info) =>
-          setState((current) => ({
-            ...current,
-            status: 'failed',
-            failure: info.message,
-          })),
+        onError: (failure) =>
+          setState((current) => ({ ...current, status: 'failed', failure })),
       },
       { signal: controller.signal },
     ).catch((error: unknown) => {
@@ -76,17 +72,13 @@ export function useRunStream(promptId: string) {
       if (isAbort(error)) {
         return
       }
-      if (error instanceof ApiError && error.code === 'no_api_key') {
-        navigate('/settings/api-key')
-        return
-      }
       setState((current) => ({
         ...current,
         status: 'failed',
-        failure: errorMessage(error),
+        failure: toRunFailure(error),
       }))
     })
-  }, [promptId, navigate])
+  }, [promptId])
 
   /** Ends the run in flight: the output stops growing and stays on screen. */
   const stop = useCallback(() => {

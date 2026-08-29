@@ -9,6 +9,7 @@ import type { PromptRequestBody } from '../components/promptFormValues'
 import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
+import type { RunFailureCategory } from '../lib/streamRun'
 import { useRunStream } from '../lib/useRunStream'
 import type { ModelsResponse, PromptResponse } from '../lib/types'
 import type {
@@ -20,6 +21,13 @@ import type {
 import { FieldSaveError, usePromptFields } from './promptFields'
 
 const THINKING = ['off', 'adaptive']
+
+// Where a failed run sends the User, by category. The run module reports what
+// went wrong; only the app knows its own URL map, so the lookup lives here.
+// A category with no entry is reported in place and goes nowhere.
+const FAILURE_DESTINATION: Partial<Record<RunFailureCategory, string>> = {
+  AUTH: '/settings/api-key',
+}
 
 // Appended to a prompt's name when duplicating it. The source name is
 // truncated first so the result stays under the backend's @Size(max = 200)
@@ -116,6 +124,19 @@ function RunPane({ promptId, seam }: { promptId: string; seam: FlushSeam }) {
   const { status, output, failure, run, stop } = useRunStream(promptId)
   const [flushError, setFlushError] = useState<string | null>(null)
   const [flushing, setFlushing] = useState(false)
+  const navigate = useNavigate()
+
+  // A failure the User can only act on somewhere else takes them there: a run
+  // that failed for want of an API key is asking for the key page, whether the
+  // endpoint refused before the stream opened or Claude refused part-way in.
+  const destination = failure
+    ? FAILURE_DESTINATION[failure.category]
+    : undefined
+  useEffect(() => {
+    if (destination) {
+      navigate(destination)
+    }
+  }, [destination, navigate])
 
   async function handleRun() {
     setFlushError(null)
@@ -182,7 +203,7 @@ function RunPane({ promptId, seam }: { promptId: string; seam: FlushSeam }) {
         value={output}
       />
       {flushError && <ErrorAlert>{flushError}</ErrorAlert>}
-      {failure && <ErrorAlert>{failure}</ErrorAlert>}
+      {failure && <ErrorAlert>{failure.message}</ErrorAlert>}
     </section>
   )
 }

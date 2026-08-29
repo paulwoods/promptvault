@@ -113,10 +113,13 @@ describe('useRunStream', () => {
     })
 
     await waitFor(() => expect(result.current.status).toBe('failed'))
-    expect(result.current.failure).toBe('Authentication with Claude failed')
+    expect(result.current.failure).toEqual({
+      category: 'AUTH',
+      message: 'Authentication with Claude failed',
+    })
   })
 
-  it('redirects to the API key settings page on no_api_key instead of failing', async () => {
+  it('reports a missing API key as an AUTH failure and routes nowhere itself', async () => {
     server.use(
       http.post(RUN_URL, () =>
         HttpResponse.json(
@@ -133,8 +136,15 @@ describe('useRunStream', () => {
 
     act(() => result.current.run())
 
-    await waitFor(() => expect(currentPath).toBe('/settings/api-key'))
-    expect(result.current.status).toBe('running')
+    // Pre-stream and mid-stream failures leave in the same shape, and where an
+    // AUTH failure sends the User is the Console's decision — see
+    // PromptConsolePage.test.tsx. Nothing here knows the app's URL map.
+    await waitFor(() => expect(result.current.status).toBe('failed'))
+    expect(result.current.failure).toEqual({
+      category: 'AUTH',
+      message: 'No API key saved',
+    })
+    expect(currentPath).toBe('/prompts/p1/console')
   })
 
   it('resets to idle when the prompt changes mid-run', async () => {
