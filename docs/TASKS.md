@@ -565,9 +565,22 @@ spends that freedom on the two fields the edit → run → read loop actually tu
 - [x] **17.7 `beforeunload` guard over every uncommitted Console draft.** Bodies dirty or failed, plus any Details field
   open with a draft differing from stored. → *verify (RTL): the handler is registered only while something is
   uncommitted and removed once clean. Browser: closing the tab mid-edit prompts; in-app navigation does not.*
-- [ ] **17.8 Browser verification of what jsdom cannot reach.** Reveal-refresh across tab switches, the `beforeunload`
+- [x] **17.8 Browser verification of what jsdom cannot reach.** Reveal-refresh across tab switches, the `beforeunload`
   dialog, and the status wording in both themes. → *verify: driven in Chrome against the running app, as the Phase 17.2
   styling was.*
+  → *Done (2026-08-29): a dependency-free CDP driver (`.scratch/17.8-browser-verification/verify.mjs`, Node's native
+  WebSocket — no repo dependency) drove google-chrome-stable 152 headless against the live backend + Vite. 21/21 checks
+  and 8 screenshots: the hidden editors mount on Details; a tab switch reveals a visibly re-measured CodeMirror (height
+  495, lines rendered, stored text shown, draft intact after a Details round trip); all five statuses reached for real —
+  `Unsaved changes` on type, `Saving…` pinned by holding the PATCH in CDP, `Couldn't save` via a fulfilled-500 (worded so
+  again in the light theme), `Saved` on recovery, `Can't be empty` on blank — plus status wording and backgrounds
+  screenshotted in both themes. The `beforeunload` dialog is the one genuinely automation-hostile surface, and verifying
+  it took two findings: a synthetic `location.reload()` from `Runtime.evaluate` never earns the dialog because Chrome only
+  prompts for a navigation carrying user activation — the check grants it with a real `Input.dispatchMouseEvent` click
+  (the reload is then fired un-awaited, since the dialog suspends the evaluate's own response); and `setValue` with the
+  already-stored text fires no change event, so the reload's draft must differ from what an earlier check saved. With both
+  in place the dialog fires on reload while uncommitted, stays silent on clean and dirty in-app navigation (ADR-0012's
+  design), and accepting it completes the reload. Screenshots 1–8 live beside the driver.*
 
 ---
 
@@ -575,7 +588,7 @@ spends that freedom on the two fields the edit → run → read loop actually tu
 
 Findings from a full-stack codebase review. All suites were green under review (frontend: 74/74 tests, typecheck, lint;
 backend: 149 tests), and the items below are the defects and debts the review surfaced around that. Ordered by
-impact; none built or grilled yet *(18.1 built 2026-08-28; the rest remain so)*.
+impact *(all nine built 2026-08-28/29 — notes under each; grilling is a later phase's business)*.
 
 - [x] **18.1 Run Settings can claim a capability the run rejects: Fable 5 + `thinking: off`.** `RunSettingsValidator`
   gates only `thinking=adaptive` against the model→capabilities map (`RunSettingsValidator.java:37`), while
@@ -595,21 +608,36 @@ impact; none built or grilled yet *(18.1 built 2026-08-28; the rest remain so)*.
   model-change PATCH (same merged-result trap as thinking). No live-API probe was possible — no real Anthropic key in
   the environment — so the contract is pinned the verify line's other way, by the per-model mapper test
   (`ClaudeRequestMapperTest.everySavedSettingReachesTheWireAsItsModelRequires`).*
-- [ ] **18.2 Test `RealClaudeClient` — the only untested Anthropic-SDK class.** The adapter owning the stream event
+- [x] **18.2 Test `RealClaudeClient` — the only untested Anthropic-SDK class.** The adapter owning the stream event
   loop, exception translation (AUTH/RATE_LIMIT/OVERLOADED/NETWORK/OTHER), and per-call client construction and closing
   has no test; only `ClaudeRequestMapper` is covered. → *verify: tests pin deltas forwarded verbatim, exactly one
   terminal callback, each SDK exception mapped to its category, and the client closed on every exit path.*
-- [ ] **18.3 Hermetic test profile.** Sourcing `.env` per the README quickstart before `./mvnw verify` leaks the real
+  → *Done (2026-08-28): `RealClaudeClientTest` walks the SDK's real types with fakes — a stubbed `RawMessageStreamEvent`
+  stream plus a Mockito `AnthropicOkHttpClient`/`Response` — so the test stands on the same wire the adapter walks. It
+  pins text deltas reaching the `TokenSink` verbatim while thinking deltas stay behind the seam, an empty stream still
+  completing, every SDK failure status mapped to its category (AUTH/RATE_LIMIT/OVERLOADED parameterised, IO → NETWORK,
+  anything else → OTHER), exactly one terminal callback per run (`onComplete`/`onError` never both), and — for each exit
+  path, failures included — the per-call client built from that call's key and closed exactly once.*
+- [x] **18.3 Hermetic test profile.** Sourcing `.env` per the README quickstart before `./mvnw verify` leaks the real
   `GOOGLE_CLIENT_ID` into the test JVM: a review run failed 2/149 in `GoogleSignInDisabledTest` (config echoed the dev
   client id; the disabled sign-in path returned 401 rather than 503) and passed 3/3 with the variable unset — green,
   but only against an unpopulated `.env`. → *verify: `set -a; . ./.env; set +a && ./mvnw verify` passes; the test
   profile pins the integration-relevant env-derived properties (`GOOGLE_CLIENT_ID` at minimum).*
-- [ ] **18.4 Enable TypeScript `strict`.** `"strict": true` is absent from all three tsconfigs, so implicit `any`,
+  → *Done (2026-08-29): an `application-test.properties` profile now resolves the env-derived placeholders itself —
+  `promptvault.google.client-id=` empty (the comment there records why the shell must never be consulted; Google's own
+  test still pins its id via `@TestPropertySource`, which outranks files) — plus fixed throwaway JWT-secret and
+  encryption-key values for a fully stand-alone suite. The verify command was run against the real 1.8 KB `.env` with an
+  exported `GOOGLE_CLIENT_ID`: full `./mvnw verify` green, `GoogleSignInDisabledTest` included.*
+- [x] **18.4 Enable TypeScript `strict`.** `"strict": true` is absent from all three tsconfigs, so implicit `any`,
   nullable dereferences, and uninitialised properties all pass `tsc`. Given the codebase's rigour this reads as a lost
   Vite-template default rather than a choice; it is the highest-leverage tooling fix available. → *verify: `strict` on
   in `tsconfig.json`/`tsconfig.app.json`/`tsconfig.node.json` and `npm run typecheck` green after fixing what it
   surfaces; suites still green.*
-- [ ] **18.5 Runs can be stopped and can survive a malformed frame — neither is true.** `streamRun.ts` has no
+  → *Done (2026-08-29): `strict: true` enabled in the solution file and both project configs (under a `/* Strictness */`
+  comment, as the Vite template carries it). What enabling it surfaced needed no code change — a forced full rebuild
+  (`tsc -b --clean && tsc -b`) was green on the first pass, confirming the review's "lost default" reading. Lint and the
+  suites stay green (87/87 at the registry commit).*
+- [x] **18.5 Runs can be stopped and can survive a malformed frame — neither is true.** `streamRun.ts` has no
   `AbortController` and the RunPane has no Stop control, so a running stream cannot be stopped and leaving the Console
   leaves the fetch and its state updates going. `JSON.parse(data)` at `streamRun.ts:79` has no try/catch, so one
   malformed frame throws out of the reader loop and discards everything already streamed. Harden in one pass: a stop
@@ -619,14 +647,29 @@ impact; none built or grilled yet *(18.1 built 2026-08-28; the rest remain so)*.
   path, which duplicates `apiClient`'s clear-and-dispatch logic and is untested. → *verify (RTL + MSW): Stop aborts the
   fetch; a malformed frame is skipped without losing prior tokens; leaving mid-run does not keep streaming into an
   unmounted hook; a mid-stream 401 clears the token and routes to login.*
-- [ ] **18.6 Drop `spring-boot-devtools` from the production jar.** Declared as a direct `runtime` dependency in the
+  → *Done (2026-08-29): one pass, as specified. `streamRun()` takes an `AbortSignal` and skips a malformed frame in
+  place (a throw there would discard everything already streamed, and a one-shot body cannot be re-read); comments and
+  `id:`/`retry:`/unknown fields are ignored; CRLF is tolerated with a carriage-hold so a chunk-split `\r\n` cannot
+  masquerade as a frame boundary, and a missing-terminator tail frame still parses at end of stream. A mid-stream 401
+  routes through the same extracted `clearAndAnnounceUnauthorized()` as the JSON client (token cleared, AuthListener
+  routed) instead of surfacing as a run error. `useRunStream` gains a Stop that aborts and marks `stopped`
+  synchronously; unmount and prompt-change share one cleanup (abort + idle reset, and the flush-on-leave failure is
+  `console.error`ed rather than silently swallowed). RTL+MSW tests cover each clause, including stop, the malformed
+  frame, unmount mid-run, and the 401.*
+- [x] **18.6 Drop `spring-boot-devtools` from the production jar.** Declared as a direct `runtime` dependency in the
   production `pom.xml` (`backend/pom.xml:118-122`, oddly space-indented) and ships in the built artifact. → *verify:
   the dependency is gone and `./mvnw verify` stays green.*
-- [ ] **18.7 "New Prompt" stops hard-coding the default model.** `NEW_PROMPT_BODY.model = 'claude-sonnet-4-6'`
+  → *Done (2026-08-29): the dependency block and its comment are gone from `backend/pom.xml`; the verify run in this
+  registry's 18.3 note also proves the jar builds without it (166/166).*
+- [x] **18.7 "New Prompt" stops hard-coding the default model.** `NEW_PROMPT_BODY.model = 'claude-sonnet-4-6'`
   (`HomePage.tsx:27`) duplicates the backend catalogue by hand, when `GET /api/models` already returns `defaultModel`
   and the Console already fetches it — a backend model rename silently breaks Prompt creation. → *verify (RTL + MSW):
   creating a Prompt uses the catalog's `defaultModel` rather than a frontend literal.*
-- [ ] **18.8 Dead-code sweep.** Backend: `Page.from` (`common/Page.java:12`, no callers — `PromptService` builds
+  → *Done (2026-08-29): the mutation resolves the model at call time via `queryClient.fetchQuery` over the warm
+  `['models']` cache — the button never waits on a cold fetch, and no frontend literal exists. The test serves a
+  `defaultModel` named nowhere else in the app (`catalogue-only-model`) and asserts that exact string in the POSTed
+  body.*
+- [x] **18.8 Dead-code sweep.** Backend: `Page.from` (`common/Page.java:12`, no callers — `PromptService` builds
   `Page` by hand), `AuthPrincipal.email()` (parsed and carried per request, never read), `ApiKey.getEncKeyVersion()`
   (keep the `enc_key_version` column — ADR-0002 rotation scaffolding — but drop the unread getter or wire rotation).
   Frontend: the 0-byte tracked `src/App.tsx`, the unreferenced `public/icons.svg` sprite, the stray `src/node_modules/`
@@ -634,9 +677,20 @@ impact; none built or grilled yet *(18.1 built 2026-08-28; the rest remain so)*.
   ADR-0009 leftovers), `.button-link-outline` (`:660-664`), `.status-current`, `.prompt-columns`/`.settings-columns`
   (`:1388-1394`), and the stale "version/run metadata" comment (`:1179`). → *verify: a reference-grep proves each
   removal; backend and frontend suites, typecheck, and lint stay green.*
-- [ ] **18.9 Give the dev Postgres its volume back.** The `promptvault-pgdata` named-volume mount is commented out of
+  → *Done (2026-08-29): every listed item removed, each proven unreferenced by a grep of the tree before the cut. With
+  `AuthPrincipal.email` gone the record reduces to `userId` (tokens still carry email at issue; nothing downstream read
+  the claim), and the `enc_key_version` column plus its constructor plumbing stay per ADR-0002 — only the unread getter
+  was dropped. The sweep also took two adjacent provably-dead rules the grep flagged for the same reason: the `.status`
+  pill base (only `.status-current` used it) and the `.EasyMDE` overflow override (this build never emits the class).
+  Backend suite, frontend suite, typecheck, and lint all green.*
+- [x] **18.9 Give the dev Postgres its volume back.** The `promptvault-pgdata` named-volume mount is commented out of
   `docker-compose.yml`, so dev data dies with `docker compose down`. Restore it — or decide reset-on-down is deliberate
   and say so in the README. → *verify: Prompts survive a `down`/`up` cycle.*
+  → *Done (2026-08-29): the mount is restored at `/var/lib/postgresql` (the wide mount, since postgres:18 keeps PGDATA
+  under it) with the compose comment explaining that only `down -v` starts over, and the top-level `promptvault-pgdata:`
+  declaration reinstated. Verified against the live stack the API-level way: a Prompt POSTed before `down` still reads
+  back with its original timestamps after `up` — persistence, not a re-seed, since the init script runs only on an empty
+  volume.*
 
 ---
 
