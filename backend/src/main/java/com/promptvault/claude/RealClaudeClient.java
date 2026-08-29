@@ -29,7 +29,7 @@ public class RealClaudeClient implements ClaudeClient {
 
     @Override
     public void stream(ClaudeRequest request, String apiKey, TokenSink sink) {
-        AnthropicClient client = AnthropicOkHttpClient.builder().apiKey(apiKey).build();
+        AnthropicClient client = newClient(apiKey);
         try {
             MessageCreateParams params = mapper.toParams(request);
             long[] inputTokens = {0L};
@@ -59,6 +59,16 @@ public class RealClaudeClient implements ClaudeClient {
         } finally {
             client.close();
         }
+    }
+
+    /**
+     * The per-call client, built from the decrypted key (never shared) and
+     * closed when the call exits. Package-visible construction is the point;
+     * protected only so tests can stand on the SDK wire without touching
+     * production wiring.
+     */
+    protected AnthropicClient newClient(String apiKey) {
+        return AnthropicOkHttpClient.builder().apiKey(apiKey).build();
     }
 
     private static ErrorCategory categoryFor(int statusCode) {
