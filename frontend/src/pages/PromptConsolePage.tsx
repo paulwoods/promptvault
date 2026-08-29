@@ -355,16 +355,17 @@ function useInlineField(
     },
   })
 
-  // Blank matches @NotBlank exactly, so the server's rejection is unreachable
-  // from the UI; an optional field has no such rule, and its blank string is
-  // how a full save clears the column, so blank stays committable there. For a
-  // live field this is also what *holds* the save rather than sending a request
-  // that could only 400.
+  // A required field holds a blank save rather than sending a request the
+  // server's @NotBlank could only 400. Name is the only one that can reach
+  // that state by typing — the other required fields are selects and a number.
+  // An optional field has no such rule: its blank string is how the stored
+  // column is cleared, which since ADR-0013 means both prompt bodies as well
+  // as Description, so neither live field is ever held.
   const committable = (optional || draft.trim() !== '') && draft !== stored
 
   // Work the tab would take with it. Wider than `committable` on purpose: a
-  // blank User Prompt is held rather than sent, and a save that failed leaves
-  // the draft ahead of `stored` — both are still the User's typing. A closed
+  // blank Name is held rather than sent, and a save that failed leaves the
+  // draft ahead of `stored` — both are still the User's typing. A closed
   // Details editor is not, since its draft is re-seeded the next time it opens.
   useUnloadGuard(editing && draft !== stored)
 
