@@ -859,7 +859,7 @@ seam every action crosses.
 - [x] **21.6 A failed flush says which field failed.** The seam's rejection carries the field name and
   `RunPane`'s alert uses it. → *verify (RTL + MSW): a PATCH that 500s on Max tokens blocks the run and
   names Max tokens in the alert.*
-- [ ] **21.7 The record.** ADR-0012 gains the unmount asymmetry in its consequences — bodies are flushed
+- [x] **21.7 The record.** ADR-0012 gains the unmount asymmetry in its consequences — bodies are flushed
   on leaving, Details drafts are discarded by leaving, and why the two differ. Note that the
   content-vs-settings split itself is unchanged: this phase sharpens *when* a settings field is written,
   not whether it autosaves. PATCH still narrows each clobber to the fields a tab touched (ADR-0008).

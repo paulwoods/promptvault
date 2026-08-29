@@ -65,7 +65,9 @@ loop that ADR-0008 exists to shorten.
   failed `PATCH` aborts it. This is surprising, and it is the price of `streamRun` sending only a `promptId` — the
   backend reads the stored Prompt, so the only way to guarantee the output matches the screen is to make the screen the
   stored Prompt first. Duplicate flushes the same way, for the same reason: it copies from the query cache and would
-  otherwise silently duplicate the previous text.
+  otherwise silently duplicate the previous text. *(Widened by Phase 21: the flush covers all eight fields, not
+  the two bodies alone — an open Model or Max tokens editor used to stream the previous value with no indication. A
+  failed flush now names the field it failed on, since six of the eight can be behind a closed tab.)*
 - **The Console has two save models, and a reader will trip over it.** The bodies save themselves; Name, Description,
   Model, Max tokens, Effort and Thinking are clicked, edited and committed. The line is *content you iterate on* versus
   *settings you set once*, and it is a judgement, not a rule the code can enforce.
@@ -86,6 +88,24 @@ loop that ADR-0008 exists to shorten.
 - **`beforeunload` is the app's first browser dialog.** Closing or reloading the tab warns when any Console field has
   uncommitted work — the bodies *and* an open Details editor, one rule rather than two. In-app navigation is not
   guarded, so abandoning a Details edit by navigating away still works exactly as it did.
+- **Leaving the Console writes the bodies and discards the Details drafts, and the asymmetry is deliberate.** In-app
+  navigation is unguarded (above), so unmount is the last chance to write anything pending. A body is flushed there
+  because it has no discard gesture *precisely because* it is always live — its undo is the editor's own `Ctrl+Z`, and
+  nothing else would ever write what was typed. A Details field's discard gesture *is* leaving: clicking away to
+  abandon an uncommitted edit is a thing users rely on, and flushing all eight on unmount would turn backing out into a
+  silent save with no undo. Hence two verbs on the flush seam — `flush` for Run, Duplicate and any other reader of the
+  stored Prompt, `flushOnLeave` for unmount — named so that calling the wrong one at the unmount site reads as a
+  mistake.
+- **The content-vs-settings split is unchanged.** Phase 21 sharpened *when* a settings field is written, not whether it
+  autosaves: no field started saving itself as a side effect. Making the six live would supersede this ADR and would
+  still not remove the flush — an autosave is debounced, so a pending window exists either way. It would change how
+  many fields can be pending, not whether pending is possible. `PATCH` still narrows each clobber to the fields a tab
+  actually touched (ADR-0008).
+- **A field that cannot be sent blocks the Run, and the seam says which.** Clearing the Name leaves a field that is
+  uncommitted *and* unsendable, which no flush can reconcile; running would use the stored name while the screen shows
+  nothing. Blocking with the reason on the button is the rule the Console already teaches for a both-blank Prompt
+  (ADR-0013), applied to one more case, with precedence between them owned by the seam — the only thing holding all
+  eight fields.
 - **Writes are cheap, and that is load-bearing.** `['prompts', q]` is queried only by the prompt list, which is
   unmounted while the Console is open, so each save's list invalidation marks stale without refetching. The cost of a
   save is one `PATCH`. Overlapping saves need an ordering guard, since each success writes
