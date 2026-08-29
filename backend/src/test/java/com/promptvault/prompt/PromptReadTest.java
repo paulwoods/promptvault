@@ -1,11 +1,10 @@
 package com.promptvault.prompt;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import com.promptvault.IntegrationTest;
 import com.promptvault.support.TestTokens;
@@ -14,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
 class PromptReadTest extends IntegrationTest {
 
     @Autowired
@@ -45,7 +43,7 @@ class PromptReadTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
         String promptId = JsonPath.read(response, "$.promptId");
-        mockMvc.perform(put("/api/prompts/" + promptId)
+        mockMvc.perform(patch("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("Second")))
@@ -107,7 +105,7 @@ class PromptReadTest extends IntegrationTest {
 
         mockMvc.perform(get("/api/prompts/" + promptId).header(HttpHeaders.AUTHORIZATION, otherToken))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(put("/api/prompts/" + promptId)
+        mockMvc.perform(patch("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, otherToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("Hijacked")))

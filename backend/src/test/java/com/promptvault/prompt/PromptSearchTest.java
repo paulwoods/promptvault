@@ -2,11 +2,10 @@ package com.promptvault.prompt;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import com.promptvault.IntegrationTest;
 import com.promptvault.support.TestTokens;
@@ -15,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
 /** 9.1.1: {@code GET /api/prompts?q=term} case-insensitive substring search. */
 class PromptSearchTest extends IntegrationTest {
 
@@ -130,7 +128,7 @@ class PromptSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
         String promptId = JsonPath.read(response, "$.promptId");
-        mockMvc.perform(put("/api/prompts/" + promptId)
+        mockMvc.perform(patch("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("NewName", "new desc")))

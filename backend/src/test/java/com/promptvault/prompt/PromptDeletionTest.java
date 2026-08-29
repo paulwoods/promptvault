@@ -3,11 +3,10 @@ package com.promptvault.prompt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import com.promptvault.IntegrationTest;
 import com.promptvault.support.TestTokens;
@@ -21,7 +20,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
-
 /**
  * Soft delete / restore / Trash (ADR-0004): 9.5.2-9.5.5. Restoring a
  * never-deleted or already-active prompt is a documented 404, matching the
@@ -188,7 +186,7 @@ class PromptDeletionTest extends IntegrationTest {
                 .andExpect(status().isNoContent());
 
         // While deleted: updating is cascade-filtered (ADR-0004), like every read.
-        mockMvc.perform(put("/api/prompts/" + promptId)
+        mockMvc.perform(patch("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("TrashEdit edited")))
@@ -202,7 +200,7 @@ class PromptDeletionTest extends IntegrationTest {
                 .andExpect(status().isNoContent());
 
         // After restore: updating resolves again.
-        mockMvc.perform(put("/api/prompts/" + promptId)
+        mockMvc.perform(patch("/api/prompts/" + promptId)
                         .header(HttpHeaders.AUTHORIZATION, token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("TrashEdit edited")))

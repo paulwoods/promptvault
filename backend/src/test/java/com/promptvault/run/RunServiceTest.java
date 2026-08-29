@@ -9,6 +9,7 @@ import com.promptvault.claude.FakeClaudeClient;
 import com.promptvault.claude.Usage;
 import com.promptvault.error.DomainValidationException;
 import com.promptvault.prompt.Prompt;
+import com.promptvault.prompt.PromptPatchRequest;
 import com.promptvault.prompt.PromptRequest;
 import com.promptvault.prompt.PromptService;
 import com.promptvault.usage.ModelUsage;
@@ -124,11 +125,10 @@ class RunServiceTest extends AbstractDatabaseTest {
                 .isInstanceOf(DomainValidationException.class);
 
         // A single filled body is enough — this run reaches the fake client.
-        promptService.updatePrompt(
+        promptService.patchPrompt(
                 userId,
                 prompt.getId(),
-                new PromptRequest(
-                        "Empty", null, "", "claude-opus-4-8", "Be brief", 1000, "medium", "off"));
+                new PromptPatchRequest(null, null, null, null, "Be brief", null, null, null));
         runService.run(userId, prompt.getId());
 
         // Outlives the assertion on purpose: the usage row landing is also what

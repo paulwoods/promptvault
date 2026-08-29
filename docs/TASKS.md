@@ -763,7 +763,7 @@ cardinality rules.
 - **The write seam earns an ADR.** "Why is there no PUT?" is exactly the question an ADR answers, and
   nothing currently records that PATCH is the Prompt's only mutating door.
 
-- [ ] **20.1 Migrate the fixtures off PUT.** Rewrite the five MockMvc usages as PATCH with the same body;
+- [x] **20.1 Migrate the fixtures off PUT.** Rewrite the five MockMvc usages as PATCH with the same body;
   `RunServiceTest:127` becomes a `patchPrompt` call. → *verify: no test references `put("/api/prompts` or
   `updatePrompt`; backend suite green at its current count.*
 - [ ] **20.2 Delete the endpoint and the method.** Remove `PUT /api/prompts/{id}` and
