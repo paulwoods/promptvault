@@ -24,7 +24,7 @@ class CurrentUserTest {
         UUID userId = UUID.randomUUID();
         SecurityContextHolder.getContext()
                 .setAuthentication(new UsernamePasswordAuthenticationToken(
-                        new AuthPrincipal(userId, "user@example.com"), null, List.of()));
+                        new AuthPrincipal(userId), null, List.of()));
 
         assertThat(currentUser.userId()).isEqualTo(userId);
     }

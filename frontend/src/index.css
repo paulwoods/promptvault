@@ -401,24 +401,6 @@ label {
   gap: var(--space-20);
 }
 
-.prompt-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-20);
-}
-
-.settings-columns {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-20);
-}
-
-.prompt-columns > label,
-.settings-columns > label {
-  flex-direction: column;
-  align-items: stretch;
-}
-
 input,
 textarea,
 select {
@@ -653,17 +635,6 @@ button[type='submit']:active:not(:disabled) {
   font-size: 13px;
 }
 
-.button-link-outline {
-  background: transparent;
-  color: var(--gold);
-  border: 1px solid var(--gold);
-}
-
-.button-link-outline:hover {
-  background: var(--gold);
-  color: var(--carbon);
-}
-
 /* Fieldsets / variable editor */
 fieldset {
   border: 1px solid var(--border);
@@ -691,30 +662,6 @@ fieldset > div {
 
 fieldset > div:last-child {
   margin-bottom: 0;
-}
-
-.variable-remove {
-  padding: var(--space-6) var(--space-12);
-  font-size: 13px;
-  background: var(--gold);
-  color: var(--carbon);
-}
-
-.variable-remove:hover:not(:disabled) {
-  background: var(--gold-bright);
-  border-color: transparent;
-}
-
-.variable-add {
-  padding: var(--space-6) var(--space-12);
-  font-size: 13px;
-  background: var(--gold);
-  color: var(--carbon);
-}
-
-.variable-add:hover:not(:disabled) {
-  background: var(--gold-bright);
-  border-color: transparent;
 }
 
 .api-key-row {
@@ -1185,7 +1132,7 @@ li a {
   font-weight: 500;
 }
 
-/* Definition lists for version/run metadata */
+/* Definition lists (profile identity) */
 dl {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1257,22 +1204,6 @@ pre code {
   justify-content: center;
   padding: var(--space-12);
   font-size: 16px;
-}
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-4) var(--space-10);
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.status-current {
-  color: var(--gold);
-  background: var(--gold-dim);
 }
 
 .empty {
@@ -1406,14 +1337,6 @@ ul.simple-list > li {
 
   fieldset > div > label {
     justify-content: flex-start;
-  }
-
-  .prompt-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-columns {
-    grid-template-columns: 1fr 1fr;
   }
 
   .prompt-grid {

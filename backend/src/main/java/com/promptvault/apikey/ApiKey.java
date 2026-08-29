@@ -74,9 +74,10 @@ public class ApiKey {
         return userId;
     }
 
-    public int getEncKeyVersion() {
-        return encKeyVersion;
-    }
+    // `encKeyVersion` is stored but has no reader yet: it is ADR-0002's
+    // scaffolding for key rotation — rotate the encryption key, bump the
+    // version, re-encrypt rows whose version is behind. Until that exists the
+    // column is written only via the constructor and read only by rotation.
 
     public Instant getUpdatedAt() {
         return updatedAt;

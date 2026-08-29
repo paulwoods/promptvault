@@ -44,6 +44,8 @@ public class JwtService {
     public AuthPrincipal parse(String token) {
         Claims claims =
                 Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-        return new AuthPrincipal(UUID.fromString(claims.getSubject()), claims.get("email", String.class));
+        // Email is carried in the issued token, but the principal it rides on
+        // names only what ownership decisions need: the user id.
+        return new AuthPrincipal(UUID.fromString(claims.getSubject()));
     }
 }
