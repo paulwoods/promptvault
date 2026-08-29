@@ -7,13 +7,13 @@ import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 
 /** The default body HomePage posts when New Prompt is clicked. Kept in sync
- *  with the NEW_PROMPT_BODY constant in HomePage.tsx. */
+ *  with the NEW_PROMPT_BODY constant in HomePage.tsx — model excluded, since
+ *  it comes from the /api/models catalogue rather than a frontend literal. */
 const DEFAULT_BODY = {
   name: 'New prompt',
   description: '',
   promptText: 'hi',
   systemPrompt: 'you are a helpful assistant',
-  model: 'claude-sonnet-4-6',
   maxTokens: 1000,
   effort: 'medium',
   thinking: 'adaptive',
@@ -60,6 +60,45 @@ describe('HomePage New Prompt', () => {
       }),
     ).toBeInTheDocument()
     expect(posted).toMatchObject(DEFAULT_BODY)
+  })
+
+  it('uses the catalogue defaultModel, not a frontend model literal', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    let posted: unknown
+    server.use(
+      // A default no page in the app names anywhere: if HomePage still carried
+      // its own hardcoded model, this assert could not pass.
+      http.get('/api/models', () =>
+        HttpResponse.json({
+          models: [
+            {
+              id: 'catalogue-only-model',
+              supportsEffort: true,
+              effortLevels: ['low', 'medium', 'high'],
+              supportsAdaptiveThinking: true,
+              alwaysThinking: false,
+            },
+          ],
+          defaultModel: 'catalogue-only-model',
+        }),
+      ),
+      http.post('/api/prompts', async ({ request }) => {
+        posted = await request.json()
+        return HttpResponse.json(
+          promptResponse({ model: 'catalogue-only-model' }),
+          { status: 201 },
+        )
+      }),
+      http.get('/api/prompts/p9', () =>
+        HttpResponse.json(promptResponse({ model: 'catalogue-only-model' })),
+      ),
+    )
+
+    renderApp('/')
+    await user.click(await screen.findByRole('button', { name: 'New Prompt' }))
+
+    expect((posted as { model?: string }).model).toBe('catalogue-only-model')
   })
 
   it('disables and relabels the button while the create is in flight', async () => {

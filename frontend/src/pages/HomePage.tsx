@@ -14,16 +14,22 @@ import { apiClient } from '../lib/apiClient'
 import { errorMessage } from '../lib/errorMessage'
 import { usePageTitle } from '../lib/pageTitle'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
-import type { Page, PromptResponse, PromptSummary } from '../lib/types'
+import type {
+  ModelsResponse,
+  Page,
+  PromptResponse,
+  PromptSummary,
+} from '../lib/types'
 
 // The defaults a New Prompt is created with. The Console opens on the created
-// prompt, so every field is one inline-edit away from something useful.
-const NEW_PROMPT_BODY: PromptRequestBody = {
+// prompt, so every field is one inline-edit away from something useful. Model
+// is deliberately absent: it is the one field the backend catalogue owns, and
+// copying its default here would drift the moment the catalogue renames one.
+const NEW_PROMPT_BODY: Omit<PromptRequestBody, 'model'> = {
   name: 'New prompt',
   description: '',
   promptText: 'hi',
   systemPrompt: 'you are a helpful assistant',
-  model: 'claude-sonnet-4-6',
   maxTokens: 1000,
   effort: 'medium',
   thinking: 'adaptive',
@@ -36,8 +42,19 @@ export function HomePage() {
   // New Prompt skips the form: it creates a prompt from NEW_PROMPT_BODY and
   // drops straight onto the Console, where the inline editors take over.
   const createPrompt = useMutation({
-    mutationFn: () =>
-      apiClient.post<PromptResponse>('/api/prompts', NEW_PROMPT_BODY),
+    mutationFn: async () => {
+      // fetchQuery answers from the cache the Console's ['models'] query
+      // keeps warm, and only goes to the wire when there is none yet — so
+      // the click never waits on the catalogue for more than one GET.
+      const catalog = await queryClient.fetchQuery({
+        queryKey: ['models'],
+        queryFn: () => apiClient.get<ModelsResponse>('/api/models'),
+      })
+      return apiClient.post<PromptResponse>('/api/prompts', {
+        ...NEW_PROMPT_BODY,
+        model: catalog.defaultModel,
+      })
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['prompts'] })
       navigate(`/prompts/${data.promptId}/console`)
