@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Architecture review — Prompt Vault</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+  </script>
+  <style>
+    .mermaid svg { max-height: 320px; }
+    .seam { stroke-dasharray: 4 4; }
+    .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+    .leak { color: #dc2626; }
+  </style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans antialiased">
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-14">
+
+  <!-- ================= header ================= -->
+  <header class="space-y-3">
+    <h1 class="font-serif text-4xl tracking-tight">Architecture review — Prompt Vault</h1>
+    <p class="text-sm text-slate-500">28 Aug 2026 · weighted toward what churns: the Prompt Console and its backend mirror — the last 80 commits land there.</p>
+    <div class="flex flex-wrap gap-x-6 gap-y-1 text-xs uppercase tracking-wider text-slate-500">
+      <span><span class="inline-block w-3 h-3 border border-slate-500 align-middle mr-1"></span>module</span>
+      <span><span class="inline-block w-6 border-t-2 border-dashed border-slate-500 align-middle mr-1"></span>seam</span>
+      <span><span class="inline-block w-3 h-3 border border-red-600 align-middle mr-1"></span>leakage / dead</span>
+      <span><span class="inline-block w-3 h-3 deep rounded-sm align-middle mr-1"></span>deep module</span>
+    </div>
+  </header>
+
+  <section id="candidates" class="space-y-12">
+
+  <!-- ================= 1 · run ================= -->
+  <article id="run" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-serif text-2xl">1 · Give the Run one module</h2>
+      <div class="flex gap-2">
+        <span class="rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 uppercase tracking-wider">Strong</span>
+        <span class="rounded-full bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1 uppercase tracking-wider">local-substitutable</span>
+      </div>
+    </div>
+
+    <p class="font-mono text-sm text-slate-600">
+      frontend/src/lib/streamRun.ts (95) · frontend/src/lib/useRunStream.ts (71) ·
+      pages/PromptConsolePage.tsx:165–229 (RunPane) · streamRun.test + backend/run/SseRunStream.java companion
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-2">Today — three fragments, one protocol</p>
+        <pre class="mermaid">
+flowchart TB
+  R["RunPane<br/>button · output"] --> H["useRunStream<br/>lifecycle state"]
+  H --> S["streamRun<br/>fetch · framing · parse"]
+  S --> F["readable stream<br/>hand-parsed frames"]
+  A["apiClient<br/>bearer + 401"] -. "401 written twice" .- S
+  R2["route '/settings/api-key'<br/>inside a lib hook"] -.-> H
+  N["no abort signal anywhere"] -.-> S
+  B["read loop exits,<br/>no terminal frame sent"] -.-> N
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class A,R2,B leak
+        </pre>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4 flex flex-col">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-2">Deepened — one module, small interface</p>
+        <div class="flex-1 flex flex-col justify-between gap-3">
+          <div class="flex gap-3 justify-center">
+            <div class="border border-slate-400 rounded px-3 py-1 text-xs uppercase tracking-wider bg-stone-50">RunPane<br/><span class="normal-case tracking-normal">start · progress · stop</span></div>
+            <div class="border border-slate-400 rounded px-3 py-1 text-xs uppercase tracking-wider bg-stone-50">Console<br/><span class="normal-case tracking-normal">route decision</span></div>
+          </div>
+          <div class="text-center text-slate-400 text-xs">↓ small interface ↓</div>
+          <div class="deep text-white rounded-xl border-4 border-slate-900 p-5 space-y-3">
+            <div class="text-xs uppercase tracking-wider text-white/90 font-semibold">Run module</div>
+            <div class="flex flex-wrap gap-2 text-[11px] text-white/60">
+              <span class="border border-white/20 rounded px-2 py-1">abort signal</span>
+              <span class="border border-white/20 rounded px-2 py-1">frame parser</span>
+              <span class="border border-white/20 rounded px-2 py-1">401, once</span>
+              <span class="border border-white/20 rounded px-2 py-1">terminal-on-close</span>
+              <span class="border border-white/20 rounded px-2 py-1">why-it-failed category</span>
+            </div>
+            <p class="text-xs text-white/70">tests cross the same interface with a fake transport</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Problem</span> — a run is assembled from three modules that each hold part of the protocol, so nobody owns stopping, a connection that dies without a terminal frame, or a malformed frame; leaving the Console mid-run keeps the fetch — and the User's key — paying for output nobody reads until the server gives up.</p>
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Solution</span> — one Run module: <em>start, progress, stop</em> on the interface; the abort signal, frame parsing, in-stream 401 handling and close-without-terminal absorbed into the implementation; the Console — not a lib hook — decides where a failed run goes.</p>
+
+    <ul class="list-disc list-inside text-sm space-y-1">
+      <li>abort becomes one implementation detail</li>
+      <li>tests cross the interface with a fake transport</li>
+      <li>401 handled once, not twice</li>
+      <li>close-without-terminal has an owner</li>
+      <li>a lib stops owning a route</li>
+      <li>leverage: one interface, every future hardening</li>
+    </ul>
+
+    <div class="rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-2">
+      One-shot, no Run id, no reconnection stays true (ADR-0007): a Stop button is the client pulling the abort the server already implements — nothing reverses.
+    </div>
+  </article>
+
+  <!-- ================= 2 · flush ================= -->
+  <article id="flush" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-serif text-2xl">2 · One flush seam for the whole Prompt</h2>
+      <div class="flex gap-2">
+        <span class="rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 uppercase tracking-wider">Strong</span>
+        <span class="rounded-full bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1 uppercase tracking-wider">in-process</span>
+      </div>
+    </div>
+
+    <p class="font-mono text-sm text-slate-600">
+      pages/PromptConsolePage.tsx:83–135 (bodies) · :169–229 (RunPane) · :862–892 (Duplicate) ·
+      backend/run/RunService.java:38–44
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-3">Today — run reads 8, flush writes 2</p>
+        <div class="flex flex-wrap gap-2 text-xs mb-4">
+          <span class="rounded px-2 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300">User Prompt · flushed</span>
+          <span class="rounded px-2 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300">System Prompt · flushed</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300">Model · run reads stored value</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300">Max tokens · stale allowed</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300">Effort · stale allowed</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300">Thinking · stale allowed</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300">Name · duplicates stale</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300">Description · duplicates stale</span>
+        </div>
+        <p class="text-xs text-slate-500">RunService.run builds its request from model, system prompt, prompt text, max tokens, effort, thinking — the stored ones, whatever the screen still holds.</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4 flex flex-col">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-3">Deepened — one capability, all eight fields</p>
+        <div class="deep text-white rounded-xl border-4 border-slate-900 p-4 mb-3">
+          <p class="text-xs uppercase tracking-wider text-white/90 font-semibold">Console's flush seam</p>
+          <p class="text-sm text-white/80 mt-1">anything uncommitted? · commit what the screen shows · drop what is pending</p>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">User Prompt</span>
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">System Prompt</span>
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">Model</span>
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">Max tokens</span>
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">Effort</span>
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">Thinking</span>
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">Name</span>
+          <span class="rounded px-2 py-1 bg-slate-100 border border-slate-300">Description</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">Run, Duplicate and Delete cross the same seam; unmount crosses the drop verb. A blank User Prompt is one held reason among many, not the whole enable rule.</p>
+      </div>
+    </div>
+
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Problem</span> — "what runs is what is on screen" is enforced for the two auto-saving bodies and nowhere for the six fields that still need a click, so a stale Model or Max tokens streams silently and an uncommitted Model duplicates stale.</p>
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Solution</span> — the Console owns one capability with three verbs and every action that needs the Prompt as-shown (Run, Duplicate, Delete, unmount) goes through it; the per-field hooks report into it and stop being the invariant.</p>
+
+    <ul class="list-disc list-inside text-sm space-y-1">
+      <li>locality: the invariant lives in one module</li>
+      <li>RunPane unlearns which fields autosave</li>
+      <li>one aggregate promise to test</li>
+      <li>leverage: Run, Duplicate, Delete, unmount</li>
+      <li>flush logic stops being two special cases</li>
+    </ul>
+
+    <div class="rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-2">
+      Sharpens ADR-0012's content-vs-settings judgement rather than reversing it; PATCH still narrows each clobber to what a tab touched (ADR-0008).
+    </div>
+  </article>
+
+  <!-- ================= 3 · write seam ================= -->
+  <article id="write-seam" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-serif text-2xl">3 · Retire PUT: one write seam for the Prompt</h2>
+      <div class="flex gap-2">
+        <span class="rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 uppercase tracking-wider">Strong</span>
+        <span class="rounded-full bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1 uppercase tracking-wider">in-process</span>
+      </div>
+    </div>
+
+    <p class="font-mono text-sm text-slate-600">
+      backend/…/prompt/PromptController.java (122) · PromptService.java:59–117 · PromptRequest.java · PromptPatchRequest.java
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-2">Today — three doors, two validation mechanisms</p>
+        <pre class="mermaid">
+flowchart TB
+  POST["POST /api/prompts<br/>PromptRequest · @Valid"] --> S["PromptService"]
+  PATCH["PATCH /api/prompts/id<br/>merge → mechanical → domain"] --> S
+  PUT["PUT /api/prompts/id<br/>PromptRequest · @Valid"] --> S
+  D0["zero callers — kept as a<br/>test-fixture convenience"] -.-> PUT
+  E1["envelope: lists every field error"] -.-> POST
+  E2["envelope: exactly one error"] -.-> PATCH
+  T["logRequest / logPatch<br/>30-line twins at :91–121"] -.-> S
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class PUT,D0 leak
+        </pre>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4 flex flex-col justify-center">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-3">Deepened — one write seam</p>
+        <div class="deep text-white rounded-xl border-4 border-slate-900 p-5 space-y-2">
+          <p class="text-xs uppercase tracking-wider text-white/90 font-semibold">Prompt write seam</p>
+          <p class="text-sm text-white/80">POST creates · PATCH changes</p>
+          <p class="text-sm text-white/80">validate once, inside the Prompt module</p>
+          <p class="text-sm text-white/80">one error envelope · one log helper</p>
+          <p class="text-xs text-white/60 mt-2">a create is a patch onto nothing — the full-save shape survives only as the merge target</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Problem</span> — the Prompt has three write paths and two validation mechanisms that produce two different error envelopes, and the full-save door has no caller anywhere in the app.</p>
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Solution</span> — POST to create, PATCH to change, one validation pass in the Prompt module, one envelope, one log helper; the lowest-property-path tiebreaker that existed to reconcile the two mechanisms disappears with them.</p>
+
+    <ul class="list-disc list-inside text-sm space-y-1">
+      <li>zero-caller endpoint deleted</li>
+      <li>two validation passes become one</li>
+      <li>one error envelope, every path</li>
+      <li>run-settings tests written once</li>
+      <li>locality: the merge rule has one home</li>
+      <li>interface shrinks without losing the shape</li>
+    </ul>
+
+    <div class="rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-2">
+      Amends one consequence of ADR-0008 ("PUT remains the full-save path") — the decision it records stands; ADR-0012's concurrency reasoning is PATCH-only and untouched.
+    </div>
+  </article>
+
+  <!-- ================= 4 · field ================= -->
+  <article id="field" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-serif text-2xl">4 · One Prompt Field module</h2>
+      <div class="flex gap-2">
+        <span class="rounded-full bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 uppercase tracking-wider">Worth exploring</span>
+        <span class="rounded-full bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1 uppercase tracking-wider">in-process</span>
+      </div>
+    </div>
+
+    <p class="font-mono text-sm text-slate-600">
+      pages/PromptConsolePage.tsx:267–460 (useInlineField) · :558–754 (InlineField) · :756–792 (BodyTab) ·
+      lib/useEditableField.ts (34) · PromptConsolePage.test.tsx (1166)
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-3">Today — interface nearly as wide as the implementation</p>
+        <div class="flex gap-6 items-end h-[280px]">
+          <div class="text-center">
+            <div class="w-24 h-44 bg-emerald-200 border border-emerald-400 rounded-t flex items-end justify-center"><span class="text-[10px] uppercase tracking-wider text-emerald-900 mb-1">interface</span></div>
+            <p class="text-[10px] text-slate-500 mt-1 w-28">12 returns · 12 props · live/optional flags ×8</p>
+          </div>
+          <div class="text-center">
+            <div class="w-24 h-52 bg-slate-300 border border-slate-500 rounded-t flex items-end justify-center"><span class="text-[10px] uppercase tracking-wider text-slate-700 mb-1">implementation</span></div>
+            <p class="text-[10px] text-slate-500 mt-1 w-28">~440 lines · 5-state machine · ordering guard</p>
+          </div>
+          <div class="text-center">
+            <div class="w-16 h-16 bg-emerald-200 border border-emerald-400 rounded-t flex items-end justify-center"><span class="text-[10px] uppercase tracking-wider text-emerald-900 mb-1">2nd</span></div>
+            <p class="text-[10px] text-slate-500 mt-1 w-20">useEditableField — thinner twin</p>
+          </div>
+        </div>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-3">Deepened — two variants, one implementation</p>
+        <div class="flex gap-6 items-end h-[280px]">
+          <div class="text-center">
+            <div class="w-20 h-14 bg-emerald-200 border border-emerald-400 rounded-t flex items-end justify-center"><span class="text-[10px] uppercase tracking-wider text-emerald-900 mb-1">i</span></div>
+            <p class="text-[10px] text-slate-500 mt-1">self-saving body</p>
+          </div>
+          <div class="text-center">
+            <div class="w-20 h-14 bg-emerald-200 border border-emerald-400 rounded-t flex items-end justify-center"><span class="text-[10px] uppercase tracking-wider text-emerald-900 mb-1">i</span></div>
+            <p class="text-[10px] text-slate-500 mt-1">committed field</p>
+          </div>
+          <div class="text-center">
+            <div class="w-28 h-56 deep border-4 border-slate-900 rounded-t flex items-end justify-center text-white/70 text-[10px] uppercase tracking-wider"><span class="mb-1">prompt field module</span></div>
+            <p class="text-[10px] text-slate-500 mt-1 w-32">value · status · three user actions — depth grows, interface stays short</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Problem</span> — the field concept, roughly 440 lines spread across three units of the page file, has no owner: a 12-value hook return and a 12-prop flag plane encode three field contracts as booleans, and a thinner twin grew beside it rather than beneath it.</p>
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Solution</span> — one Prompt Field module owning the draft, the five-state machine, the send/landed ordering guard and the cache write-through, presented as two named variants — the self-saving body and the committed field — each with a three-action interface.</p>
+
+    <ul class="list-disc list-inside text-sm space-y-1">
+      <li>interface: 12 returns → 2 variants</li>
+      <li>the ordering guard gets one home</li>
+      <li>the ceiling test stops real-clock waiting</li>
+      <li>editor edits stop sweeping the suite</li>
+      <li>useEditableField becomes a variant</li>
+      <li>the page file shrinks to composition</li>
+    </ul>
+
+    <div class="rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-2">
+      Cut must not cross the editors' lifetime — editors stay mounted for the Console's life, Ctrl+Z stays the only undo (ADR-0012).
+    </div>
+  </article>
+
+  <!-- ================= 5 · prompt module ================= -->
+  <article id="prompt-module" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-serif text-2xl">5 · One home for the Prompt's identifiers and invariants</h2>
+      <div class="flex gap-2">
+        <span class="rounded-full bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 uppercase tracking-wider">Worth exploring</span>
+        <span class="rounded-full bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1 uppercase tracking-wider">local-substitutable</span>
+      </div>
+    </div>
+
+    <p class="font-mono text-sm text-slate-600">
+      lib/apiClient.ts (65) · lib/types.ts (83) · pages/HomePage.tsx:21–30 · pages/PromptConsolePage.tsx:15–22, 318–336, 833–842 ·
+      test/handlers.ts · components/promptFormValues.ts
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-2">Today — knowledge pasted, not owned</p>
+        <pre class="mermaid">
+flowchart TB
+  K["❓ path strings + cache keys<br/>+ ceiling 200 + enum sets<br/>+ thinking correction"]:::leak
+  K -.-> C["PromptConsolePage"]
+  K -.-> H["HomePage<br/>hard-codes the default model"]
+  K -.-> T["TrashPage"]
+  K -.-> F["test/handlers.ts<br/>3 default routes"]
+  K -.-> X["35 Console tests<br/>each hand-wire GET+PATCH"]
+  classDef leak fill:#fef2f2,stroke:#dc2626,stroke-width:2px;
+        </pre>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4 flex flex-col justify-center gap-2">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">Deepened — one owner, thin callers</p>
+        <div class="flex gap-2 flex-wrap">
+          <span class="border border-slate-400 rounded px-2 py-1 text-xs uppercase tracking-wider bg-stone-50">Console</span>
+          <span class="border border-slate-400 rounded px-2 py-1 text-xs uppercase tracking-wider bg-stone-50">HomePage</span>
+          <span class="border border-slate-400 rounded px-2 py-1 text-xs uppercase tracking-wider bg-stone-50">TrashPage</span>
+          <span class="border border-slate-400 rounded px-2 py-1 text-xs uppercase tracking-wider bg-stone-50">test fixtures</span>
+        </div>
+        <div class="text-center text-slate-400 text-xs">↓ one interface ↓</div>
+        <div class="deep text-white rounded-xl border-4 border-slate-900 p-4 space-y-2">
+          <p class="text-xs uppercase tracking-wider text-white/90 font-semibold">Prompt module</p>
+          <p class="text-xs text-white/70">paths · cache keys · write-through and invalidation promises · capability map · name ceiling · fresh-Prompt shape</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Problem</span> — paths, cache keys, the 200-character name ceiling, the legal enum sets, the thinking correction and the fresh-Prompt shape are re-encoded across six files, so a backend rename or rule change becomes a keyword grep.</p>
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Solution</span> — a Prompt module owning identifiers, promises and invariants; the GET /api/models response's <code class="text-xs bg-stone-100 px-1 rounded">defaultModel</code> fix falls out for free, and one fixture factory pins the wire shape once.</p>
+
+    <ul class="list-disc list-inside text-sm space-y-1">
+      <li>leverage: one file per rename</li>
+      <li>cache rules stop being folklore</li>
+      <li>fixture factory written once</li>
+      <li>the models query stops being a page internal</li>
+    </ul>
+
+    <div class="rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-sm px-4 py-2">
+      Deletion test: this only passes if the module owns cache promises and invariants — a path-string pass-through fails it and needn't exist.
+    </div>
+  </article>
+
+  <!-- ================= 6 · sse wire ================= -->
+  <article id="sse-wire" class="rounded-xl border border-slate-200 bg-white p-8 space-y-6 shadow-sm">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-serif text-2xl">6 · Give the SSE wire an owner</h2>
+      <div class="flex gap-2">
+        <span class="rounded-full bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 uppercase tracking-wider">Worth exploring</span>
+        <span class="rounded-full bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1 uppercase tracking-wider">ports &amp; adapters</span>
+      </div>
+    </div>
+
+    <p class="font-mono text-sm text-slate-600">
+      backend/run/SseRunStream.java (54) · SseFrames.java (15) · RunStream.java (21 — two adapters, real seam) ·
+      frontend/src/lib/streamRun.ts:65–95 · useRunStream.test.tsx:75–110
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-2">Today — the contract lives in two hand-copies</p>
+        <pre class="mermaid">
+flowchart TB
+  E["SseRunStream — the only untested<br/>module on the run path"]:::ep --> W["the wire<br/>token* → done ⏐ error"]
+  T["frontend test - hand-written<br/>literal frames, its own copy"]:::ep --> W
+  W --> Dead["Done.status · Error.status · UsagePayload<br/>written, read by nobody"]:::leak
+  classDef ep fill:#f8fafc,stroke:#64748b;
+  classDef leak fill:#fef2f2,stroke:#dc2626,stroke-width:2px;
+        </pre>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4 flex flex-col justify-center gap-2">
+        <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">Deepened — one owner of the bytes</p>
+        <div class="flex items-center justify-center gap-3 text-xs uppercase tracking-wider">
+          <span class="border border-slate-400 rounded px-2 py-1 bg-stone-50">backend</span>
+          <span class="text-slate-400">↕</span>
+          <span class="deep text-white rounded-lg border-4 border-slate-900 px-3 py-2 normal-case tracking-normal font-semibold">contract test<br/><span class="font-normal text-white/70 text-[10px]">asserts the wire bytes</span></span>
+          <span class="text-slate-400">↕</span>
+          <span class="border border-slate-400 rounded px-2 py-1 bg-stone-50">frontend parser</span>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2 text-xs">
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300 line-through">Done.status</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300 line-through">Error.status</span>
+          <span class="rounded px-2 py-1 bg-red-50 text-red-700 border border-red-300 line-through">UsagePayload</span>
+          <span class="rounded px-2 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300">tokens stay server-side</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Problem</span> — the run seam already has two adapters, yet its encoder is the only untested module on the path and the wire contract survives as two hand-written copies, with dead frames nobody reads riding along from a superseded ADR.</p>
+    <p class="text-sm"><span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Solution</span> — a backend contract test drives a real <code class="text-xs bg-stone-100 px-1 rounded">SseRunStream</code> and asserts the bytes on the wire; the frontend parser decodes the pinned shape; the status and usage payload frames die with the same spirit Phase 12 applied to the meta frame.</p>
+
+    <ul class="list-disc list-inside text-sm space-y-1">
+      <li>the wire encoder gets its first test</li>
+      <li>a frame change breaks one contract test</li>
+      <li>dead status and usage frames deleted</li>
+      <li>two protocol copies become one</li>
+      <li>locality: four frames, one owner</li>
+    </ul>
+
+    <div class="rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-2">
+      ADR-0007 fixes the protocol as <em>token* → done | error</em> — pinning exactly that protects the decision; per-run tokens stay booked server-side (ADR-0005).
+    </div>
+  </article>
+
+  </section>
+
+  <!-- ================= top recommendation ================= -->
+  <section id="top-recommendation" class="rounded-xl border-l-8 border-emerald-500 bg-white p-8 shadow-sm space-y-2">
+    <p class="text-xs uppercase tracking-wider text-emerald-700 font-semibold">Top recommendation</p>
+    <h2 class="font-serif text-2xl"><a href="#run" class="underline decoration-emerald-300 underline-offset-4">Give the Run one module</a></h2>
+    <p class="text-sm">Deepest payoff at the seam the Console was just rebuilt around, and the gaps are user-visible today: no Stop, an abandoned visit keeps the User's key paying, and a dropped connection strands <em>Running…</em> forever — <a class="underline decoration-slate-300 underline-offset-4" href="#sse-wire">Give the SSE wire an owner</a> rides along, since the same frames get pinned and the dead ones deleted.</p>
+    <p class="text-sm text-slate-500">Cheapest strong win if the mood is smaller: <a class="underline decoration-slate-300 underline-offset-4" href="#write-seam">retire PUT</a> — zero callers, pure deletion and consolidation.</p>
+  </section>
+
+</main>
+</body>
+</html>
