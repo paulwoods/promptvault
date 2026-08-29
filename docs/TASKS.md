@@ -847,7 +847,7 @@ seam every action crosses.
 - [x] **21.3 Duplicate crosses `flush`.** The copy is taken only after every field has landed.
   → *verify (RTL + MSW): an uncommitted Model is written before the POST and the copy carries it, not the
   stored one.*
-- [ ] **21.4 Delete discards eight; unmount flushes two.** `discard()` cancels pending saves across all
+- [x] **21.4 Delete discards eight; unmount flushes two.** `discard()` cancels pending saves across all
   eight; the unmount effect calls `flushOnLeave()` and keeps its best-effort `console.error` on
   rejection, with the discard-gesture reasoning in a comment above it.
   → *verify: deleting with a pending edit sends no PATCH after the DELETE; leaving the Console with an

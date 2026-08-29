@@ -1186,6 +1186,10 @@ describe('prompt console', () => {
     const field = await editUserPrompt(user)
     await user.type(field, ' x')
     await user.click(screen.getByRole('button', { name: 'Details' }))
+    // A Details draft as well as a body one: discard covers all eight, so
+    // neither is written on the way out.
+    const description = await editDescription(user)
+    await user.type(description, ' edited')
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(
@@ -1383,6 +1387,38 @@ describe('prompt console', () => {
     expect(
       screen.queryByRole('button', { name: 'Duplicate' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('leaves a Details draft behind on the way out, but writes a pending body', async () => {
+    const user = userEvent.setup()
+    setToken('t')
+    const patches: unknown[] = []
+    server.use(
+      getPrompt(),
+      http.patch('/api/prompts/p1', async ({ request }) => {
+        patches.push(await request.json())
+        return HttpResponse.json(promptResponse())
+      }),
+    )
+
+    const app = renderApp('/prompts/p1/console')
+    const description = await editDescription(user)
+    await user.clear(description)
+    await user.type(description, 'Abandoned')
+    const body = await editUserPrompt(user)
+    await user.type(body, ' kept')
+    app.unmount()
+
+    // A body has no discard gesture *because* it is always live, so leaving
+    // must write it. A Details field's discard gesture *is* leaving (ADR-0012)
+    // — flushing all eight here would turn backing out of an edit into a
+    // silent save with no undo.
+    await vi.waitFor(
+      () =>
+        expect(patches).toContainEqual({ promptText: 'Hello {{topic}} kept' }),
+      AUTOSAVED,
+    )
+    expect(patches).not.toContainEqual({ description: 'Abandoned' })
   })
 
   it('logs a final save on leaving that failed rather than swallowing it', async () => {
