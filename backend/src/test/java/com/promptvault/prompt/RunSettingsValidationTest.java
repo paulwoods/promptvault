@@ -45,7 +45,7 @@ class RunSettingsValidationTest extends IntegrationTest {
 
     @Test
     void validSettingsPersist() throws Exception {
-        submit(body("claude-opus-4-8", 1000, "high", "adaptive", "")).andExpect(status().isCreated());
+        submit(body("claude-opus-5-5", 1000, "high", "adaptive", "")).andExpect(status().isCreated());
     }
 
     @Test
@@ -58,24 +58,24 @@ class RunSettingsValidationTest extends IntegrationTest {
 
     @Test
     void maxTokensOutOfRangeRejected() throws Exception {
-        submit(body("claude-opus-4-8", 999_999, "medium", "off", ""))
+        submit(body("claude-opus-5-5", 999_999, "medium", "off", ""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("validation_error"));
-        submit(body("claude-opus-4-8", 0, "medium", "off", ""))
+        submit(body("claude-opus-5-5", 0, "medium", "off", ""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("validation_error"));
     }
 
     @Test
     void badEffortRejected() throws Exception {
-        submit(body("claude-opus-4-8", 1000, "extreme", "off", ""))
+        submit(body("claude-opus-5-5", 1000, "extreme", "off", ""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.effort").exists());
     }
 
     @Test
     void badThinkingRejected() throws Exception {
-        submit(body("claude-opus-4-8", 1000, "medium", "sometimes", ""))
+        submit(body("claude-opus-5-5", 1000, "medium", "sometimes", ""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.thinking").exists());
     }
@@ -97,13 +97,13 @@ class RunSettingsValidationTest extends IntegrationTest {
 
     @Test
     void extendedEffortLevelsAcceptedOnModelsThatSupportThem() throws Exception {
-        submit(body("claude-opus-4-8", 1000, "xhigh", "off", "")).andExpect(status().isCreated());
+        submit(body("claude-opus-5-5", 1000, "xhigh", "off", "")).andExpect(status().isCreated());
         submit(body("claude-fable-5", 1000, "max", "adaptive", "")).andExpect(status().isCreated());
     }
 
     @Test
     void extendedEffortLevelsRejectedOnModelsThatLackThem() throws Exception {
-        submit(body("claude-sonnet-4-6", 1000, "xhigh", "off", ""))
+        submit(body("claude-sonnet-5-5", 1000, "xhigh", "off", ""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.effort").exists());
         submit(body("claude-haiku-4-5", 1000, "xhigh", "off", ""))
@@ -113,7 +113,7 @@ class RunSettingsValidationTest extends IntegrationTest {
 
     @Test
     void noTemperatureFieldAccepted() throws Exception {
-        submit(body("claude-opus-4-8", 1000, "medium", "off", ",\n  \"temperature\": 0.9"))
+        submit(body("claude-opus-5-5", 1000, "medium", "off", ",\n  \"temperature\": 0.9"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.temperature").doesNotExist());
     }

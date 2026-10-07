@@ -20,7 +20,7 @@ class ClaudeClientSeamTest {
         List<String> tokens = new ArrayList<>();
         Usage[] usage = new Usage[1];
         client.stream(
-                new ClaudeRequest("claude-opus-4-8", null, "world", 100, "medium", "off"), "sk-test", new TokenSink() {
+                new ClaudeRequest("claude-opus-5-5", null, "world", 100, "medium", "off"), "sk-test", new TokenSink() {
                     @Override
                     public void onToken(String text) {
                         tokens.add(text);

@@ -42,7 +42,7 @@ class PromptDeletionTest extends IntegrationTest {
                   "name": "%s",
                   "description": "%s desc",
                   "promptText": "Hello",
-                  "model": "claude-opus-4-8",
+                  "model": "claude-opus-5-5",
                   "maxTokens": 1000,
                   "effort": "medium",
                   "thinking": "off"

@@ -11,7 +11,7 @@ export const handlers = [
     HttpResponse.json({
       models: [
         {
-          id: 'claude-opus-4-8',
+          id: 'claude-opus-5-5',
           supportsEffort: true,
           effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
           supportsAdaptiveThinking: true,
@@ -32,7 +32,7 @@ export const handlers = [
           alwaysThinking: true,
         },
       ],
-      defaultModel: 'claude-opus-4-8',
+      defaultModel: 'claude-opus-5-5',
     }),
   ),
 ]

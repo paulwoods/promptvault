@@ -28,7 +28,7 @@ class PromptPatchTest extends IntegrationTest {
               "name": "Original",
               "description": "Original desc",
               "promptText": "Hello {{who}}",
-              "model": "claude-opus-4-8",
+              "model": "claude-opus-5-5",
               "systemPrompt": "Be brief",
               "maxTokens": 1000,
               "effort": "medium",
@@ -85,7 +85,7 @@ class PromptPatchTest extends IntegrationTest {
                 .andExpect(jsonPath("$.name").value("Renamed"))
                 .andExpect(jsonPath("$.description").value("Original desc"))
                 .andExpect(jsonPath("$.promptText").value("Hello {{who}}"))
-                .andExpect(jsonPath("$.model").value("claude-opus-4-8"))
+                .andExpect(jsonPath("$.model").value("claude-opus-5-5"))
                 .andExpect(jsonPath("$.systemPrompt").value("Be brief"))
                 .andExpect(jsonPath("$.maxTokens").value(1000))
                 .andExpect(jsonPath("$.effort").value("medium"))

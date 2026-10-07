@@ -37,16 +37,16 @@ class UsageTest extends IntegrationTest {
     void repeatedRunsOnAModelAccumulateIntoOneRow() throws Exception {
         String token = "Bearer " + TestTokens.registerAndLogin(mockMvc, "usage@example.com", "password123");
         UUID userId = userId("usage@example.com");
-        recorder.record(userId, "claude-opus-4-8", new Usage(10, 20));
-        recorder.record(userId, "claude-opus-4-8", new Usage(5, 7));
+        recorder.record(userId, "claude-opus-5-5", new Usage(10, 20));
+        recorder.record(userId, "claude-opus-5-5", new Usage(5, 7));
         recorder.record(userId, "claude-haiku-4-5", new Usage(100, 200));
 
         mockMvc.perform(get("/api/me/usage").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[?(@.model == 'claude-opus-4-8')].inputTokens")
+                .andExpect(jsonPath("$[?(@.model == 'claude-opus-5-5')].inputTokens")
                         .value(15))
-                .andExpect(jsonPath("$[?(@.model == 'claude-opus-4-8')].outputTokens")
+                .andExpect(jsonPath("$[?(@.model == 'claude-opus-5-5')].outputTokens")
                         .value(27))
                 .andExpect(jsonPath("$[?(@.model == 'claude-haiku-4-5')].inputTokens")
                         .value(100))
@@ -59,7 +59,7 @@ class UsageTest extends IntegrationTest {
         TestTokens.registerAndLogin(mockMvc, "usage-upsert@example.com", "password123");
         UUID userId = userId("usage-upsert@example.com");
 
-        recorder.record(userId, "claude-opus-4-8", new Usage(1, 2));
+        recorder.record(userId, "claude-opus-5-5", new Usage(1, 2));
         assertThat(usageQueryService.usage(userId))
                 .singleElement()
                 .satisfies(u -> {
@@ -67,7 +67,7 @@ class UsageTest extends IntegrationTest {
                     assertThat(u.outputTokens()).isEqualTo(2);
                 });
 
-        recorder.record(userId, "claude-opus-4-8", new Usage(3, 4));
+        recorder.record(userId, "claude-opus-5-5", new Usage(3, 4));
         assertThat(usageQueryService.usage(userId))
                 .singleElement()
                 .satisfies(u -> {
@@ -80,7 +80,7 @@ class UsageTest extends IntegrationTest {
     void crossUserIsolation() throws Exception {
         String ownerToken = "Bearer " + TestTokens.registerAndLogin(mockMvc, "usage-owner@example.com", "password123");
         UUID ownerId = userId("usage-owner@example.com");
-        recorder.record(ownerId, "claude-opus-4-8", new Usage(50, 60));
+        recorder.record(ownerId, "claude-opus-5-5", new Usage(50, 60));
         String otherToken = "Bearer " + TestTokens.registerAndLogin(mockMvc, "usage-other@example.com", "password123");
 
         mockMvc.perform(get("/api/me/usage").header(HttpHeaders.AUTHORIZATION, otherToken))

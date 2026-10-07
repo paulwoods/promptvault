@@ -24,7 +24,7 @@ describe('usage section', () => {
       apiKeyHandler,
       http.get('/api/me/usage', () =>
         HttpResponse.json([
-          { model: 'claude-opus-4-8', inputTokens: 150, outputTokens: 300 },
+          { model: 'claude-opus-5-5', inputTokens: 150, outputTokens: 300 },
           { model: 'claude-haiku-4-5', inputTokens: 20, outputTokens: 40 },
         ]),
       ),
@@ -32,7 +32,7 @@ describe('usage section', () => {
 
     renderApp('/profile')
 
-    expect(await screen.findByText(/claude-opus-4-8/)).toBeInTheDocument()
+    expect(await screen.findByText(/claude-opus-5-5/)).toBeInTheDocument()
     expect(screen.getByText(/150 input tokens/)).toBeInTheDocument()
     expect(screen.getByText(/300 output tokens/)).toBeInTheDocument()
     expect(screen.getByText(/claude-haiku-4-5/)).toBeInTheDocument()

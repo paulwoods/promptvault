@@ -25,7 +25,7 @@ function promptResponse(overrides: Record<string, unknown> = {}) {
     name: 'New prompt',
     description: null,
     promptText: null,
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5-5',
     systemPrompt: null,
     maxTokens: 1000,
     effort: 'medium',

@@ -11,7 +11,7 @@ const STORED = {
   name: 'Greeting',
   description: 'A greeting',
   promptText: 'Hello',
-  model: 'claude-opus-4-8',
+  model: 'claude-opus-5-5',
   systemPrompt: 'Be brief',
   maxTokens: 2048,
   effort: 'high',

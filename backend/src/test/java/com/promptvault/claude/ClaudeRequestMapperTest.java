@@ -28,7 +28,7 @@ class ClaudeRequestMapperTest {
     @Test
     void opusForwardsEffortAndAdaptiveThinking() {
         MessageCreateParams params =
-                mapper.toParams(new ClaudeRequest("claude-opus-4-8", null, "hi", 256, "high", "adaptive"));
+                mapper.toParams(new ClaudeRequest("claude-opus-5-5", null, "hi", 256, "high", "adaptive"));
 
         assertThat(params.maxTokens()).isEqualTo(256);
         assertThat(params.outputConfig()).isPresent();
@@ -39,7 +39,7 @@ class ClaudeRequestMapperTest {
     @Test
     void adaptiveThinkingDisabledWhenSettingIsOff() {
         MessageCreateParams params =
-                mapper.toParams(new ClaudeRequest("claude-opus-4-8", null, "hi", 100, "medium", "off"));
+                mapper.toParams(new ClaudeRequest("claude-opus-5-5", null, "hi", 100, "medium", "off"));
 
         assertThat(params.thinking().orElseThrow().isDisabled()).isTrue();
     }
@@ -93,9 +93,9 @@ class ClaudeRequestMapperTest {
     @Test
     void aBlankUserMessageGoesOutAsNonWhitespaceText() {
         MessageCreateParams nullText =
-                mapper.toParams(new ClaudeRequest("claude-opus-4-8", "sys", null, 100, "medium", "off"));
+                mapper.toParams(new ClaudeRequest("claude-opus-5-5", "sys", null, 100, "medium", "off"));
         MessageCreateParams whitespaceText =
-                mapper.toParams(new ClaudeRequest("claude-opus-4-8", "sys", "  ", 100, "medium", "off"));
+                mapper.toParams(new ClaudeRequest("claude-opus-5-5", "sys", "  ", 100, "medium", "off"));
 
         assertThat(nullText.messages().get(0).content().string()).hasValue(".");
         assertThat(whitespaceText.messages().get(0).content().string()).hasValue(".");

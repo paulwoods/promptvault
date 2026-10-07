@@ -31,7 +31,7 @@ describe('prompt deletion and trash', () => {
           name: 'ToDelete',
           description: null,
           promptText: 'Hello',
-          model: 'claude-opus-4-8',
+          model: 'claude-opus-5-5',
           systemPrompt: null,
           maxTokens: 1000,
           effort: 'medium',

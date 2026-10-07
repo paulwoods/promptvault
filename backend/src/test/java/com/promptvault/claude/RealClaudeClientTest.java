@@ -91,7 +91,7 @@ class RealClaudeClientTest {
                 event(
                         """
                         {"type":"message_start","message":{"id":"msg_1","type":"message",
-                        "role":"assistant","content":[],"model":"claude-opus-4-8",
+                        "role":"assistant","content":[],"model":"claude-opus-5-5",
                         "usage":{"input_tokens":17,"output_tokens":0}}}"""),
                 event(
                         """
@@ -128,7 +128,7 @@ class RealClaudeClientTest {
                 event(
                         """
                         {"type":"message_start","message":{"id":"msg_1","type":"message",
-                        "role":"assistant","content":[],"model":"claude-opus-4-8",
+                        "role":"assistant","content":[],"model":"claude-opus-5-5",
                         "usage":{"input_tokens":5,"output_tokens":0}}}"""),
                 event(
                         """
@@ -257,7 +257,7 @@ class RealClaudeClientTest {
     }
 
     private ClaudeRequest request() {
-        return new ClaudeRequest("claude-opus-4-8", null, "hi", 100, "medium", "off");
+        return new ClaudeRequest("claude-opus-5-5", null, "hi", 100, "medium", "off");
     }
 
     /** A token sink that records what it was handed so each test can assert the contract. */

@@ -13,8 +13,8 @@ class ModelCatalogTest {
     void exposesExactlyTheFourSupportedModelsWithOpusDefault() {
         assertThat(catalog.all())
                 .extracting(ModelCapability::id)
-                .containsExactly("claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-fable-5");
-        assertThat(catalog.defaultModel()).isEqualTo("claude-opus-4-8");
+                .containsExactly("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-4-5", "claude-fable-5");
+        assertThat(catalog.defaultModel()).isEqualTo("claude-opus-5-5");
     }
 
     @Test
@@ -32,11 +32,11 @@ class ModelCatalogTest {
         assertThat(fable.effortLevels())
                 .containsExactly("low", "medium", "high", "xhigh", "max");
 
-        ModelCapability opus = catalog.find("claude-opus-4-8").orElseThrow();
+        ModelCapability opus = catalog.find("claude-opus-5-5").orElseThrow();
         assertThat(opus.alwaysThinking()).isFalse();
         assertThat(opus.effortLevels()).containsExactly("low", "medium", "high", "xhigh", "max");
 
-        ModelCapability sonnet = catalog.find("claude-sonnet-4-6").orElseThrow();
+        ModelCapability sonnet = catalog.find("claude-sonnet-5-5").orElseThrow();
         assertThat(sonnet.effortLevels()).containsExactly("low", "medium", "high");
         ModelCapability haiku = catalog.find("claude-haiku-4-5").orElseThrow();
         assertThat(haiku.effortLevels()).containsExactly("low", "medium", "high");

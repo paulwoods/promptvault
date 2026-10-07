@@ -34,7 +34,7 @@ class PromptPaginationTest extends IntegrationTest {
         jdbcTemplate.update(
                 "insert into prompt (id, user_id, name, description, prompt_text, model, max_tokens,"
                         + " effort, thinking, updated_at)"
-                        + " values (?, ?, ?, ?, 'hi', 'claude-opus-4-8', 1000, 'medium', 'off',"
+                        + " values (?, ?, ?, ?, 'hi', 'claude-opus-5-5', 1000, 'medium', 'off',"
                         + " now() - make_interval(mins => ?))",
                 UUID.randomUUID(),
                 userId,

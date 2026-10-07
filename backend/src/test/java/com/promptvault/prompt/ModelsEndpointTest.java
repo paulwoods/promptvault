@@ -23,21 +23,21 @@ class ModelsEndpointTest extends IntegrationTest {
 
         mockMvc.perform(get("/api/models").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.defaultModel").value("claude-opus-4-8"))
-                .andExpect(jsonPath("$.models[*].id", Matchers.hasItems("claude-opus-4-8", "claude-haiku-4-5")))
+                .andExpect(jsonPath("$.defaultModel").value("claude-opus-5-5"))
+                .andExpect(jsonPath("$.models[*].id", Matchers.hasItems("claude-opus-5-5", "claude-haiku-4-5")))
                 .andExpect(jsonPath("$.models[?(@.id == 'claude-haiku-4-5')].supportsEffort")
                         .value(false))
                 .andExpect(jsonPath("$.models[?(@.id == 'claude-haiku-4-5')].supportsAdaptiveThinking")
                         .value(false))
-                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-4-8')].supportsAdaptiveThinking")
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-5-5')].supportsAdaptiveThinking")
                         .value(true))
-                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-4-8')].effortLevels",
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-5-5')].effortLevels",
                         Matchers.hasItem(Matchers.hasItem("xhigh"))))
-                .andExpect(jsonPath("$.models[?(@.id == 'claude-sonnet-4-6')].effortLevels",
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-sonnet-5-5')].effortLevels",
                         Matchers.hasItem(Matchers.not(Matchers.hasItem("xhigh")))))
                 .andExpect(jsonPath("$.models[?(@.id == 'claude-fable-5')].alwaysThinking")
                         .value(true))
-                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-4-8')].alwaysThinking")
+                .andExpect(jsonPath("$.models[?(@.id == 'claude-opus-5-5')].alwaysThinking")
                         .value(false));
     }
 

@@ -26,7 +26,7 @@ class PromptSearchTest extends IntegrationTest {
                   "name": "%s",
                   "description": "%s",
                   "promptText": "Hello",
-                  "model": "claude-opus-4-8",
+                  "model": "claude-opus-5-5",
                   "maxTokens": 1000,
                   "effort": "medium",
                   "thinking": "off"

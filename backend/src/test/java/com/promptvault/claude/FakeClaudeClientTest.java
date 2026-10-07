@@ -38,7 +38,7 @@ class FakeClaudeClientTest {
     @Test
     void emitsTokensThenUsageAndCapturesKeyAndRequest() {
         fake.respondWith(List.of("Hello", " world"), new Usage(7, 11));
-        ClaudeRequest request = new ClaudeRequest("claude-opus-4-8", "sys", "rendered prompt", 100, "high", "off");
+        ClaudeRequest request = new ClaudeRequest("claude-opus-5-5", "sys", "rendered prompt", 100, "high", "off");
 
         Recording recording = drive(request, "sk-ant-decrypted");
 
@@ -53,7 +53,7 @@ class FakeClaudeClientTest {
     void failsWithChosenCategory() {
         fake.failWith(new ClaudeException(ErrorCategory.RATE_LIMIT, "slow down"));
 
-        Recording recording = drive(new ClaudeRequest("claude-opus-4-8", null, "x", 100, "medium", "off"), "sk-ant");
+        Recording recording = drive(new ClaudeRequest("claude-opus-5-5", null, "x", 100, "medium", "off"), "sk-ant");
 
         assertThat(recording.tokens()).isEmpty();
         assertThat(recording.usage()).isNull();

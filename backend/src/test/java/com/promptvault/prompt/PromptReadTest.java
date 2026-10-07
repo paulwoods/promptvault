@@ -24,7 +24,7 @@ class PromptReadTest extends IntegrationTest {
                   "name": "%s",
                   "description": "%s desc",
                   "promptText": "Hello",
-                  "model": "claude-opus-4-8",
+                  "model": "claude-opus-5-5",
                   "maxTokens": 1000,
                   "effort": "medium",
                   "thinking": "off"
@@ -73,7 +73,7 @@ class PromptReadTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Second"))
                 .andExpect(jsonPath("$.promptText").value("Hello"))
-                .andExpect(jsonPath("$.model").value("claude-opus-4-8"))
+                .andExpect(jsonPath("$.model").value("claude-opus-5-5"))
                 .andExpect(jsonPath("$.maxTokens").value(1000))
                 .andExpect(jsonPath("$.effort").value("medium"))
                 .andExpect(jsonPath("$.thinking").value("off"))

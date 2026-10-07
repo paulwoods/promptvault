@@ -25,7 +25,7 @@ class PromptCreateTest extends IntegrationTest {
               "name": "Greeting",
               "description": "Say hi",
               "promptText": "Hello there",
-              "model": "claude-opus-4-8",
+              "model": "claude-opus-5-5",
               "systemPrompt": "Be friendly",
               "maxTokens": 1000,
               "effort": "medium",
@@ -55,7 +55,7 @@ class PromptCreateTest extends IntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Greeting"))
                 .andExpect(jsonPath("$.promptText").value("Hello there"))
-                .andExpect(jsonPath("$.model").value("claude-opus-4-8"))
+                .andExpect(jsonPath("$.model").value("claude-opus-5-5"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();

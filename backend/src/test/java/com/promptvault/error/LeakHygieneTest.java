@@ -60,8 +60,8 @@ class LeakHygieneTest {
             streamer.stream(
                     out,
                     UUID.randomUUID(),
-                    "claude-opus-4-8",
-                    new ClaudeRequest("claude-opus-4-8", null, "rendered prompt", 1000, "medium", "off"),
+                    "claude-opus-5-5",
+                    new ClaudeRequest("claude-opus-5-5", null, "rendered prompt", 1000, "medium", "off"),
                     CANARY_KEY);
 
             // The key was genuinely in scope (the client received it)...

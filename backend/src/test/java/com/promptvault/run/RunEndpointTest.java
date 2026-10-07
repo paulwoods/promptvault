@@ -28,7 +28,7 @@ class RunEndpointTest extends IntegrationTest {
     private String createPrompt(String token, String promptText) throws Exception {
         String body =
                 """
-                {"name":"P","promptText":"%s","model":"claude-opus-4-8","maxTokens":1000,"effort":"medium","thinking":"off"}
+                {"name":"P","promptText":"%s","model":"claude-opus-5-5","maxTokens":1000,"effort":"medium","thinking":"off"}
                 """
                         .formatted(promptText);
         String response = mockMvc.perform(post("/api/prompts")

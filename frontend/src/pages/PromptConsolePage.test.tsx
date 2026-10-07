@@ -12,7 +12,7 @@ function promptResponse(overrides: Record<string, unknown> = {}) {
     name: 'Greeting',
     description: 'A greeting',
     promptText: 'Hello {{topic}}',
-    model: 'claude-opus-4-8',
+    model: 'claude-opus-5-5',
     systemPrompt: 'Be brief',
     maxTokens: 2048,
     effort: 'high',
@@ -104,7 +104,7 @@ describe('prompt console', () => {
     ).toBeInTheDocument()
     // The run settings read as text too — all on the Details tab.
     expect(
-      screen.getByRole('button', { name: 'Model claude-opus-4-8' }),
+      screen.getByRole('button', { name: 'Model claude-opus-5-5' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Max tokens 2048' }),
@@ -147,7 +147,7 @@ describe('prompt console', () => {
       await screen.findByRole('button', { name: 'Effort high' }),
     ).toBeInTheDocument()
     await user.click(
-      screen.getByRole('button', { name: 'Model claude-opus-4-8' }),
+      screen.getByRole('button', { name: 'Model claude-opus-5-5' }),
     )
     await user.selectOptions(
       screen.getByRole('combobox', { name: 'Model' }),
@@ -192,7 +192,7 @@ describe('prompt console', () => {
       await screen.findByRole('button', { name: 'Effort max' }),
     ).toBeInTheDocument()
     await user.click(
-      screen.getByRole('button', { name: 'Model claude-opus-4-8' }),
+      screen.getByRole('button', { name: 'Model claude-opus-5-5' }),
     )
     await user.selectOptions(
       screen.getByRole('combobox', { name: 'Model' }),
@@ -1512,7 +1512,7 @@ describe('prompt console', () => {
       expect(posted).toMatchObject({
         name: 'Greeting copy',
         promptText: 'Hello {{topic}}',
-        model: 'claude-opus-4-8',
+        model: 'claude-opus-5-5',
         systemPrompt: 'Be brief',
       }),
     )

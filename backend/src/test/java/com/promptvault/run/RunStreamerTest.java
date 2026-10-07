@@ -15,7 +15,7 @@ import tools.jackson.databind.ObjectMapper;
 
 class RunStreamerTest {
 
-    private static final String MODEL = "claude-opus-4-8";
+    private static final String MODEL = "claude-opus-5-5";
 
     private final UUID userId = UUID.randomUUID();
     private final FakeClaudeClient fake = new FakeClaudeClient();

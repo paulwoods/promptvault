@@ -110,11 +110,11 @@ class PromptCollapseMigrationTest {
         UUID versionB1 = insertVersion(promptB, 1, "B v1", null, "b text", Instant.now().minus(1, ChronoUnit.DAYS));
 
         // Runs: two completed on one model, one on another, and one failed (no tokens).
-        insertRun(user1, versionA1, "claude-opus-4-8", "completed", 10, 20);
-        insertRun(user1, versionA1, "claude-opus-4-8", "completed", 5, 7);
+        insertRun(user1, versionA1, "claude-opus-5-5", "completed", 10, 20);
+        insertRun(user1, versionA1, "claude-opus-5-5", "completed", 5, 7);
         insertRun(user1, versionA1, "claude-haiku-4-5", "completed", 1, 2);
-        insertRun(user1, versionA1, "claude-opus-4-8", "failed", null, null);
-        insertRun(user2, versionB1, "claude-opus-4-8", "completed", 100, 200);
+        insertRun(user1, versionA1, "claude-opus-5-5", "failed", null, null);
+        insertRun(user2, versionB1, "claude-opus-5-5", "completed", 100, 200);
     }
 
     private void insertUser(UUID id, String email) {
@@ -131,7 +131,7 @@ class PromptCollapseMigrationTest {
         jdbcTemplate.update(
                 "insert into version (id, prompt_id, number, name, description, prompt_text, model,"
                         + " system_prompt, max_tokens, effort, thinking, variables, created_at)"
-                        + " values (?, ?, ?, ?, ?, ?, 'claude-opus-4-8', 'sys', 1234, 'high', 'adaptive',"
+                        + " values (?, ?, ?, ?, ?, ?, 'claude-opus-5-5', 'sys', 1234, 'high', 'adaptive',"
                         + " '[{\"name\":\"who\",\"required\":true}]'::jsonb, ?)",
                 id,
                 promptId,
@@ -165,7 +165,7 @@ class PromptCollapseMigrationTest {
         assertThat(prompt.get("name")).isEqualTo("A v3");
         assertThat(prompt.get("description")).isEqualTo("third");
         assertThat(prompt.get("prompt_text")).isEqualTo("current text {{who}}");
-        assertThat(prompt.get("model")).isEqualTo("claude-opus-4-8");
+        assertThat(prompt.get("model")).isEqualTo("claude-opus-5-5");
         assertThat(prompt.get("system_prompt")).isEqualTo("sys");
         assertThat(prompt.get("max_tokens")).isEqualTo(1234);
         assertThat(prompt.get("effort")).isEqualTo("high");
@@ -210,11 +210,11 @@ class PromptCollapseMigrationTest {
         assertThat(usage.get(0)).containsEntry("model", "claude-haiku-4-5");
         assertThat(usage.get(0)).containsEntry("input_tokens", 1L).containsEntry("output_tokens", 2L);
         // 10+5 in, 20+7 out — the failed run contributes nothing.
-        assertThat(usage.get(1)).containsEntry("model", "claude-opus-4-8");
+        assertThat(usage.get(1)).containsEntry("model", "claude-opus-5-5");
         assertThat(usage.get(1)).containsEntry("input_tokens", 15L).containsEntry("output_tokens", 27L);
 
         Long otherUserInput = jdbcTemplate.queryForObject(
-                "select input_tokens from token_usage where user_id = ? and model = 'claude-opus-4-8'",
+                "select input_tokens from token_usage where user_id = ? and model = 'claude-opus-5-5'",
                 Long.class,
                 user2);
         assertThat(otherUserInput).isEqualTo(100L);

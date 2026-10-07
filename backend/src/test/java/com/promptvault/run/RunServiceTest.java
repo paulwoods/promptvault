@@ -78,7 +78,7 @@ class RunServiceTest extends AbstractDatabaseTest {
                 "P",
                 null,
                 "Say hi to {{name}}",
-                "claude-opus-4-8",
+                "claude-opus-5-5",
                 null,
                 1000,
                 "medium",
@@ -93,7 +93,7 @@ class RunServiceTest extends AbstractDatabaseTest {
         runService.run(userId, prompt.getId());
 
         ModelUsage usage = awaitUsage(userId);
-        assertThat(usage.model()).isEqualTo("claude-opus-4-8");
+        assertThat(usage.model()).isEqualTo("claude-opus-5-5");
         assertThat(usage.inputTokens()).isEqualTo(4);
         assertThat(usage.outputTokens()).isEqualTo(6);
         // The seam received the prompt text verbatim (ADR-0009): {{name}} is ordinary text now.
@@ -115,7 +115,7 @@ class RunServiceTest extends AbstractDatabaseTest {
         Prompt prompt = promptService.createPrompt(
                 userId,
                 new PromptRequest(
-                        "Empty", null, "", "claude-opus-4-8", null, 1000, "medium", "off"));
+                        "Empty", null, "", "claude-opus-5-5", null, 1000, "medium", "off"));
         assertThat(prompt.getPromptText()).isNull();
 
         RunStreamer streamer = new RunStreamer(new FakeClaudeClient(), tokenUsageRecorder, objectMapper);
