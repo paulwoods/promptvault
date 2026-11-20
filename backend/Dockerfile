@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25.0.2_10-jre-noble
+FROM eclipse-temurin:25.0.5.1_2-jre-noble
 
 # Install curl for health check
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
